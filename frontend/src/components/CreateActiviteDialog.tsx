@@ -2,6 +2,7 @@ import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useSnackbar } from 'notistack'
 import dayjs, { Dayjs } from 'dayjs'
 import {
   Alert,
@@ -38,6 +39,7 @@ interface Props {
 
 export function CreateActiviteDialog({ open, onClose }: Props) {
   const queryClient = useQueryClient()
+  const { enqueueSnackbar } = useSnackbar()
   const {
     register,
     handleSubmit,
@@ -64,10 +66,18 @@ export function CreateActiviteDialog({ open, onClose }: Props) {
         date_debut: values.date_debut.toISOString(),
         date_fin: values.date_fin.toISOString(),
       }),
-    onSuccess: () => {
+    onSuccess: (activite) => {
       queryClient.invalidateQueries({ queryKey: ['activites'] })
+      enqueueSnackbar(`Activité « ${activite.nom} » créée avec succès.`, {
+        variant: 'success',
+      })
       reset()
       onClose()
+    },
+    onError: () => {
+      enqueueSnackbar("Échec de la création de l'activité.", {
+        variant: 'error',
+      })
     },
   })
 

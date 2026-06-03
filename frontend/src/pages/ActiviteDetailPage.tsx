@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useSnackbar } from 'notistack'
 import dayjs from 'dayjs'
 import {
   Box,
@@ -35,6 +36,7 @@ export function ActiviteDetailPage() {
   const { id = '' } = useParams()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { enqueueSnackbar } = useSnackbar()
   const [qrUrl, setQrUrl] = useState<string | null>(null)
 
   const { data: activite, isLoading } = useQuery({
@@ -59,9 +61,18 @@ export function ActiviteDetailPage() {
 
   const toggleStatut = useMutation({
     mutationFn: (statut: StatutActivite) => updateActivite(id, { statut }),
-    onSuccess: () => {
+    onSuccess: (updated) => {
       queryClient.invalidateQueries({ queryKey: ['activite', id] })
       queryClient.invalidateQueries({ queryKey: ['activites'] })
+      enqueueSnackbar(
+        updated.statut === 'ouvert'
+          ? 'Collecte ouverte.'
+          : 'Collecte fermée.',
+        { variant: 'success' },
+      )
+    },
+    onError: () => {
+      enqueueSnackbar('Impossible de modifier le statut.', { variant: 'error' })
     },
   })
 
