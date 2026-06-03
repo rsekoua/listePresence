@@ -8,6 +8,7 @@ from ninja import NinjaAPI
 
 from apps.accounts.api import router as auth_router
 from apps.activites.api import router as activites_router
+from apps.participants.api import router as public_router
 
 api = NinjaAPI(
     title="API Gestion de Présence",
@@ -17,6 +18,7 @@ api = NinjaAPI(
 
 api.add_router("/auth", auth_router)
 api.add_router("/activites", activites_router)
+api.add_router("/public", public_router)
 
 
 @api.get("/health", tags=["système"], auth=None)

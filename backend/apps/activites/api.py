@@ -157,11 +157,17 @@ def update_activite(request, activite_id: UUID, data: ActiviteUpdate):
 def delete_activite(request, activite_id: UUID):
     """Supprime une activité (créateur ou admin — ACT-06).
 
-    Note : le contrôle « uniquement si aucun participant » sera ajouté au
-    Sprint 3, une fois le modèle Participant disponible.
+    Refusé si l'activité contient des participants (elle ne peut qu'être
+    archivée dans ce cas).
     """
     activite = _get_activite(activite_id)
     _require_edit(request.auth, activite)
+    if activite.participants.exists():
+        raise HttpError(
+            409,
+            "Cette activité contient des participants : elle ne peut pas être "
+            "supprimée (archivez-la à la place).",
+        )
     activite.delete()
     return 200, MessageOut(detail="Activité supprimée.")
 
