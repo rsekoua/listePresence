@@ -10,7 +10,9 @@ import {
   Paper,
   Stack,
   Typography,
+  useMediaQuery,
 } from '@mui/material'
+import { useTheme } from '@mui/material/styles'
 import { DataGrid, type GridColDef } from '@mui/x-data-grid'
 import { frFR } from '@mui/x-data-grid/locales'
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
@@ -21,6 +23,7 @@ import { fetchActivites } from '../api/activites'
 import type { Activite, StatutActivite } from '../api/types'
 import { CreateActiviteDialog } from '../components/CreateActiviteDialog'
 import { ActiviteRowActions } from '../components/ActiviteRowActions'
+import { ActiviteCardList } from '../components/ActiviteCardList'
 
 const STATUT_LABEL: Record<
   StatutActivite,
@@ -43,7 +46,7 @@ function StatCard({
   color: string
 }) {
   return (
-    <Paper sx={{ p: 2.5, flex: 1, minWidth: 180 }}>
+    <Paper sx={{ p: 2.5, height: '100%' }}>
       <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
         <Box
           sx={{
@@ -74,6 +77,8 @@ function StatCard({
 
 export function DashboardPage() {
   const navigate = useNavigate()
+  const theme = useTheme()
+  const isDesktop = useMediaQuery(theme.breakpoints.up('md'))
   const [dialogOpen, setDialogOpen] = useState(false)
 
   const { data, isLoading } = useQuery({
@@ -177,10 +182,13 @@ export function DashboardPage() {
       </Stack>
 
       {/* Statistiques */}
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        spacing={2}
-        sx={{ mb: 3, flexWrap: 'wrap' }}
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
+          gap: 2,
+          mb: 3,
+        }}
       >
         <StatCard
           icon={<EventRoundedIcon />}
@@ -200,13 +208,16 @@ export function DashboardPage() {
           value={fermees}
           color="#d97706"
         />
-      </Stack>
+      </Box>
 
       {/* Tableau */}
       <Paper sx={{ overflow: 'hidden' }}>
         <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
           <Typography sx={{ fontWeight: 600 }}>Liste des activités</Typography>
         </Box>
+        {!isDesktop ? (
+          <ActiviteCardList activites={activites} isLoading={isLoading} />
+        ) : (
         <DataGrid
           rows={activites}
           columns={columns}
@@ -222,7 +233,7 @@ export function DashboardPage() {
           sx={{
             border: 0,
             cursor: 'pointer',
-            minHeight: 420,
+            height: 480,
             '--DataGrid-rowBorderColor': '#eef0f4',
             '& .MuiDataGrid-columnHeaders': {
               bgcolor: 'background.default',
@@ -247,6 +258,7 @@ export function DashboardPage() {
             noRowsLabel: 'Aucune activité pour le moment',
           }}
         />
+        )}
       </Paper>
 
       <CreateActiviteDialog open={dialogOpen} onClose={() => setDialogOpen(false)} />
