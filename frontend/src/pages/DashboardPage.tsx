@@ -48,27 +48,48 @@ function StatCard({
   color: string
 }) {
   return (
-    <Paper sx={{ p: 2.5, height: '100%' }}>
+    <Paper
+      sx={{
+        p: 3,
+        height: '100%',
+        position: 'relative',
+        overflow: 'hidden',
+        transition: 'box-shadow .2s ease, transform .2s ease',
+        '&:hover': {
+          boxShadow: '0 8px 28px rgba(15,23,42,0.10)',
+          transform: 'translateY(-2px)',
+        },
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          inset: 0,
+          background: `radial-gradient(120px 80px at 100% 0%, ${color}14, transparent 70%)`,
+          pointerEvents: 'none',
+        },
+      }}
+    >
       <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
         <Box
           sx={{
-            width: 48,
-            height: 48,
-            borderRadius: 2,
+            width: 52,
+            height: 52,
+            borderRadius: 3,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            bgcolor: `${color}1a`,
-            color,
+            color: '#fff',
+            background: `linear-gradient(135deg, ${color} 0%, ${color}cc 100%)`,
+            boxShadow: `0 6px 16px ${color}40`,
+            flexShrink: 0,
           }}
         >
           {icon}
         </Box>
         <Box>
-          <Typography variant="h4" sx={{ lineHeight: 1 }}>
+          <Typography variant="h3" sx={{ lineHeight: 1, fontWeight: 800 }}>
             {value}
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
             {label}
           </Typography>
         </Box>
@@ -229,13 +250,13 @@ export function DashboardPage() {
           icon={<EventRoundedIcon />}
           label="Activités au total"
           value={total}
-          color="#2563eb"
+          color="#4f46e5"
         />
         <StatCard
           icon={<LockOpenRoundedIcon />}
           label="Collectes ouvertes"
           value={ouvertes}
-          color="#16a34a"
+          color="#059669"
         />
         <StatCard
           icon={<LockRoundedIcon />}

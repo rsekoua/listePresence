@@ -92,12 +92,13 @@ export function AppLayout() {
             width: 36,
             height: 36,
             borderRadius: 1.5,
-            bgcolor: 'primary.main',
+            background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
             color: 'common.white',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0,
+            boxShadow: '0 6px 16px rgba(79,70,229,0.35)',
           }}
         >
           <QrCode2RoundedIcon fontSize="small" />
