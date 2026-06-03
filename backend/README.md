@@ -72,7 +72,8 @@ uv run python manage.py runserver
 - [x] **Sprint 2** — Auth JWT maison, modèle Activite, CRUD + QR Code
 - [x] **RBAC** — rôles admin/organisateur, visibilité globale, édition restreinte, clone
 - [x] **Sprint 3** — Modèle Participant, endpoints publics, traitement CNI (Pillow)
-- [ ] Sprint 4 — Tableau de bord participants
+- [x] **Sprint 4** — Liste/filtres participants, stats, photos CNI protégées, statut
+- [ ] Sprint 5 — Exports Excel / PDF / ZIP
 - [ ] Sprint 3 — Formulaire public & upload CNI
 - [ ] Sprint 4 — Tableau de bord participants
 - [ ] Sprint 5 — Exports Excel / PDF / ZIP

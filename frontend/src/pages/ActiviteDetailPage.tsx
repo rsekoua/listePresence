@@ -29,6 +29,7 @@ import {
 } from '../api/activites'
 import type { StatutActivite } from '../api/types'
 import { ActiviteFormDialog } from '../components/ActiviteFormDialog'
+import { ParticipantsPanel } from '../components/ParticipantsPanel'
 
 const STATUT: Record<
   StatutActivite,
@@ -273,6 +274,11 @@ export function ActiviteDetailPage() {
           </Button>
         </Paper>
       </Stack>
+
+      {/* Participants */}
+      <Box sx={{ mt: 4 }}>
+        <ParticipantsPanel activiteId={activite.id} />
+      </Box>
 
       <ActiviteFormDialog
         open={editOpen}

@@ -52,4 +52,5 @@ npm run build    # vérification TypeScript + build de production
 - [x] **Sprint 2** — Login JWT réel, Dashboard (DataGrid), création d'activité (date pickers), page détail + QR Code téléchargeable
 - [x] **RBAC** — rôles, édition/clonage, colonne organisateur, gating UI
 - [x] **Sprint 3** — Formulaire public mobile (/form/:token), upload + compression CNI, confirmation, mode hors-ligne
-- [ ] Sprint 4 — Tableau de bord participants
+- [x] **Sprint 4** — Section participants (table/cartes, recherche, filtres, compteur 30 s), stats, fiche + photos CNI
+- [ ] Sprint 5 — Exports Excel / PDF / ZIP
