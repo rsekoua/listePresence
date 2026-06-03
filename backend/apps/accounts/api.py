@@ -42,6 +42,7 @@ class UserOut(Schema):
     id: str
     username: str
     email: str
+    role: str
 
 
 class MessageOut(Schema):
@@ -86,4 +87,9 @@ def logout(request):
 def me(request):
     """Retourne les informations de l'organisateur connecté."""
     user = request.auth
-    return UserOut(id=str(user.id), username=user.username, email=user.email)
+    return UserOut(
+        id=str(user.id),
+        username=user.username,
+        email=user.email,
+        role=user.role,
+    )

@@ -168,7 +168,7 @@ export function DashboardPage() {
             Vue d'ensemble
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Gérez vos activités et leurs QR Codes
+            Gérez vos activités et générer leurs QR Codes
           </Typography>
         </Box>
         <Button

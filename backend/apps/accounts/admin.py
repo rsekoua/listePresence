@@ -6,8 +6,9 @@ from .models import User
 
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
-    list_display = ("username", "email", "is_active", "is_staff", "created_at")
-    list_filter = ("is_active", "is_staff", "is_superuser")
+    list_display = ("username", "email", "role", "is_active", "is_staff", "created_at")
+    list_filter = ("role", "is_active", "is_staff", "is_superuser")
     search_fields = ("username", "email")
     ordering = ("-created_at",)
     readonly_fields = ("created_at",)
+    fieldsets = UserAdmin.fieldsets + (("Rôle applicatif", {"fields": ("role",)}),)
