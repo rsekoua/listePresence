@@ -1,0 +1,11 @@
+/* Les styles globaux sont gérés par le thème MUI + CssBaseline. */
+:root {
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
