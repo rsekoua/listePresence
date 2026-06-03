@@ -1,34 +1,76 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import {
-  AppBar,
   Box,
   Button,
   Chip,
-  Container,
-  Toolbar,
+  Paper,
+  Stack,
   Typography,
 } from '@mui/material'
 import { DataGrid, type GridColDef } from '@mui/x-data-grid'
 import { frFR } from '@mui/x-data-grid/locales'
 import AddRoundedIcon from '@mui/icons-material/AddRounded'
-import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded'
-import QrCode2RoundedIcon from '@mui/icons-material/QrCode2Rounded'
+import EventRoundedIcon from '@mui/icons-material/EventRounded'
+import LockOpenRoundedIcon from '@mui/icons-material/LockOpenRounded'
+import LockRoundedIcon from '@mui/icons-material/LockRounded'
 import { fetchActivites } from '../api/activites'
 import type { Activite, StatutActivite } from '../api/types'
-import { useAuth } from '../auth/AuthContext'
 import { CreateActiviteDialog } from '../components/CreateActiviteDialog'
 
-const STATUT_LABEL: Record<StatutActivite, { label: string; color: 'success' | 'default' | 'warning' }> = {
+const STATUT_LABEL: Record<
+  StatutActivite,
+  { label: string; color: 'success' | 'default' | 'warning' }
+> = {
   ouvert: { label: 'Ouverte', color: 'success' },
   ferme: { label: 'Fermée', color: 'warning' },
   archive: { label: 'Archivée', color: 'default' },
 }
 
+function StatCard({
+  icon,
+  label,
+  value,
+  color,
+}: {
+  icon: ReactNode
+  label: string
+  value: number
+  color: string
+}) {
+  return (
+    <Paper sx={{ p: 2.5, flex: 1, minWidth: 180 }}>
+      <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
+        <Box
+          sx={{
+            width: 48,
+            height: 48,
+            borderRadius: 2,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            bgcolor: `${color}1a`,
+            color,
+          }}
+        >
+          {icon}
+        </Box>
+        <Box>
+          <Typography variant="h4" sx={{ lineHeight: 1 }}>
+            {value}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {label}
+          </Typography>
+        </Box>
+      </Stack>
+    </Paper>
+  )
+}
+
 export function DashboardPage() {
-  const { logout } = useAuth()
   const navigate = useNavigate()
   const [dialogOpen, setDialogOpen] = useState(false)
 
@@ -37,9 +79,14 @@ export function DashboardPage() {
     queryFn: fetchActivites,
   })
 
+  const activites = data ?? []
+  const total = activites.length
+  const ouvertes = activites.filter((a) => a.statut === 'ouvert').length
+  const fermees = activites.filter((a) => a.statut !== 'ouvert').length
+
   const columns: GridColDef<Activite>[] = [
-    { field: 'nom', headerName: 'Nom', flex: 1, minWidth: 160 },
-    { field: 'lieu', headerName: 'Lieu', flex: 1, minWidth: 130 },
+    { field: 'nom', headerName: 'Nom', flex: 1, minWidth: 180 },
+    { field: 'lieu', headerName: 'Lieu', flex: 1, minWidth: 140 },
     {
       field: 'date_debut',
       headerName: 'Début',
@@ -49,73 +96,93 @@ export function DashboardPage() {
     {
       field: 'statut',
       headerName: 'Statut',
-      width: 120,
+      width: 130,
       renderCell: (params) => {
         const s = STATUT_LABEL[params.value as StatutActivite]
-        return <Chip size="small" label={s.label} color={s.color} />
+        return <Chip size="small" label={s.label} color={s.color} variant="outlined" />
       },
     },
   ]
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      <AppBar position="static" elevation={1}>
-        <Toolbar>
-          <QrCode2RoundedIcon sx={{ mr: 1 }} />
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            Gestion de Présence
+    <Box>
+      {/* En-tête de page */}
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={2}
+        sx={{ justifyContent: 'space-between', alignItems: { sm: 'center' }, mb: 3 }}
+      >
+        <Box>
+          <Typography variant="h4" component="h1">
+            Tableau de bord
           </Typography>
-          <Button
-            color="inherit"
-            startIcon={<LogoutRoundedIcon />}
-            onClick={logout}
-          >
-            Déconnexion
-          </Button>
-        </Toolbar>
-      </AppBar>
-
-      <Container sx={{ py: 4 }}>
-        <Box
-          sx={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            mb: 3,
-          }}
+          <Typography variant="body2" color="text.secondary">
+            Gérez vos activités et leurs QR Codes
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          startIcon={<AddRoundedIcon />}
+          onClick={() => setDialogOpen(true)}
         >
-          <Typography variant="h5" component="h1" sx={{ fontWeight: 600 }}>
-            Mes activités
-          </Typography>
-          <Button
-            variant="contained"
-            startIcon={<AddRoundedIcon />}
-            onClick={() => setDialogOpen(true)}
-          >
-            Nouvelle activité
-          </Button>
-        </Box>
+          Nouvelle activité
+        </Button>
+      </Stack>
 
-        <Box sx={{ bgcolor: 'background.paper', borderRadius: 2 }}>
-          <DataGrid
-            rows={data ?? []}
-            columns={columns}
-            loading={isLoading}
-            getRowId={(row) => row.id}
-            onRowClick={(params) => navigate(`/activites/${params.id}`)}
-            disableRowSelectionOnClick
-            initialState={{
-              pagination: { paginationModel: { pageSize: 10 } },
-            }}
-            pageSizeOptions={[10, 20, 50]}
-            sx={{ border: 0, cursor: 'pointer', minHeight: 400 }}
-            localeText={{
-              ...frFR.components.MuiDataGrid.defaultProps.localeText,
-              noRowsLabel: 'Aucune activité pour le moment',
-            }}
-          />
+      {/* Statistiques */}
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={2}
+        sx={{ mb: 3, flexWrap: 'wrap' }}
+      >
+        <StatCard
+          icon={<EventRoundedIcon />}
+          label="Activités au total"
+          value={total}
+          color="#2563eb"
+        />
+        <StatCard
+          icon={<LockOpenRoundedIcon />}
+          label="Collectes ouvertes"
+          value={ouvertes}
+          color="#16a34a"
+        />
+        <StatCard
+          icon={<LockRoundedIcon />}
+          label="Collectes fermées"
+          value={fermees}
+          color="#d97706"
+        />
+      </Stack>
+
+      {/* Tableau */}
+      <Paper sx={{ overflow: 'hidden' }}>
+        <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+          <Typography sx={{ fontWeight: 600 }}>Liste des activités</Typography>
         </Box>
-      </Container>
+        <DataGrid
+          rows={activites}
+          columns={columns}
+          loading={isLoading}
+          getRowId={(row) => row.id}
+          onRowClick={(params) => navigate(`/activites/${params.id}`)}
+          disableRowSelectionOnClick
+          disableColumnMenu
+          initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+          pageSizeOptions={[10, 20, 50]}
+          sx={{
+            border: 0,
+            cursor: 'pointer',
+            minHeight: 420,
+            '& .MuiDataGrid-columnHeaders': { bgcolor: 'background.default' },
+            '& .MuiDataGrid-row:hover': { bgcolor: 'action.hover' },
+          }}
+          localeText={{
+            ...frFR.components.MuiDataGrid.defaultProps.localeText,
+            noRowsLabel: 'Aucune activité pour le moment',
+          }}
+        />
+      </Paper>
 
       <CreateActiviteDialog open={dialogOpen} onClose={() => setDialogOpen(false)} />
     </Box>

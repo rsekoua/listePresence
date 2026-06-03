@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { ProtectedRoute } from './auth/ProtectedRoute'
+import { AppLayout } from './layout/AppLayout'
 import { LoginPage } from './pages/LoginPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { ActiviteDetailPage } from './pages/ActiviteDetailPage'
@@ -14,8 +15,10 @@ function App() {
 
       {/* Routes protégées (tableau de bord organisateur) */}
       <Route element={<ProtectedRoute />}>
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/activites/:id" element={<ActiviteDetailPage />} />
+        <Route element={<AppLayout />}>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/activites/:id" element={<ActiviteDetailPage />} />
+        </Route>
       </Route>
 
       {/* Redirections par défaut */}
