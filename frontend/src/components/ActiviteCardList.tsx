@@ -12,6 +12,7 @@ import {
 import PlaceRoundedIcon from '@mui/icons-material/PlaceRounded'
 import ScheduleRoundedIcon from '@mui/icons-material/ScheduleRounded'
 import PersonRoundedIcon from '@mui/icons-material/PersonRounded'
+import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded'
 import type { Activite, StatutActivite } from '../api/types'
 import { ActiviteRowActions } from './ActiviteRowActions'
 
@@ -106,11 +107,19 @@ export function ActiviteCardList({
                   {dayjs(a.date_fin).format('DD/MM/YYYY HH:mm')}
                 </Typography>
               </Stack>
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                <PersonRoundedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
-                <Typography variant="body2" color="text.secondary" noWrap>
-                  {a.created_by.username}
-                </Typography>
+              <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                  <PersonRoundedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+                  <Typography variant="body2" color="text.secondary" noWrap>
+                    {a.created_by.username}
+                  </Typography>
+                </Stack>
+                <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+                  <GroupsRoundedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+                  <Typography variant="body2" color="text.secondary">
+                    {a.nb_participants} participant{a.nb_participants > 1 ? 's' : ''}
+                  </Typography>
+                </Stack>
               </Stack>
             </Stack>
           </Box>

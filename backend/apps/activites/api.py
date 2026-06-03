@@ -347,6 +347,8 @@ def add_participant(request, activite_id: UUID, data: ParticipantManualIn):
     """Ajout manuel d'un participant (créateur ou admin — sans photos CNI)."""
     activite = _get_activite(activite_id)
     _require_edit(request.auth, activite)
+    if activite.statut != Activite.Statut.OUVERT:
+        raise HttpError(403, "La collecte est fermée : impossible d'ajouter un participant.")
     if Participant.objects.filter(
         activite=activite, numero_cni=data.numero_cni
     ).exists():

@@ -20,6 +20,7 @@ import EventRoundedIcon from '@mui/icons-material/EventRounded'
 import LockOpenRoundedIcon from '@mui/icons-material/LockOpenRounded'
 import LockRoundedIcon from '@mui/icons-material/LockRounded'
 import PersonRoundedIcon from '@mui/icons-material/PersonRounded'
+import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded'
 import { fetchActivites } from '../api/activites'
 import type { Activite, StatutActivite } from '../api/types'
 import { ActiviteFormDialog } from '../components/ActiviteFormDialog'
@@ -122,7 +123,7 @@ export function DashboardPage() {
     {
       field: 'created_by',
       headerName: 'Organisateur',
-      width: 110,
+      width: 100,
       sortable: false,
       renderCell: (params) => (
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', height: '100%' }}>
@@ -136,7 +137,7 @@ export function DashboardPage() {
     {
       field: 'date_debut',
       headerName: 'Période',
-      width: 130,
+      width: 125,
       sortable: true,
       renderCell: (params) => (
         <Stack sx={{ justifyContent: 'center', height: '100%' }}>
@@ -145,6 +146,25 @@ export function DashboardPage() {
           </Typography>
           <Typography variant="caption" color="text.secondary">
             au {dayjs(params.row.date_fin).format('DD/MM/YYYY HH:mm')}
+          </Typography>
+        </Stack>
+      ),
+    },
+    {
+      field: 'nb_participants',
+      headerName: 'Participants',
+      width: 110,
+      align: 'center',
+      headerAlign: 'center',
+      renderCell: (params) => (
+        <Stack
+          direction="row"
+          spacing={0.75}
+          sx={{ alignItems: 'center', justifyContent: 'center', height: '100%' }}
+        >
+          <GroupsRoundedIcon fontSize="small" sx={{ color: 'text.disabled' }} />
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            {params.row.nb_participants}
           </Typography>
         </Stack>
       ),

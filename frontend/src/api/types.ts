@@ -18,6 +18,7 @@ export interface Activite {
   form_url: string
   created_by: CreatedBy
   can_edit: boolean
+  nb_participants: number
   created_at: string
   updated_at: string
 }

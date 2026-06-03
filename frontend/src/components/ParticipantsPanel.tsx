@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Avatar,
@@ -7,11 +7,8 @@ import {
   Chip,
   CircularProgress,
   Divider,
-  InputAdornment,
-  MenuItem,
   Paper,
   Stack,
-  TextField,
   Tooltip,
   Typography,
   useMediaQuery,
@@ -19,15 +16,10 @@ import {
 import { useTheme } from '@mui/material/styles'
 import { DataGrid, type GridColDef } from '@mui/x-data-grid'
 import { frFR } from '@mui/x-data-grid/locales'
-import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded'
 import PersonAddRoundedIcon from '@mui/icons-material/PersonAddRounded'
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded'
-import {
-  fetchParticipants,
-  fetchStats,
-  type Participant,
-} from '../api/participants'
+import { fetchParticipants, type Participant } from '../api/participants'
 import { ParticipantDetailDialog } from './ParticipantDetailDialog'
 import { AddParticipantDialog } from './AddParticipantDialog'
 
@@ -42,8 +34,6 @@ export function ParticipantsPanel({
 }) {
   const theme = useTheme()
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'))
-  const [search, setSearch] = useState('')
-  const [structure, setStructure] = useState('')
   const [selected, setSelected] = useState<Participant | null>(null)
   const [addOpen, setAddOpen] = useState(false)
 
@@ -53,31 +43,7 @@ export function ParticipantsPanel({
     refetchInterval: REFRESH_MS,
   })
 
-  const { data: stats } = useQuery({
-    queryKey: ['stats', activiteId],
-    queryFn: () => fetchStats(activiteId),
-    refetchInterval: REFRESH_MS,
-  })
-
   const participants = page?.items ?? []
-
-  const structures = useMemo(
-    () => Array.from(new Set(participants.map((p) => p.structure))).sort(),
-    [participants],
-  )
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    return participants.filter((p) => {
-      const matchSearch =
-        !q ||
-        `${p.prenom} ${p.nom} ${p.email} ${p.numero_cni} ${p.fonction}`
-          .toLowerCase()
-          .includes(q)
-      const matchStruct = !structure || p.structure === structure
-      return matchSearch && matchStruct
-    })
-  }, [participants, search, structure])
 
   const columns: GridColDef<Participant>[] = [
     { field: 'nom', headerName: 'Nom', flex: 1, minWidth: 110 },
@@ -115,10 +81,14 @@ export function ParticipantsPanel({
         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', flexGrow: 1 }}>
           <GroupsRoundedIcon color="primary" />
           <Typography variant="h6">Participants</Typography>
-          <Chip size="small" color="primary" label={stats?.total ?? participants.length} />
+          <Chip size="small" color="primary" label={participants.length} />
         </Stack>
         <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
-          <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: { xs: 'none', sm: 'block' } }}
+          >
             Actualisé toutes les 30 s
           </Typography>
           {canAdd && (
@@ -134,66 +104,17 @@ export function ParticipantsPanel({
         </Stack>
       </Stack>
 
-      {/* Stats compactes */}
-      <Stack direction="row" spacing={2} sx={{ mb: 2.5 }}>
-        <MiniStat label="Inscrits" value={stats?.total} color="primary.main" />
-        <MiniStat
-          label="CNI complètes"
-          value={stats?.cni_completes}
-          color="success.main"
-        />
-        <MiniStat
-          label="À compléter"
-          value={stats?.cni_incompletes}
-          color="warning.main"
-        />
-      </Stack>
-
-      {/* Filtres */}
-      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }}>
-        <TextField
-          placeholder="Rechercher (nom, fonction, email, CNI)"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          fullWidth
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchRoundedIcon fontSize="small" />
-                </InputAdornment>
-              ),
-            },
-          }}
-        />
-        <TextField
-          select
-          label="Structure"
-          value={structure}
-          onChange={(e) => setStructure(e.target.value)}
-          sx={{ minWidth: { sm: 220 } }}
-          fullWidth
-        >
-          <MenuItem value="">Toutes les structures</MenuItem>
-          {structures.map((s) => (
-            <MenuItem key={s} value={s}>
-              {s}
-            </MenuItem>
-          ))}
-        </TextField>
-      </Stack>
-
       {/* Liste */}
       <Paper sx={{ overflow: 'hidden' }}>
         {!isDesktop ? (
           <ParticipantCards
-            participants={filtered}
+            participants={participants}
             isLoading={isLoading}
             onSelect={setSelected}
           />
         ) : (
           <DataGrid
-            rows={filtered}
+            rows={participants}
             columns={columns}
             loading={isLoading}
             getRowId={(r) => r.id}
@@ -234,27 +155,6 @@ export function ParticipantsPanel({
         onClose={() => setAddOpen(false)}
       />
     </Box>
-  )
-}
-
-function MiniStat({
-  label,
-  value,
-  color,
-}: {
-  label: string
-  value?: number
-  color: string
-}) {
-  return (
-    <Paper sx={{ p: 2, flex: 1, textAlign: 'center' }}>
-      <Typography variant="h5" sx={{ fontWeight: 700, color }}>
-        {value ?? '—'}
-      </Typography>
-      <Typography variant="caption" color="text.secondary">
-        {label}
-      </Typography>
-    </Paper>
   )
 }
 
