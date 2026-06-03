@@ -1,18 +1,18 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import dayjs from 'dayjs'
 import {
   Avatar,
   Box,
+  Button,
   Chip,
   CircularProgress,
   Divider,
   InputAdornment,
-  LinearProgress,
   MenuItem,
   Paper,
   Stack,
   TextField,
+  Tooltip,
   Typography,
   useMediaQuery,
 } from '@mui/material'
@@ -21,22 +21,31 @@ import { DataGrid, type GridColDef } from '@mui/x-data-grid'
 import { frFR } from '@mui/x-data-grid/locales'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded'
-import BadgeRoundedIcon from '@mui/icons-material/BadgeRounded'
+import PersonAddRoundedIcon from '@mui/icons-material/PersonAddRounded'
+import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded'
 import {
   fetchParticipants,
   fetchStats,
   type Participant,
 } from '../api/participants'
 import { ParticipantDetailDialog } from './ParticipantDetailDialog'
+import { AddParticipantDialog } from './AddParticipantDialog'
 
 const REFRESH_MS = 30_000
 
-export function ParticipantsPanel({ activiteId }: { activiteId: string }) {
+export function ParticipantsPanel({
+  activiteId,
+  canAdd,
+}: {
+  activiteId: string
+  canAdd: boolean
+}) {
   const theme = useTheme()
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'))
   const [search, setSearch] = useState('')
   const [structure, setStructure] = useState('')
   const [selected, setSelected] = useState<Participant | null>(null)
+  const [addOpen, setAddOpen] = useState(false)
 
   const { data: page, isLoading } = useQuery({
     queryKey: ['participants', activiteId],
@@ -52,12 +61,17 @@ export function ParticipantsPanel({ activiteId }: { activiteId: string }) {
 
   const participants = page?.items ?? []
 
+  const structures = useMemo(
+    () => Array.from(new Set(participants.map((p) => p.structure))).sort(),
+    [participants],
+  )
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     return participants.filter((p) => {
       const matchSearch =
         !q ||
-        `${p.prenom} ${p.nom} ${p.email} ${p.numero_cni}`
+        `${p.prenom} ${p.nom} ${p.email} ${p.numero_cni} ${p.fonction}`
           .toLowerCase()
           .includes(q)
       const matchStruct = !structure || p.structure === structure
@@ -66,131 +80,79 @@ export function ParticipantsPanel({ activiteId }: { activiteId: string }) {
   }, [participants, search, structure])
 
   const columns: GridColDef<Participant>[] = [
+    { field: 'nom', headerName: 'Nom', flex: 1, minWidth: 110 },
+    { field: 'prenom', headerName: 'Prénom', flex: 1, minWidth: 110 },
+    { field: 'structure', headerName: 'Structure', flex: 1.2, minWidth: 140 },
+    { field: 'fonction', headerName: 'Fonction', flex: 1.2, minWidth: 140 },
+    { field: 'telephone_wave', headerName: 'Téléphone Wave', width: 150 },
     {
-      field: 'nom',
-      headerName: 'Participant',
-      flex: 1.4,
-      minWidth: 150,
+      field: 'numero_cni',
+      headerName: 'N° CNI',
+      width: 150,
       renderCell: (params) => (
-        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', height: '100%' }}>
-          <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.light', color: 'primary.dark', fontSize: 13 }}>
-            {params.row.prenom.charAt(0).toUpperCase()}
-          </Avatar>
-          <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
-            {params.row.prenom} {params.row.nom}
+        <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', height: '100%' }}>
+          <Typography variant="body2" noWrap>
+            {params.row.numero_cni}
           </Typography>
+          {!params.row.cni_complete && (
+            <Tooltip title="Photos CNI manquantes (saisie manuelle)">
+              <WarningAmberRoundedIcon fontSize="small" color="warning" />
+            </Tooltip>
+          )}
         </Stack>
       ),
-    },
-    { field: 'structure', headerName: 'Structure', flex: 1, minWidth: 100 },
-    { field: 'telephone_wave', headerName: 'Téléphone', width: 125 },
-    {
-      field: 'horodatage',
-      headerName: 'Enregistré',
-      width: 120,
-      valueFormatter: (v) => dayjs(v as string).format('DD/MM/YY HH:mm'),
-    },
-    {
-      field: 'cni_complete',
-      headerName: 'CNI',
-      width: 90,
-      renderCell: (params) =>
-        params.value ? (
-          <Chip size="small" color="success" label="OK" variant="outlined" />
-        ) : (
-          <Chip size="small" color="warning" label="!" variant="outlined" />
-        ),
     },
   ]
 
   return (
     <Box>
+      {/* En-tête + actions */}
       <Stack
-        direction="row"
+        direction={{ xs: 'column', sm: 'row' }}
         spacing={1.5}
-        sx={{ alignItems: 'center', mb: 2 }}
+        sx={{ alignItems: { sm: 'center' }, mb: 2.5 }}
       >
-        <GroupsRoundedIcon color="primary" />
-        <Typography variant="h6">Participants</Typography>
-        <Chip
-          size="small"
-          color="primary"
-          label={stats?.total ?? participants.length}
-        />
-        <Box sx={{ flexGrow: 1 }} />
-        <Typography variant="caption" color="text.secondary">
-          Actualisé toutes les 30 s
-        </Typography>
+        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', flexGrow: 1 }}>
+          <GroupsRoundedIcon color="primary" />
+          <Typography variant="h6">Participants</Typography>
+          <Chip size="small" color="primary" label={stats?.total ?? participants.length} />
+        </Stack>
+        <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
+          <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
+            Actualisé toutes les 30 s
+          </Typography>
+          {canAdd && (
+            <Button
+              variant="contained"
+              startIcon={<PersonAddRoundedIcon />}
+              onClick={() => setAddOpen(true)}
+              sx={{ width: { xs: '100%', sm: 'auto' } }}
+            >
+              Ajouter un participant
+            </Button>
+          )}
+        </Stack>
       </Stack>
 
-      {/* Statistiques */}
-      <Box
-        sx={{
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
-          gap: 2,
-          mb: 2,
-        }}
-      >
-        <Paper sx={{ p: 2.5 }}>
-          <Stack direction="row" spacing={3}>
-            <Box>
-              <Typography variant="h4">{stats?.total ?? '—'}</Typography>
-              <Typography variant="body2" color="text.secondary">
-                Inscrits
-              </Typography>
-            </Box>
-            <Divider orientation="vertical" flexItem />
-            <Box>
-              <Typography variant="h4" color="success.main">
-                {stats?.cni_completes ?? '—'}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                CNI complètes
-              </Typography>
-            </Box>
-          </Stack>
-        </Paper>
-
-        <Paper sx={{ p: 2.5 }}>
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
-            <BadgeRoundedIcon fontSize="small" color="action" />
-            <Typography variant="subtitle2">Répartition par structure</Typography>
-          </Stack>
-          <Stack spacing={1}>
-            {(stats?.par_structure ?? []).slice(0, 4).map((s) => {
-              const pct = stats?.total ? (s.count / stats.total) * 100 : 0
-              return (
-                <Box key={s.structure}>
-                  <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
-                    <Typography variant="caption" noWrap sx={{ maxWidth: '75%' }}>
-                      {s.structure}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {s.count}
-                    </Typography>
-                  </Stack>
-                  <LinearProgress
-                    variant="determinate"
-                    value={pct}
-                    sx={{ height: 6, borderRadius: 3 }}
-                  />
-                </Box>
-              )
-            })}
-            {!stats?.par_structure.length && (
-              <Typography variant="caption" color="text.secondary">
-                Aucune donnée
-              </Typography>
-            )}
-          </Stack>
-        </Paper>
-      </Box>
+      {/* Stats compactes */}
+      <Stack direction="row" spacing={2} sx={{ mb: 2.5 }}>
+        <MiniStat label="Inscrits" value={stats?.total} color="primary.main" />
+        <MiniStat
+          label="CNI complètes"
+          value={stats?.cni_completes}
+          color="success.main"
+        />
+        <MiniStat
+          label="À compléter"
+          value={stats?.cni_incompletes}
+          color="warning.main"
+        />
+      </Stack>
 
       {/* Filtres */}
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }}>
         <TextField
-          placeholder="Rechercher (nom, email, CNI)"
+          placeholder="Rechercher (nom, fonction, email, CNI)"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           fullWidth
@@ -213,9 +175,9 @@ export function ParticipantsPanel({ activiteId }: { activiteId: string }) {
           fullWidth
         >
           <MenuItem value="">Toutes les structures</MenuItem>
-          {(stats?.par_structure ?? []).map((s) => (
-            <MenuItem key={s.structure} value={s.structure}>
-              {s.structure} ({s.count})
+          {structures.map((s) => (
+            <MenuItem key={s} value={s}>
+              {s}
             </MenuItem>
           ))}
         </TextField>
@@ -266,7 +228,33 @@ export function ParticipantsPanel({ activiteId }: { activiteId: string }) {
         open={Boolean(selected)}
         onClose={() => setSelected(null)}
       />
+      <AddParticipantDialog
+        activiteId={activiteId}
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+      />
     </Box>
+  )
+}
+
+function MiniStat({
+  label,
+  value,
+  color,
+}: {
+  label: string
+  value?: number
+  color: string
+}) {
+  return (
+    <Paper sx={{ p: 2, flex: 1, textAlign: 'center' }}>
+      <Typography variant="h5" sx={{ fontWeight: 700, color }}>
+        {value ?? '—'}
+      </Typography>
+      <Typography variant="caption" color="text.secondary">
+        {label}
+      </Typography>
+    </Paper>
   )
 }
 
@@ -296,31 +284,38 @@ function ParticipantCards({
   return (
     <Stack divider={<Divider />}>
       {participants.map((p) => (
-        <Stack
+        <Box
           key={p.id}
-          direction="row"
-          spacing={1.5}
-          sx={{ alignItems: 'center', p: 2, cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
+          sx={{ p: 2, cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' } }}
           onClick={() => onSelect(p)}
         >
-          <Avatar sx={{ bgcolor: 'primary.light', color: 'primary.dark' }}>
-            {p.prenom.charAt(0).toUpperCase()}
-          </Avatar>
-          <Box sx={{ minWidth: 0, flexGrow: 1 }}>
-            <Typography sx={{ fontWeight: 600 }} noWrap>
-              {p.prenom} {p.nom}
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mb: 0.5 }}>
+            <Avatar sx={{ bgcolor: 'primary.light', color: 'primary.dark' }}>
+              {p.prenom.charAt(0).toUpperCase()}
+            </Avatar>
+            <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+              <Typography sx={{ fontWeight: 600 }} noWrap>
+                {p.prenom} {p.nom}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" noWrap>
+                {p.fonction} · {p.structure}
+              </Typography>
+            </Box>
+            {!p.cni_complete && (
+              <Tooltip title="Photos CNI manquantes">
+                <WarningAmberRoundedIcon fontSize="small" color="warning" />
+              </Tooltip>
+            )}
+          </Stack>
+          <Stack direction="row" spacing={2} sx={{ pl: 6 }}>
+            <Typography variant="caption" color="text.secondary">
+              📞 {p.telephone_wave}
             </Typography>
-            <Typography variant="body2" color="text.secondary" noWrap>
-              {p.structure} · {p.telephone_wave}
+            <Typography variant="caption" color="text.secondary" noWrap>
+              CNI : {p.numero_cni}
             </Typography>
-          </Box>
-          <Chip
-            size="small"
-            color={p.cni_complete ? 'success' : 'warning'}
-            label={p.cni_complete ? 'CNI' : '!'}
-            variant="outlined"
-          />
-        </Stack>
+          </Stack>
+        </Box>
       ))}
     </Stack>
   )

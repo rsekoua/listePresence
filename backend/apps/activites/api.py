@@ -9,6 +9,7 @@ Toutes les routes sont protégées par JWT. Règles RBAC :
 """
 
 import io
+import re
 from datetime import date, datetime
 from uuid import UUID
 
@@ -20,6 +21,7 @@ from django.shortcuts import get_object_or_404
 from ninja import Query, Router, Schema
 from ninja.errors import HttpError
 from ninja.pagination import paginate
+from pydantic import field_validator
 
 from apps.accounts.auth import JWTAuth
 from apps.participants.models import Participant
@@ -273,6 +275,42 @@ class StatsOut(Schema):
     par_structure: list[StructureStat]
 
 
+class ParticipantManualIn(Schema):
+    """Ajout manuel d'un participant par un organisateur (sans photos CNI)."""
+
+    nom: str
+    prenom: str
+    structure: str
+    fonction: str
+    telephone_wave: str
+    email: str
+    numero_cni: str
+
+    @field_validator("telephone_wave")
+    @classmethod
+    def valider_telephone(cls, v: str) -> str:
+        digits = re.sub(r"[\s.\-()]", "", v)
+        m = re.match(r"^(?:\+?225)?(\d{10})$", digits)
+        if not m:
+            raise ValueError("Numéro de téléphone ivoirien invalide.")
+        return "+225" + m.group(1)
+
+    @field_validator("email")
+    @classmethod
+    def valider_email(cls, v: str) -> str:
+        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", v):
+            raise ValueError("Adresse email invalide.")
+        return v.strip().lower()
+
+    @field_validator("numero_cni")
+    @classmethod
+    def valider_cni(cls, v: str) -> str:
+        v = v.strip()
+        if len(v) < 4:
+            raise ValueError("Numéro de CNI invalide.")
+        return v
+
+
 @router.get("/{activite_id}/participants", response=list[ParticipantListOut])
 @paginate
 def list_participants(
@@ -302,6 +340,31 @@ def list_participants(
     if date_to:
         qs = qs.filter(horodatage__date__lte=date_to)
     return qs
+
+
+@router.post("/{activite_id}/participants", response={201: ParticipantListOut, 409: MessageOut})
+def add_participant(request, activite_id: UUID, data: ParticipantManualIn):
+    """Ajout manuel d'un participant (créateur ou admin — sans photos CNI)."""
+    activite = _get_activite(activite_id)
+    _require_edit(request.auth, activite)
+    if Participant.objects.filter(
+        activite=activite, numero_cni=data.numero_cni
+    ).exists():
+        return 409, MessageOut(
+            detail="Un participant avec ce numéro de CNI est déjà enregistré "
+            "pour cette activité."
+        )
+    participant = Participant.objects.create(
+        activite=activite,
+        nom=data.nom.strip(),
+        prenom=data.prenom.strip(),
+        structure=data.structure.strip(),
+        fonction=data.fonction.strip(),
+        telephone_wave=data.telephone_wave,
+        email=data.email,
+        numero_cni=data.numero_cni,
+    )
+    return 201, participant
 
 
 @router.get("/{activite_id}/stats", response=StatsOut)

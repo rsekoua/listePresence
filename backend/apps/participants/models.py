@@ -31,8 +31,12 @@ class Participant(models.Model):
     telephone_wave = models.CharField("téléphone Wave", max_length=20)
     email = models.EmailField("email")
     numero_cni = models.CharField("numéro CNI", max_length=50)
-    photo_cni_recto = models.ImageField("photo CNI recto", upload_to=cni_upload_path)
-    photo_cni_verso = models.ImageField("photo CNI verso", upload_to=cni_upload_path)
+    photo_cni_recto = models.ImageField(
+        "photo CNI recto", upload_to=cni_upload_path, blank=True
+    )
+    photo_cni_verso = models.ImageField(
+        "photo CNI verso", upload_to=cni_upload_path, blank=True
+    )
     horodatage = models.DateTimeField("horodatage", auto_now_add=True)
     ip_address = models.GenericIPAddressField("adresse IP", null=True, blank=True)
 

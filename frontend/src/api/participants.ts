@@ -42,6 +42,27 @@ export async function fetchParticipants(
   return data
 }
 
+export interface ParticipantInput {
+  nom: string
+  prenom: string
+  structure: string
+  fonction: string
+  telephone_wave: string
+  email: string
+  numero_cni: string
+}
+
+export async function createParticipant(
+  activiteId: string,
+  input: ParticipantInput,
+): Promise<Participant> {
+  const { data } = await api.post<Participant>(
+    `/activites/${activiteId}/participants`,
+    input,
+  )
+  return data
+}
+
 export async function fetchStats(activiteId: string): Promise<Stats> {
   const { data } = await api.get<Stats>(`/activites/${activiteId}/stats`)
   return data

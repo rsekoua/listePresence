@@ -277,7 +277,7 @@ export function ActiviteDetailPage() {
 
       {/* Participants */}
       <Box sx={{ mt: 4 }}>
-        <ParticipantsPanel activiteId={activite.id} />
+        <ParticipantsPanel activiteId={activite.id} canAdd={activite.can_edit} />
       </Box>
 
       <ActiviteFormDialog
