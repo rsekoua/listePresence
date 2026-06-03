@@ -2,4 +2,5 @@ from django.apps import AppConfig
 
 
 class ExportsConfig(AppConfig):
-    name = 'exports'
+    name = 'apps.exports'
+    label = 'exports'
