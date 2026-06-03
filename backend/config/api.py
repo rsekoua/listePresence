@@ -6,14 +6,20 @@ des sprints (auth, activités, participants, public, exports).
 
 from ninja import NinjaAPI
 
+from apps.accounts.api import router as auth_router
+from apps.activites.api import router as activites_router
+
 api = NinjaAPI(
     title="API Gestion de Présence",
     version="1.0.0",
     description="API du système web de gestion de présence aux activités (MVP).",
 )
 
+api.add_router("/auth", auth_router)
+api.add_router("/activites", activites_router)
 
-@api.get("/health", tags=["système"])
+
+@api.get("/health", tags=["système"], auth=None)
 def health(request):
     """Vérification simple de disponibilité de l'API."""
     return {"status": "ok"}

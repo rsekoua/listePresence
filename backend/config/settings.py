@@ -141,3 +141,15 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+
+# Authentification JWT (implémentation maison — cf. AUTH-01/02)
+JWT_SECRET = os.getenv("JWT_SECRET", SECRET_KEY)
+JWT_ALGORITHM = "HS256"
+# Durée de vie du token d'accès : 8 heures (cahier des charges AUTH-02)
+JWT_ACCESS_LIFETIME_HOURS = int(os.getenv("JWT_ACCESS_LIFETIME_HOURS", "8"))
+# Durée de vie du token de rafraîchissement : 7 jours
+JWT_REFRESH_LIFETIME_DAYS = int(os.getenv("JWT_REFRESH_LIFETIME_DAYS", "7"))
+
+# URL de base du formulaire public (encodée dans les QR Codes — cf. ACT-02)
+PUBLIC_FORM_BASE_URL = os.getenv("PUBLIC_FORM_BASE_URL", "http://localhost:5173")

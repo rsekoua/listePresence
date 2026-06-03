@@ -8,6 +8,7 @@ dependencies = [
     "django>=6.0.5",
     "django-ninja>=1.4",
     "pillow>=11.0",
+    "pyjwt>=2.10",
     "python-dotenv>=1.0",
     "qrcode[pil]>=8.0",
 ]
