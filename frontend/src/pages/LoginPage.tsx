@@ -48,7 +48,7 @@ export function LoginPage() {
               color="text.secondary"
               sx={{ textAlign: 'center' }}
             >
-              Connexion organisateur
+              Connexion organisateur(administrateur)
             </Typography>
           </Stack>
 
@@ -59,6 +59,7 @@ export function LoginPage() {
                 name="username"
                 fullWidth
                 autoComplete="username"
+                size="small"
               />
               <TextField
                 label="Mot de passe"
@@ -66,8 +67,9 @@ export function LoginPage() {
                 type="password"
                 fullWidth
                 autoComplete="current-password"
+                size="small"
               />
-              <Button type="submit" variant="contained" size="large" fullWidth>
+              <Button type="submit" variant="contained" size="small" fullWidth>
                 Se connecter
               </Button>
             </Stack>

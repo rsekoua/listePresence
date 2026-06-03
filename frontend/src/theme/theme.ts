@@ -28,11 +28,14 @@ export const theme = createTheme(
     },
     shape: { borderRadius: 10 },
     components: {
+      // Taille « small » par défaut pour tous les champs du projet.
+      MuiTextField: { defaultProps: { size: 'small' } },
+      MuiFormControl: { defaultProps: { size: 'small' } },
+      MuiSelect: { defaultProps: { size: 'small' } },
+      MuiInputBase: { defaultProps: { size: 'small' } },
+      MuiAutocomplete: { defaultProps: { size: 'small' } },
       MuiButton: {
-        styleOverrides: {
-          // Cibles tactiles min 48px (cf. accessibilité mobile)
-          root: { minHeight: 48 },
-        },
+        defaultProps: { size: 'small' },
       },
     },
   },
