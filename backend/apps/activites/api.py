@@ -8,20 +8,21 @@ Toutes les routes sont protégées par JWT. Règles RBAC :
 - Clonage : autorisé à tous ; la copie appartient à celui qui clone.
 """
 
-from __future__ import annotations
-
 import io
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID
 
 import qrcode
 from django.conf import settings
-from django.http import HttpResponse
+from django.db.models import Count
+from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404
-from ninja import Router, Schema
+from ninja import Query, Router, Schema
 from ninja.errors import HttpError
+from ninja.pagination import paginate
 
 from apps.accounts.auth import JWTAuth
+from apps.participants.models import Participant
 
 from .models import Activite
 
@@ -65,6 +66,7 @@ class ActiviteOut(Schema):
     form_url: str
     created_by: CreatedByOut
     can_edit: bool
+    nb_participants: int
     created_at: datetime
     updated_at: datetime
 
@@ -86,8 +88,10 @@ def _can_edit(user, activite: Activite) -> bool:
 
 
 def _with_perm(user, activite: Activite) -> Activite:
-    """Annote l'activité avec can_edit pour la sérialisation."""
+    """Annote l'activité avec can_edit + nb_participants pour la sérialisation."""
     activite.can_edit = _can_edit(user, activite)
+    if not hasattr(activite, "nb_participants"):
+        activite.nb_participants = activite.participants.count()
     return activite
 
 
@@ -115,7 +119,11 @@ def _validate_dates(date_debut, date_fin):
 def list_activites(request):
     """Liste toutes les activités (visibilité globale)."""
     user = request.auth
-    activites = Activite.objects.select_related("created_by").all()
+    activites = (
+        Activite.objects.select_related("created_by")
+        .annotate(nb_participants=Count("participants"))
+        .all()
+    )
     return [_with_perm(user, a) for a in activites]
 
 
@@ -202,3 +210,140 @@ def get_qrcode(request, activite_id: UUID):
     response = HttpResponse(buffer.getvalue(), content_type="image/png")
     response["Content-Disposition"] = f'inline; filename="qrcode_{activite.id}.png"'
     return response
+
+
+# --- Statut (ouverture / fermeture) ---------------------------------------
+
+
+class StatutIn(Schema):
+    statut: str
+
+
+@router.patch("/{activite_id}/statut", response=ActiviteOut)
+def set_statut(request, activite_id: UUID, data: StatutIn):
+    """Ouvre / ferme / archive la collecte (créateur ou admin — ACT-05)."""
+    activite = _get_activite(activite_id)
+    _require_edit(request.auth, activite)
+    if data.statut not in Activite.Statut.values:
+        raise HttpError(422, "Statut invalide.")
+    activite.statut = data.statut
+    activite.save(update_fields=["statut", "updated_at"])
+    return _with_perm(request.auth, activite)
+
+
+# --- Participants (côté organisateur) -------------------------------------
+
+
+class ParticipantListOut(Schema):
+    id: UUID
+    nom: str
+    prenom: str
+    structure: str
+    fonction: str
+    telephone_wave: str
+    email: str
+    numero_cni: str
+    horodatage: datetime
+    photo_recto_url: str
+    photo_verso_url: str
+    cni_complete: bool
+
+    @staticmethod
+    def resolve_photo_recto_url(obj: Participant) -> str:
+        return f"/api/activites/{obj.activite_id}/participants/{obj.id}/photo/recto"
+
+    @staticmethod
+    def resolve_photo_verso_url(obj: Participant) -> str:
+        return f"/api/activites/{obj.activite_id}/participants/{obj.id}/photo/verso"
+
+    @staticmethod
+    def resolve_cni_complete(obj: Participant) -> bool:
+        return bool(obj.photo_cni_recto) and bool(obj.photo_cni_verso)
+
+
+class StructureStat(Schema):
+    structure: str
+    count: int
+
+
+class StatsOut(Schema):
+    total: int
+    cni_completes: int
+    cni_incompletes: int
+    par_structure: list[StructureStat]
+
+
+@router.get("/{activite_id}/participants", response=list[ParticipantListOut])
+@paginate
+def list_participants(
+    request,
+    activite_id: UUID,
+    search: str | None = Query(None),
+    structure: str | None = Query(None),
+    date_from: date | None = Query(None),
+    date_to: date | None = Query(None),
+):
+    """Liste paginée et filtrée des participants d'une activité (DASH-03)."""
+    _get_activite(activite_id)  # 404 si l'activité n'existe pas
+    qs = Participant.objects.filter(activite_id=activite_id)
+    if search:
+        from django.db.models import Q
+
+        qs = qs.filter(
+            Q(nom__icontains=search)
+            | Q(prenom__icontains=search)
+            | Q(email__icontains=search)
+            | Q(numero_cni__icontains=search)
+        )
+    if structure:
+        qs = qs.filter(structure__icontains=structure)
+    if date_from:
+        qs = qs.filter(horodatage__date__gte=date_from)
+    if date_to:
+        qs = qs.filter(horodatage__date__lte=date_to)
+    return qs
+
+
+@router.get("/{activite_id}/stats", response=StatsOut)
+def participants_stats(request, activite_id: UUID):
+    """Statistiques d'une activité (DASH-05)."""
+    _get_activite(activite_id)
+    qs = Participant.objects.filter(activite_id=activite_id)
+    total = qs.count()
+    par_structure = [
+        StructureStat(structure=row["structure"] or "—", count=row["n"])
+        for row in qs.values("structure")
+        .annotate(n=Count("id"))
+        .order_by("-n")[:10]
+    ]
+    completes = qs.exclude(photo_cni_recto="").exclude(photo_cni_verso="").count()
+    return StatsOut(
+        total=total,
+        cni_completes=completes,
+        cni_incompletes=total - completes,
+        par_structure=par_structure,
+    )
+
+
+@router.get("/{activite_id}/participants/{participant_id}", response=ParticipantListOut)
+def get_participant(request, activite_id: UUID, participant_id: UUID):
+    """Fiche détaillée d'un participant (DASH-04)."""
+    return get_object_or_404(
+        Participant, id=participant_id, activite_id=activite_id
+    )
+
+
+@router.get("/{activite_id}/participants/{participant_id}/photo/{cote}")
+def participant_photo(request, activite_id: UUID, participant_id: UUID, cote: str):
+    """Sert une photo CNI (accès protégé par JWT — IMG-03)."""
+    participant = get_object_or_404(
+        Participant, id=participant_id, activite_id=activite_id
+    )
+    field = (
+        participant.photo_cni_recto
+        if cote == "recto"
+        else participant.photo_cni_verso
+    )
+    if not field:
+        raise HttpError(404, "Photo introuvable.")
+    return FileResponse(field.open("rb"), content_type="image/jpeg")
