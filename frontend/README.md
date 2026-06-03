@@ -50,4 +50,6 @@ npm run build    # vérification TypeScript + build de production
 
 - [x] **Sprint 1** — Init Vite, MUI + thème, routing public/protégé, proxy Axios, page Login statique
 - [x] **Sprint 2** — Login JWT réel, Dashboard (DataGrid), création d'activité (date pickers), page détail + QR Code téléchargeable
-- [ ] Sprint 3 — Formulaire public & upload CNI
+- [x] **RBAC** — rôles, édition/clonage, colonne organisateur, gating UI
+- [x] **Sprint 3** — Formulaire public mobile (/form/:token), upload + compression CNI, confirmation, mode hors-ligne
+- [ ] Sprint 4 — Tableau de bord participants

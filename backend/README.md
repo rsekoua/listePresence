@@ -70,7 +70,9 @@ uv run python manage.py runserver
 
 - [x] **Sprint 1** — Setup & infrastructure (projet, apps, SQLite, API Ninja, media)
 - [x] **Sprint 2** — Auth JWT maison, modèle Activite, CRUD + QR Code
-- [ ] Sprint 3 — Formulaire public & upload CNI
+- [x] **RBAC** — rôles admin/organisateur, visibilité globale, édition restreinte, clone
+- [x] **Sprint 3** — Modèle Participant, endpoints publics, traitement CNI (Pillow)
+- [ ] Sprint 4 — Tableau de bord participants
 - [ ] Sprint 3 — Formulaire public & upload CNI
 - [ ] Sprint 4 — Tableau de bord participants
 - [ ] Sprint 5 — Exports Excel / PDF / ZIP
