@@ -160,7 +160,7 @@ export function DashboardPage() {
       >
         <Box>
           <Typography variant="h4" component="h1">
-            Tableau de bord
+            Vue d'ensemble
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Gérez vos activités et leurs QR Codes
@@ -170,6 +170,7 @@ export function DashboardPage() {
           variant="contained"
           startIcon={<AddRoundedIcon />}
           onClick={() => setDialogOpen(true)}
+          sx={{ width: { xs: '100%', sm: 'auto' }, flexShrink: 0 }}
         >
           Nouvelle activité
         </Button>

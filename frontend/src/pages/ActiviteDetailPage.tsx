@@ -5,12 +5,10 @@ import { useSnackbar } from 'notistack'
 import dayjs from 'dayjs'
 import {
   Box,
-  Breadcrumbs,
   Button,
   Chip,
   CircularProgress,
   Divider,
-  Link,
   Paper,
   Stack,
   Typography,
@@ -96,32 +94,17 @@ export function ActiviteDetailPage() {
 
   return (
     <Box>
-      {/* Fil d'Ariane + retour */}
-      <Stack
-        direction="row"
-        spacing={2}
-        sx={{ alignItems: 'center', mb: 2 }}
-      >
+      {/* Retour */}
+      <Box sx={{ mb: 2 }}>
         <Button
           size="small"
           color="inherit"
           startIcon={<ArrowBackRoundedIcon />}
           onClick={() => navigate('/dashboard')}
         >
-          Retour
+          Retour aux activités
         </Button>
-        <Breadcrumbs>
-          <Link
-            component="button"
-            underline="hover"
-            color="inherit"
-            onClick={() => navigate('/dashboard')}
-          >
-            Tableau de bord
-          </Link>
-          <Typography color="text.primary">{activite.nom}</Typography>
-        </Breadcrumbs>
-      </Stack>
+      </Box>
 
       {/* Titre */}
       <Stack
