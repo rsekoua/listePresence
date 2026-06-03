@@ -19,9 +19,10 @@ import AddRoundedIcon from '@mui/icons-material/AddRounded'
 import EventRoundedIcon from '@mui/icons-material/EventRounded'
 import LockOpenRoundedIcon from '@mui/icons-material/LockOpenRounded'
 import LockRoundedIcon from '@mui/icons-material/LockRounded'
+import PersonRoundedIcon from '@mui/icons-material/PersonRounded'
 import { fetchActivites } from '../api/activites'
 import type { Activite, StatutActivite } from '../api/types'
-import { CreateActiviteDialog } from '../components/CreateActiviteDialog'
+import { ActiviteFormDialog } from '../components/ActiviteFormDialog'
 import { ActiviteRowActions } from '../components/ActiviteRowActions'
 import { ActiviteCardList } from '../components/ActiviteCardList'
 
@@ -95,8 +96,8 @@ export function DashboardPage() {
     {
       field: 'nom',
       headerName: 'Activité',
-      flex: 1.6,
-      minWidth: 160,
+      flex: 1.5,
+      minWidth: 140,
       renderCell: (params) => (
         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', height: '100%' }}>
           <Avatar
@@ -117,11 +118,25 @@ export function DashboardPage() {
         </Stack>
       ),
     },
-    { field: 'lieu', headerName: 'Lieu', flex: 1, minWidth: 90 },
+    { field: 'lieu', headerName: 'Lieu', flex: 1, minWidth: 80 },
+    {
+      field: 'created_by',
+      headerName: 'Organisateur',
+      width: 110,
+      sortable: false,
+      renderCell: (params) => (
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', height: '100%' }}>
+          <PersonRoundedIcon fontSize="small" sx={{ color: 'text.disabled' }} />
+          <Typography variant="body2" noWrap>
+            {params.row.created_by.username}
+          </Typography>
+        </Stack>
+      ),
+    },
     {
       field: 'date_debut',
       headerName: 'Période',
-      width: 150,
+      width: 130,
       sortable: true,
       renderCell: (params) => (
         <Stack sx={{ justifyContent: 'center', height: '100%' }}>
@@ -137,7 +152,7 @@ export function DashboardPage() {
     {
       field: 'statut',
       headerName: 'Statut',
-      width: 110,
+      width: 100,
       renderCell: (params) => {
         const s = STATUT_LABEL[params.value as StatutActivite]
         return <Chip size="small" label={s.label} color={s.color} />
@@ -146,7 +161,7 @@ export function DashboardPage() {
     {
       field: 'actions',
       headerName: 'Actions',
-      width: 92,
+      width: 80,
       sortable: false,
       filterable: false,
       align: 'right',
@@ -261,7 +276,7 @@ export function DashboardPage() {
         )}
       </Paper>
 
-      <CreateActiviteDialog open={dialogOpen} onClose={() => setDialogOpen(false)} />
+      <ActiviteFormDialog open={dialogOpen} onClose={() => setDialogOpen(false)} />
     </Box>
   )
 }

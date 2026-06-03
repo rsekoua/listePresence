@@ -18,8 +18,17 @@ import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded'
 import PlaceRoundedIcon from '@mui/icons-material/PlaceRounded'
 import ScheduleRoundedIcon from '@mui/icons-material/ScheduleRounded'
 import NotesRoundedIcon from '@mui/icons-material/NotesRounded'
-import { fetchActivite, fetchQrCode, updateActivite } from '../api/activites'
+import PersonRoundedIcon from '@mui/icons-material/PersonRounded'
+import EditRoundedIcon from '@mui/icons-material/EditRounded'
+import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded'
+import {
+  cloneActivite,
+  fetchActivite,
+  fetchQrCode,
+  updateActivite,
+} from '../api/activites'
 import type { StatutActivite } from '../api/types'
+import { ActiviteFormDialog } from '../components/ActiviteFormDialog'
 
 const STATUT: Record<
   StatutActivite,
@@ -36,6 +45,7 @@ export function ActiviteDetailPage() {
   const queryClient = useQueryClient()
   const { enqueueSnackbar } = useSnackbar()
   const [qrUrl, setQrUrl] = useState<string | null>(null)
+  const [editOpen, setEditOpen] = useState(false)
 
   const { data: activite, isLoading } = useQuery({
     queryKey: ['activite', id],
@@ -74,6 +84,16 @@ export function ActiviteDetailPage() {
     },
   })
 
+  const clone = useMutation({
+    mutationFn: () => cloneActivite(id),
+    onSuccess: (copie) => {
+      queryClient.invalidateQueries({ queryKey: ['activites'] })
+      enqueueSnackbar(`Activité clonée : « ${copie.nom} ».`, { variant: 'success' })
+      navigate(`/activites/${copie.id}`)
+    },
+    onError: () => enqueueSnackbar('Clonage impossible.', { variant: 'error' }),
+  })
+
   const downloadQr = () => {
     if (!qrUrl || !activite) return
     const a = document.createElement('a')
@@ -106,16 +126,37 @@ export function ActiviteDetailPage() {
         </Button>
       </Box>
 
-      {/* Titre */}
+      {/* Titre + actions */}
       <Stack
-        direction="row"
+        direction={{ xs: 'column', sm: 'row' }}
         spacing={2}
-        sx={{ alignItems: 'center', mb: 3, flexWrap: 'wrap' }}
+        sx={{ alignItems: { sm: 'center' }, mb: 3 }}
       >
-        <Typography variant="h4" component="h1">
-          {activite.nom}
-        </Typography>
-        <Chip size="small" label={statut.label} color={statut.color} />
+        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', flexGrow: 1 }}>
+          <Typography variant="h4" component="h1">
+            {activite.nom}
+          </Typography>
+          <Chip size="small" label={statut.label} color={statut.color} />
+        </Stack>
+        <Stack direction="row" spacing={1}>
+          {activite.can_edit && (
+            <Button
+              variant="outlined"
+              startIcon={<EditRoundedIcon />}
+              onClick={() => setEditOpen(true)}
+            >
+              Modifier
+            </Button>
+          )}
+          <Button
+            variant="outlined"
+            startIcon={<ContentCopyRoundedIcon />}
+            disabled={clone.isPending}
+            onClick={() => clone.mutate()}
+          >
+            Cloner
+          </Button>
+        </Stack>
       </Stack>
 
       <Stack
@@ -141,6 +182,11 @@ export function ActiviteDetailPage() {
                 activite.date_fin,
               ).format('DD/MM/YYYY HH:mm')}`}
             />
+            <Info
+              icon={<PersonRoundedIcon fontSize="small" />}
+              label="Organisateur"
+              value={activite.created_by.username}
+            />
             {activite.description && (
               <Info
                 icon={<NotesRoundedIcon fontSize="small" />}
@@ -156,7 +202,11 @@ export function ActiviteDetailPage() {
             <Button
               variant="contained"
               color={activite.statut === 'ouvert' ? 'warning' : 'success'}
-              disabled={toggleStatut.isPending || activite.statut === 'archive'}
+              disabled={
+                !activite.can_edit ||
+                toggleStatut.isPending ||
+                activite.statut === 'archive'
+              }
               onClick={() =>
                 toggleStatut.mutate(activite.statut === 'ouvert' ? 'ferme' : 'ouvert')
               }
@@ -166,9 +216,11 @@ export function ActiviteDetailPage() {
                 : 'Ouvrir la collecte'}
             </Button>
             <Typography variant="body2" color="text.secondary">
-              {activite.statut === 'ouvert'
-                ? 'Les participants peuvent s’enregistrer.'
-                : 'Le formulaire public est désactivé.'}
+              {!activite.can_edit
+                ? 'Réservé au créateur de l’activité.'
+                : activite.statut === 'ouvert'
+                  ? 'Les participants peuvent s’enregistrer.'
+                  : 'Le formulaire public est désactivé.'}
             </Typography>
           </Stack>
         </Paper>
@@ -221,6 +273,12 @@ export function ActiviteDetailPage() {
           </Button>
         </Paper>
       </Stack>
+
+      <ActiviteFormDialog
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        activite={activite}
+      />
     </Box>
   )
 }

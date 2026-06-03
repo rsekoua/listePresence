@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -15,7 +16,8 @@ import {
   TextField,
 } from '@mui/material'
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker'
-import { createActivite } from '../api/activites'
+import { createActivite, updateActivite } from '../api/activites'
+import type { Activite } from '../api/types'
 
 const schema = z
   .object({
@@ -35,9 +37,21 @@ type FormValues = z.infer<typeof schema>
 interface Props {
   open: boolean
   onClose: () => void
+  /** Si fourni, le dialog est en mode édition. */
+  activite?: Activite
 }
 
-export function CreateActiviteDialog({ open, onClose }: Props) {
+const emptyValues = (): FormValues => ({
+  nom: '',
+  lieu: '',
+  description: '',
+  date_debut: dayjs().add(1, 'day').hour(9).minute(0),
+  date_fin: dayjs().add(1, 'day').hour(17).minute(0),
+})
+
+/** Dialog de création ou d'édition d'une activité. */
+export function ActiviteFormDialog({ open, onClose, activite }: Props) {
+  const isEdit = Boolean(activite)
   const queryClient = useQueryClient()
   const { enqueueSnackbar } = useSnackbar()
   const {
@@ -48,48 +62,70 @@ export function CreateActiviteDialog({ open, onClose }: Props) {
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      nom: '',
-      lieu: '',
-      description: '',
-      date_debut: dayjs().add(1, 'day').hour(9).minute(0),
-      date_fin: dayjs().add(1, 'day').hour(17).minute(0),
-    },
+    defaultValues: emptyValues(),
   })
 
+  // Pré-remplit le formulaire à l'ouverture (édition) ou le réinitialise (création).
+  useEffect(() => {
+    if (!open) return
+    if (activite) {
+      reset({
+        nom: activite.nom,
+        lieu: activite.lieu,
+        description: activite.description,
+        date_debut: dayjs(activite.date_debut),
+        date_fin: dayjs(activite.date_fin),
+      })
+    } else {
+      reset(emptyValues())
+    }
+  }, [open, activite, reset])
+
   const mutation = useMutation({
-    mutationFn: (values: FormValues) =>
-      createActivite({
+    mutationFn: (values: FormValues) => {
+      const payload = {
         nom: values.nom,
         lieu: values.lieu,
         description: values.description ?? '',
         date_debut: values.date_debut.toISOString(),
         date_fin: values.date_fin.toISOString(),
-      }),
-    onSuccess: (activite) => {
+      }
+      return activite
+        ? updateActivite(activite.id, payload)
+        : createActivite(payload)
+    },
+    onSuccess: (saved) => {
       queryClient.invalidateQueries({ queryKey: ['activites'] })
-      enqueueSnackbar(`Activité « ${activite.nom} » créée avec succès.`, {
-        variant: 'success',
-      })
-      reset()
+      if (activite) {
+        queryClient.invalidateQueries({ queryKey: ['activite', activite.id] })
+      }
+      enqueueSnackbar(
+        isEdit
+          ? `Activité « ${saved.nom} » modifiée.`
+          : `Activité « ${saved.nom} » créée avec succès.`,
+        { variant: 'success' },
+      )
       onClose()
     },
     onError: () => {
-      enqueueSnackbar("Échec de la création de l'activité.", {
-        variant: 'error',
-      })
+      enqueueSnackbar(
+        isEdit
+          ? "Échec de la modification de l'activité."
+          : "Échec de la création de l'activité.",
+        { variant: 'error' },
+      )
     },
   })
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>Nouvelle activité</DialogTitle>
+      <DialogTitle>{isEdit ? "Modifier l'activité" : 'Nouvelle activité'}</DialogTitle>
       <form onSubmit={handleSubmit((v) => mutation.mutate(v))}>
         <DialogContent>
           <Stack spacing={2.5} sx={{ mt: 1 }}>
             {mutation.isError && (
               <Alert severity="error">
-                Impossible de créer l'activité. Vérifiez les champs.
+                Une erreur est survenue. Vérifiez les champs.
               </Alert>
             )}
             <TextField
@@ -158,7 +194,11 @@ export function CreateActiviteDialog({ open, onClose }: Props) {
             Annuler
           </Button>
           <Button type="submit" variant="contained" disabled={mutation.isPending}>
-            {mutation.isPending ? 'Création…' : 'Créer'}
+            {mutation.isPending
+              ? 'Enregistrement…'
+              : isEdit
+                ? 'Enregistrer'
+                : 'Créer'}
           </Button>
         </DialogActions>
       </form>

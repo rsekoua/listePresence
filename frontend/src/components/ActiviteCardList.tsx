@@ -11,6 +11,7 @@ import {
 } from '@mui/material'
 import PlaceRoundedIcon from '@mui/icons-material/PlaceRounded'
 import ScheduleRoundedIcon from '@mui/icons-material/ScheduleRounded'
+import PersonRoundedIcon from '@mui/icons-material/PersonRounded'
 import type { Activite, StatutActivite } from '../api/types'
 import { ActiviteRowActions } from './ActiviteRowActions'
 
@@ -103,6 +104,12 @@ export function ActiviteCardList({
                 <Typography variant="body2" color="text.secondary">
                   {dayjs(a.date_debut).format('DD/MM/YYYY HH:mm')} →{' '}
                   {dayjs(a.date_fin).format('DD/MM/YYYY HH:mm')}
+                </Typography>
+              </Stack>
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                <PersonRoundedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+                <Typography variant="body2" color="text.secondary" noWrap>
+                  {a.created_by.username}
                 </Typography>
               </Stack>
             </Stack>

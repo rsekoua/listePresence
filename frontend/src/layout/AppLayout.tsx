@@ -15,6 +15,7 @@ import {
   ListItemText,
   Menu,
   MenuItem,
+  Stack,
   Toolbar,
   Typography,
   useMediaQuery,
@@ -159,9 +160,19 @@ export function AppLayout() {
           {(me?.username ?? '?').charAt(0).toUpperCase()}
         </Avatar>
         <Box sx={{ minWidth: 0, flexGrow: 1 }}>
-          <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
-            {me?.username ?? '—'}
-          </Typography>
+          <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center' }}>
+            <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
+              {me?.username ?? '—'}
+            </Typography>
+            {me?.role && (
+              <Chip
+                size="small"
+                label={me.role === 'admin' ? 'Admin' : 'Organisateur'}
+                color={me.role === 'admin' ? 'primary' : 'default'}
+                sx={{ height: 18, '& .MuiChip-label': { px: 0.75, fontSize: 11 } }}
+              />
+            )}
+          </Stack>
           <Typography variant="caption" color="text.secondary" noWrap>
             {me?.email}
           </Typography>

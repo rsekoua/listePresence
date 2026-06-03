@@ -49,6 +49,11 @@ export async function deleteActivite(id: string): Promise<void> {
   await api.delete(`/activites/${id}`)
 }
 
+export async function cloneActivite(id: string): Promise<Activite> {
+  const { data } = await api.post<Activite>(`/activites/${id}/clone`)
+  return data
+}
+
 /** Récupère le QR Code en blob (l'endpoint exige le JWT). */
 export async function fetchQrCode(id: string): Promise<Blob> {
   const { data } = await api.get(`/activites/${id}/qrcode`, {

@@ -17,11 +17,14 @@ import {
 } from '@mui/material'
 import MoreVertRoundedIcon from '@mui/icons-material/MoreVertRounded'
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
+import EditRoundedIcon from '@mui/icons-material/EditRounded'
+import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded'
 import LockRoundedIcon from '@mui/icons-material/LockRounded'
 import LockOpenRoundedIcon from '@mui/icons-material/LockOpenRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
-import { deleteActivite, updateActivite } from '../api/activites'
+import { cloneActivite, deleteActivite, updateActivite } from '../api/activites'
 import type { Activite } from '../api/types'
+import { ActiviteFormDialog } from './ActiviteFormDialog'
 
 export function ActiviteRowActions({ activite }: { activite: Activite }) {
   const navigate = useNavigate()
@@ -29,8 +32,10 @@ export function ActiviteRowActions({ activite }: { activite: Activite }) {
   const { enqueueSnackbar } = useSnackbar()
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
 
   const close = () => setAnchorEl(null)
+  const canEdit = activite.can_edit
 
   const toggle = useMutation({
     mutationFn: () =>
@@ -46,6 +51,15 @@ export function ActiviteRowActions({ activite }: { activite: Activite }) {
     },
     onError: () =>
       enqueueSnackbar('Impossible de modifier le statut.', { variant: 'error' }),
+  })
+
+  const clone = useMutation({
+    mutationFn: () => cloneActivite(activite.id),
+    onSuccess: (copie) => {
+      queryClient.invalidateQueries({ queryKey: ['activites'] })
+      enqueueSnackbar(`Activité clonée : « ${copie.nom} ».`, { variant: 'success' })
+    },
+    onError: () => enqueueSnackbar('Clonage impossible.', { variant: 'error' }),
   })
 
   const remove = useMutation({
@@ -106,7 +120,31 @@ export function ActiviteRowActions({ activite }: { activite: Activite }) {
           Voir le détail
         </MenuItem>
         <MenuItem
-          disabled={activite.statut === 'archive' || toggle.isPending}
+          disabled={!canEdit}
+          onClick={() => {
+            close()
+            setEditOpen(true)
+          }}
+        >
+          <ListItemIcon>
+            <EditRoundedIcon fontSize="small" />
+          </ListItemIcon>
+          Modifier
+        </MenuItem>
+        <MenuItem
+          disabled={clone.isPending}
+          onClick={() => {
+            close()
+            clone.mutate()
+          }}
+        >
+          <ListItemIcon>
+            <ContentCopyRoundedIcon fontSize="small" />
+          </ListItemIcon>
+          Cloner
+        </MenuItem>
+        <MenuItem
+          disabled={!canEdit || activite.statut === 'archive' || toggle.isPending}
           onClick={() => {
             close()
             toggle.mutate()
@@ -122,6 +160,7 @@ export function ActiviteRowActions({ activite }: { activite: Activite }) {
           {isOpen ? 'Fermer la collecte' : 'Ouvrir la collecte'}
         </MenuItem>
         <MenuItem
+          disabled={!canEdit}
           onClick={() => {
             close()
             setConfirmOpen(true)
@@ -134,6 +173,12 @@ export function ActiviteRowActions({ activite }: { activite: Activite }) {
           Supprimer
         </MenuItem>
       </Menu>
+
+      <ActiviteFormDialog
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        activite={activite}
+      />
 
       <Dialog
         open={confirmOpen}
