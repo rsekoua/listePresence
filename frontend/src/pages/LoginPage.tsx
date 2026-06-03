@@ -32,8 +32,7 @@ export function LoginPage() {
         alignItems: 'center',
         justifyContent: 'center',
         p: 2,
-        background:
-          'linear-gradient(135deg, #1565c0 0%, #1e88e5 45%, #ef6c00 140%)',
+        bgcolor: 'background.default',
       }}
     >
       <Container maxWidth="xs" disableGutters>
@@ -49,8 +48,7 @@ export function LoginPage() {
               pb: 5,
               textAlign: 'center',
               color: 'common.white',
-              background:
-                'linear-gradient(135deg, #1565c0 0%, #1e88e5 100%)',
+              bgcolor: 'primary.main',
             }}
           >
             <Box
@@ -168,7 +166,7 @@ export function LoginPage() {
             display: 'block',
             textAlign: 'center',
             mt: 2,
-            color: 'rgba(255,255,255,0.85)',
+            color: 'text.secondary',
           }}
         >
           MVP — Sprint 1 (interface sans logique d'authentification)
