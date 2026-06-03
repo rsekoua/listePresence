@@ -1,5 +1,12 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { useMutation } from '@tanstack/react-query'
+import { isAxiosError } from 'axios'
 import {
+  Alert,
   Box,
   Button,
   Container,
@@ -16,13 +23,43 @@ import PersonOutlineRoundedIcon from '@mui/icons-material/PersonOutlineRounded'
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined'
 import VisibilityRoundedIcon from '@mui/icons-material/VisibilityRounded'
 import VisibilityOffRoundedIcon from '@mui/icons-material/VisibilityOffRounded'
+import { loginRequest } from '../api/activites'
+import { useAuth } from '../auth/AuthContext'
+
+const schema = z.object({
+  username: z.string().min(1, "L'identifiant est requis"),
+  password: z.string().min(1, 'Le mot de passe est requis'),
+})
+
+type LoginForm = z.infer<typeof schema>
 
 /**
- * Page de connexion de l'organisateur.
- * Sprint 1 : affichage statique uniquement (la logique JWT arrive au Sprint 2).
+ * Page de connexion de l'organisateur (AUTH-01).
  */
 export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
+  const navigate = useNavigate()
+  const { login } = useAuth()
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginForm>({ resolver: zodResolver(schema) })
+
+  const mutation = useMutation({
+    mutationFn: (data: LoginForm) => loginRequest(data.username, data.password),
+    onSuccess: (tokens) => {
+      login(tokens.access, tokens.refresh)
+      navigate('/dashboard', { replace: true })
+    },
+  })
+
+  const errorMessage = mutation.isError
+    ? isAxiosError(mutation.error) && mutation.error.response?.status === 401
+      ? 'Identifiant ou mot de passe incorrect.'
+      : 'Une erreur est survenue. Réessayez.'
+    : null
 
   return (
     <Box
@@ -36,10 +73,7 @@ export function LoginPage() {
       }}
     >
       <Container maxWidth="xs" disableGutters>
-        <Paper
-          elevation={8}
-          sx={{ borderRadius: 3, overflow: 'hidden' }}
-        >
+        <Paper elevation={8} sx={{ borderRadius: 3, overflow: 'hidden' }}>
           {/* Bandeau de marque */}
           <Box
             sx={{
@@ -62,7 +96,6 @@ export function LoginPage() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 bgcolor: 'rgba(255,255,255,0.18)',
-                backdropFilter: 'blur(4px)',
               }}
             >
               <QrCode2RoundedIcon sx={{ fontSize: 38 }} />
@@ -78,8 +111,14 @@ export function LoginPage() {
           {/* Formulaire */}
           <Box
             component="form"
-            onSubmit={(e) => e.preventDefault()}
-            sx={{ p: 4, mt: -2, bgcolor: 'background.paper', borderTopLeftRadius: 24, borderTopRightRadius: 24 }}
+            onSubmit={handleSubmit((data) => mutation.mutate(data))}
+            sx={{
+              p: 4,
+              mt: -2,
+              bgcolor: 'background.paper',
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+            }}
           >
             <Typography
               variant="subtitle1"
@@ -89,12 +128,16 @@ export function LoginPage() {
             </Typography>
 
             <Stack spacing={2.5}>
+              {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
+
               <TextField
                 label="Identifiant"
-                name="username"
                 fullWidth
                 autoComplete="username"
                 autoFocus
+                error={Boolean(errors.username)}
+                helperText={errors.username?.message}
+                {...register('username')}
                 slotProps={{
                   input: {
                     startAdornment: (
@@ -107,10 +150,12 @@ export function LoginPage() {
               />
               <TextField
                 label="Mot de passe"
-                name="password"
                 type={showPassword ? 'text' : 'password'}
                 fullWidth
                 autoComplete="current-password"
+                error={Boolean(errors.password)}
+                helperText={errors.password?.message}
+                {...register('password')}
                 slotProps={{
                   input: {
                     startAdornment: (
@@ -152,9 +197,10 @@ export function LoginPage() {
                 type="submit"
                 variant="contained"
                 fullWidth
+                disabled={mutation.isPending}
                 sx={{ py: 1.2, fontWeight: 600 }}
               >
-                Se connecter
+                {mutation.isPending ? 'Connexion…' : 'Se connecter'}
               </Button>
             </Stack>
           </Box>
@@ -169,7 +215,7 @@ export function LoginPage() {
             color: 'text.secondary',
           }}
         >
-          MVP — Sprint 1 (interface sans logique d'authentification)
+          MVP — Sprint 2 (authentification JWT)
         </Typography>
       </Container>
     </Box>

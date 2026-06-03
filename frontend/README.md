@@ -49,4 +49,5 @@ npm run build    # vérification TypeScript + build de production
 ## Avancement
 
 - [x] **Sprint 1** — Init Vite, MUI + thème, routing public/protégé, proxy Axios, page Login statique
-- [ ] Sprint 2 — Auth JWT (logique), Dashboard activités, QR Code
+- [x] **Sprint 2** — Login JWT réel, Dashboard (DataGrid), création d'activité (date pickers), page détail + QR Code téléchargeable
+- [ ] Sprint 3 — Formulaire public & upload CNI

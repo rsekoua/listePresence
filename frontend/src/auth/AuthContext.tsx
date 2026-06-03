@@ -1,18 +1,17 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
-import { TOKEN_KEY } from '../api/client'
+import { REFRESH_KEY, TOKEN_KEY } from '../api/client'
 
 interface AuthContextValue {
   token: string | null
   isAuthenticated: boolean
-  login: (token: string) => void
+  login: (access: string, refresh: string) => void
   logout: () => void
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
 /**
- * Fournit l'état d'authentification global (token JWT en localStorage).
- * La logique d'appel API de connexion sera branchée au Sprint 2.
+ * Fournit l'état d'authentification global (tokens JWT en localStorage).
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(() =>
@@ -23,12 +22,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       token,
       isAuthenticated: Boolean(token),
-      login: (newToken: string) => {
-        localStorage.setItem(TOKEN_KEY, newToken)
-        setToken(newToken)
+      login: (access: string, refresh: string) => {
+        localStorage.setItem(TOKEN_KEY, access)
+        localStorage.setItem(REFRESH_KEY, refresh)
+        setToken(access)
       },
       logout: () => {
         localStorage.removeItem(TOKEN_KEY)
+        localStorage.removeItem(REFRESH_KEY)
         setToken(null)
       },
     }),

@@ -69,7 +69,8 @@ uv run python manage.py runserver
 ## Avancement
 
 - [x] **Sprint 1** — Setup & infrastructure (projet, apps, SQLite, API Ninja, media)
-- [ ] Sprint 2 — Auth JWT & gestion des activités
+- [x] **Sprint 2** — Auth JWT maison, modèle Activite, CRUD + QR Code
+- [ ] Sprint 3 — Formulaire public & upload CNI
 - [ ] Sprint 3 — Formulaire public & upload CNI
 - [ ] Sprint 4 — Tableau de bord participants
 - [ ] Sprint 5 — Exports Excel / PDF / ZIP

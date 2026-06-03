@@ -1,7 +1,8 @@
 import axios from 'axios'
 
-/** Clé de stockage du token JWT (localStorage). */
+/** Clés de stockage des tokens JWT (localStorage). */
 export const TOKEN_KEY = 'presence_token'
+export const REFRESH_KEY = 'presence_refresh'
 
 /**
  * Client Axios partagé.
@@ -22,12 +23,13 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// Redirige vers la connexion si le token est expiré/invalide (Sprint 2).
+// Redirige vers la connexion si le token est expiré/invalide.
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem(TOKEN_KEY)
+      localStorage.removeItem(REFRESH_KEY)
       if (window.location.pathname !== '/login') {
         window.location.assign('/login')
       }
