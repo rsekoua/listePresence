@@ -4,6 +4,10 @@ import { AppLayout } from './layout/AppLayout'
 import { LoginPage } from './pages/LoginPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { ActiviteDetailPage } from './pages/ActiviteDetailPage'
+import { ParticipantsGlobalPage } from './pages/ParticipantsGlobalPage'
+import { SettingsPage } from './pages/SettingsPage'
+import { AboutPage } from './pages/AboutPage'
+import { HelpPage } from './pages/HelpPage'
 import { PublicFormPage } from './pages/PublicFormPage'
 
 function App() {
@@ -17,7 +21,11 @@ function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/participants" element={<ParticipantsGlobalPage />} />
           <Route path="/activites/:id" element={<ActiviteDetailPage />} />
+          <Route path="/parametres" element={<SettingsPage />} />
+          <Route path="/a-propos" element={<AboutPage />} />
+          <Route path="/aide" element={<HelpPage />} />
         </Route>
       </Route>
 

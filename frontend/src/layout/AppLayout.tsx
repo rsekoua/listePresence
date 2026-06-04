@@ -27,7 +27,6 @@ import MoreVertRoundedIcon from '@mui/icons-material/MoreVertRounded'
 import QrCode2RoundedIcon from '@mui/icons-material/QrCode2Rounded'
 import DashboardRoundedIcon from '@mui/icons-material/DashboardRounded'
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded'
-import FileDownloadRoundedIcon from '@mui/icons-material/FileDownloadRounded'
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded'
 import InfoRoundedIcon from '@mui/icons-material/InfoRounded'
 import HelpOutlineRoundedIcon from '@mui/icons-material/HelpOutlineRounded'
@@ -47,15 +46,15 @@ interface NavItem {
 }
 
 const MAIN_NAV: NavItem[] = [
-  { label: 'Tableau de bord', icon: <DashboardRoundedIcon />, path: '/dashboard' },
-  { label: 'Participants', icon: <GroupsRoundedIcon />, soon: true },
-  { label: 'Exports', icon: <FileDownloadRoundedIcon />, soon: true },
+  { label: "Vue d'ensemble", icon: <DashboardRoundedIcon />, path: '/dashboard' },
+  { label: 'Participants', icon: <GroupsRoundedIcon />, path: '/participants' },
+  // { label: 'Exports', icon: <FileDownloadRoundedIcon />, soon: true },
 ]
 
 const SECONDARY_NAV: NavItem[] = [
-  { label: 'Paramètres', icon: <SettingsRoundedIcon /> },
-  { label: 'À propos', icon: <InfoRoundedIcon /> },
-  { label: 'Aide', icon: <HelpOutlineRoundedIcon /> },
+  { label: 'Paramètres', icon: <SettingsRoundedIcon />, path: '/parametres' },
+  { label: 'À propos', icon: <InfoRoundedIcon />, path: '/a-propos' },
+  { label: 'Aide', icon: <HelpOutlineRoundedIcon />, path: '/aide' },
 ]
 
 export function AppLayout() {
@@ -105,7 +104,7 @@ export function AppLayout() {
         </Box>
         <Box sx={{ minWidth: 0, flexGrow: 1 }}>
           <Typography sx={{ fontWeight: 700, lineHeight: 1.1 }} noWrap>
-            Présence
+            Liste de Présence
           </Typography>
           <Typography variant="caption" color="text.secondary" noWrap>
             Espace organisateur
@@ -143,7 +142,18 @@ export function AppLayout() {
       {/* Navigation secondaire */}
       <List sx={{ px: 1.5 }}>
         {SECONDARY_NAV.map((item) => (
-          <ListItemButton key={item.label} sx={{ mb: 0.5 }} disabled>
+          <ListItemButton
+            key={item.label}
+            selected={isActive(item.path)}
+            disabled={item.soon}
+            onClick={() => {
+              if (item.path) {
+                navigate(item.path)
+                setMobileOpen(false)
+              }
+            }}
+            sx={{ mb: 0.5 }}
+          >
             <ListItemIcon sx={{ minWidth: 38 }}>{item.icon}</ListItemIcon>
             <ListItemText
               primary={item.label}

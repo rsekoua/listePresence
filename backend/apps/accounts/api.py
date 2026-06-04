@@ -49,6 +49,11 @@ class MessageOut(Schema):
     detail: str
 
 
+class ChangePasswordIn(Schema):
+    ancien_mot_de_passe: str
+    nouveau_mot_de_passe: str
+
+
 # --- Endpoints -------------------------------------------------------------
 
 
@@ -93,3 +98,16 @@ def me(request):
         email=user.email,
         role=user.role,
     )
+
+
+@router.post("/change-password", response={200: MessageOut}, auth=JWTAuth())
+def change_password(request, data: ChangePasswordIn):
+    """Change le mot de passe de l'organisateur connecté."""
+    user = request.auth
+    if not user.check_password(data.ancien_mot_de_passe):
+        raise HttpError(400, "Le mot de passe actuel est incorrect.")
+    if len(data.nouveau_mot_de_passe) < 8:
+        raise HttpError(422, "Le nouveau mot de passe doit faire au moins 8 caractères.")
+    user.set_password(data.nouveau_mot_de_passe)
+    user.save(update_fields=["password"])
+    return 200, MessageOut(detail="Mot de passe mis à jour.")

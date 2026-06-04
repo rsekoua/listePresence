@@ -42,6 +42,28 @@ export async function fetchParticipants(
   return data
 }
 
+export interface ParticipantGlobal extends Participant {
+  activite_id: string
+  activite_nom: string
+}
+
+export interface ParticipantFilters {
+  search?: string
+  structure?: string
+  cni?: 'complete' | 'incomplete'
+}
+
+/** Liste globale des participants, toutes activités confondues. */
+export async function fetchAllParticipants(
+  filters: ParticipantFilters = {},
+): Promise<Paginated<ParticipantGlobal>> {
+  const { data } = await api.get<Paginated<ParticipantGlobal>>(
+    '/activites/participants',
+    { params: { limit: 1000, ...filters } },
+  )
+  return data
+}
+
 export interface ParticipantInput {
   nom: string
   prenom: string

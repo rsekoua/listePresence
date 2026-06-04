@@ -20,6 +20,16 @@ export async function logoutRequest(): Promise<void> {
   await api.post('/auth/logout')
 }
 
+export async function changePassword(
+  ancien_mot_de_passe: string,
+  nouveau_mot_de_passe: string,
+): Promise<void> {
+  await api.post('/auth/change-password', {
+    ancien_mot_de_passe,
+    nouveau_mot_de_passe,
+  })
+}
+
 // --- Activités -------------------------------------------------------------
 
 export async function fetchActivites(): Promise<Activite[]> {

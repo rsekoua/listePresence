@@ -149,6 +149,63 @@ def stats_globales(request):
     )
 
 
+class ParticipantGlobalOut(Schema):
+    id: UUID
+    nom: str
+    prenom: str
+    structure: str
+    fonction: str
+    telephone_wave: str
+    email: str
+    numero_cni: str
+    horodatage: datetime
+    cni_complete: bool
+    activite_id: UUID
+    activite_nom: str
+
+    @staticmethod
+    def resolve_cni_complete(obj: Participant) -> bool:
+        return bool(obj.photo_cni_recto) and bool(obj.photo_cni_verso)
+
+    @staticmethod
+    def resolve_activite_nom(obj: Participant) -> str:
+        return obj.activite.nom
+
+
+@router.get("/participants", response=list[ParticipantGlobalOut])
+@paginate
+def list_all_participants(
+    request,
+    search: str | None = Query(None),
+    structure: str | None = Query(None),
+    date_from: date | None = Query(None),
+    date_to: date | None = Query(None),
+    cni: str | None = Query(None),
+):
+    """Liste globale et filtrée des participants, toutes activités confondues."""
+    from django.db.models import Q
+
+    qs = Participant.objects.select_related("activite")
+    if search:
+        qs = qs.filter(
+            Q(nom__icontains=search)
+            | Q(prenom__icontains=search)
+            | Q(email__icontains=search)
+            | Q(numero_cni__icontains=search)
+        )
+    if structure:
+        qs = qs.filter(structure__icontains=structure)
+    if date_from:
+        qs = qs.filter(horodatage__date__gte=date_from)
+    if date_to:
+        qs = qs.filter(horodatage__date__lte=date_to)
+    if cni == "complete":
+        qs = qs.exclude(photo_cni_recto="").exclude(photo_cni_verso="")
+    elif cni == "incomplete":
+        qs = qs.filter(Q(photo_cni_recto="") | Q(photo_cni_verso=""))
+    return qs.order_by("-horodatage")
+
+
 @router.post("/", response={201: ActiviteOut})
 def create_activite(request, data: ActiviteIn):
     """Crée une activité (token QR généré automatiquement)."""
