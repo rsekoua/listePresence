@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import dayjs from 'dayjs'
 import {
   Avatar,
   Box,
@@ -13,12 +14,15 @@ import {
   Typography,
   useMediaQuery,
 } from '@mui/material'
-import { useTheme } from '@mui/material/styles'
+import { alpha, useTheme } from '@mui/material/styles'
 import { DataGrid, type GridColDef } from '@mui/x-data-grid'
 import { frFR } from '@mui/x-data-grid/locales'
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded'
 import PersonAddRoundedIcon from '@mui/icons-material/PersonAddRounded'
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded'
+import ApartmentRoundedIcon from '@mui/icons-material/ApartmentRounded'
+import PhoneIphoneRoundedIcon from '@mui/icons-material/PhoneIphoneRounded'
+import AttachFileRoundedIcon from '@mui/icons-material/AttachFileRounded'
 import { fetchParticipants, type Participant } from '../api/participants'
 import { ParticipantDetailDialog } from './ParticipantDetailDialog'
 import { AddParticipantDialog } from './AddParticipantDialog'
@@ -46,27 +50,90 @@ export function ParticipantsPanel({
   const participants = page?.items ?? []
 
   const columns: GridColDef<Participant>[] = [
-    { field: 'nom', headerName: 'Nom', flex: 1, minWidth: 110 },
-    { field: 'prenom', headerName: 'Prénom', flex: 1, minWidth: 110 },
-    { field: 'structure', headerName: 'Structure', flex: 1.2, minWidth: 140 },
-    { field: 'fonction', headerName: 'Fonction', flex: 1.2, minWidth: 140 },
-    { field: 'telephone_wave', headerName: 'Téléphone Wave', width: 150 },
+    {
+      field: 'nom',
+      headerName: 'Participant',
+      flex: 1.4,
+      minWidth: 200,
+      renderCell: (params) => (
+        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', height: '100%' }}>
+          <Avatar
+            sx={{
+              width: 32,
+              height: 32,
+              bgcolor: alpha(theme.palette.primary.main, 0.1),
+              color: theme.palette.primary.dark,
+              fontSize: 13,
+              fontWeight: 700,
+            }}
+          >
+            {params.row.prenom.charAt(0).toUpperCase()}
+          </Avatar>
+          <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }} noWrap>
+            {params.row.prenom} {params.row.nom}
+          </Typography>
+        </Stack>
+      ),
+    },
+    {
+      field: 'structure',
+      headerName: 'Structure',
+      flex: 1,
+      minWidth: 150,
+      renderCell: (params) => (
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', height: '100%' }}>
+          <ApartmentRoundedIcon fontSize="small" sx={{ color: 'text.disabled' }} />
+          <Typography variant="body2" noWrap>
+            {params.row.structure}
+          </Typography>
+        </Stack>
+      ),
+    },
+    {
+      field: 'fonction',
+      headerName: 'Fonction',
+      flex: 1,
+      minWidth: 140,
+    },
+    {
+      field: 'telephone_wave',
+      headerName: 'Téléphone Wave',
+      width: 170,
+      renderCell: (params) => (
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', height: '100%' }}>
+          <PhoneIphoneRoundedIcon fontSize="small" sx={{ color: 'text.disabled' }} />
+          <Typography variant="body2" noWrap>
+            {params.row.telephone_wave}
+          </Typography>
+        </Stack>
+      ),
+    },
     {
       field: 'numero_cni',
       headerName: 'N° CNI',
-      width: 150,
+      width: 160,
       renderCell: (params) => (
         <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', height: '100%' }}>
           <Typography variant="body2" noWrap>
             {params.row.numero_cni}
           </Typography>
-          {!params.row.cni_complete && (
+          {params.row.cni_complete ? (
+            <Tooltip title="Carte CNI chargée (recto + verso)">
+              <AttachFileRoundedIcon fontSize="small" sx={{ color: 'success.main' }} />
+            </Tooltip>
+          ) : (
             <Tooltip title="Photos CNI manquantes (saisie manuelle)">
               <WarningAmberRoundedIcon fontSize="small" color="warning" />
             </Tooltip>
           )}
         </Stack>
       ),
+    },
+    {
+      field: 'horodatage',
+      headerName: 'Inscrit le',
+      width: 150,
+      valueFormatter: (value) => dayjs(value as string).format('DD/MM/YYYY HH:mm'),
     },
   ]
 
@@ -121,19 +188,32 @@ export function ParticipantsPanel({
             onRowClick={(p) => setSelected(p.row)}
             disableRowSelectionOnClick
             disableColumnMenu
-            rowHeight={56}
-            columnHeaderHeight={46}
+            rowHeight={52}
+            columnHeaderHeight={48}
             initialState={{ pagination: { paginationModel: { pageSize: 20 } } }}
             pageSizeOptions={[20, 50, 100]}
             sx={{
               border: 0,
               cursor: 'pointer',
               height: 460,
-              '& .MuiDataGrid-columnHeaders': { bgcolor: 'background.default' },
+              fontSize: 13,
+              '--DataGrid-rowBorderColor': '#eef0f4',
+              '& .MuiDataGrid-columnHeader': { bgcolor: '#f8fafc' },
+              '& .MuiDataGrid-columnHeaders': { bgcolor: '#f8fafc' },
+              '& .MuiDataGrid-columnHeaderTitle': {
+                fontWeight: 700,
+                color: 'text.secondary',
+                textTransform: 'uppercase',
+                fontSize: 11,
+                letterSpacing: 0.4,
+              },
+              '& .MuiDataGrid-cell': { borderColor: '#eef0f4' },
+              '& .MuiDataGrid-cell .MuiTypography-root': { fontSize: 13 },
               '& .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within': {
                 outline: 'none',
               },
               '& .MuiDataGrid-row:hover': { bgcolor: 'action.hover' },
+              '& .MuiDataGrid-footerContainer': { borderColor: '#eef0f4' },
             }}
             localeText={{
               ...frFR.components.MuiDataGrid.defaultProps.localeText,

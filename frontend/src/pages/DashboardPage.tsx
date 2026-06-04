@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState, type ReactElement, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
@@ -22,6 +22,7 @@ import LockOpenRoundedIcon from '@mui/icons-material/LockOpenRounded'
 import LockRoundedIcon from '@mui/icons-material/LockRounded'
 import PersonRoundedIcon from '@mui/icons-material/PersonRounded'
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded'
+import Inventory2RoundedIcon from '@mui/icons-material/Inventory2Rounded'
 import { fetchActivites, fetchGlobalStats } from '../api/activites'
 import type { Activite, StatutActivite } from '../api/types'
 import { ActiviteFormDialog } from '../components/ActiviteFormDialog'
@@ -30,11 +31,11 @@ import { ActiviteCardList } from '../components/ActiviteCardList'
 
 const STATUT_LABEL: Record<
   StatutActivite,
-  { label: string; color: 'success' | 'default' | 'warning' }
+  { label: string; color: 'success' | 'default' | 'warning'; icon: ReactElement }
 > = {
-  ouvert: { label: 'Ouverte', color: 'success' },
-  ferme: { label: 'Fermée', color: 'warning' },
-  archive: { label: 'Archivée', color: 'default' },
+  ouvert: { label: 'Ouverte', color: 'success', icon: <LockOpenRoundedIcon /> },
+  ferme: { label: 'Fermée', color: 'warning', icon: <LockRoundedIcon /> },
+  archive: { label: 'Archivée', color: 'default', icon: <Inventory2RoundedIcon /> },
 }
 
 function StatCard({
@@ -222,11 +223,18 @@ export function DashboardPage() {
         const s = STATUT_LABEL[params.value as StatutActivite]
         return (
           <Stack sx={{ alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-            <Chip 
-              size="small" 
-              label={s.label} 
-              color={s.color} 
-              sx={{ fontWeight: 600, px: 0.5 }} 
+            <Chip
+              size="small"
+              icon={s.icon}
+              label={s.label}
+              color={s.color}
+              variant="outlined"
+              sx={{
+                fontWeight: 600,
+                fontSize: 12,
+                height: 24,
+                '& .MuiChip-icon': { fontSize: 14, ml: 0.5 },
+              }}
             />
           </Stack>
         )
@@ -334,16 +342,23 @@ export function DashboardPage() {
             border: 0,
             cursor: 'pointer',
             height: 480,
+            fontSize: 13,
             '--DataGrid-rowBorderColor': '#eef0f4',
+            '& .MuiDataGrid-columnHeader': {
+              bgcolor: '#f8fafc',
+            },
             '& .MuiDataGrid-columnHeaders': {
-              bgcolor: 'background.default',
+              bgcolor: '#f8fafc',
             },
             '& .MuiDataGrid-columnHeaderTitle': {
               fontWeight: 700,
               color: 'text.secondary',
               textTransform: 'uppercase',
-              fontSize: 12,
+              fontSize: 11,
               letterSpacing: 0.4,
+            },
+            '& .MuiDataGrid-cell .MuiTypography-root': {
+              fontSize: 13,
             },
             '& .MuiDataGrid-columnSeparator': { display: '' },
             '& .MuiDataGrid-cell': { borderColor: '#eef0f4' },

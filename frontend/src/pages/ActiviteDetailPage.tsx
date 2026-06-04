@@ -21,6 +21,9 @@ import NotesRoundedIcon from '@mui/icons-material/NotesRounded'
 import PersonRoundedIcon from '@mui/icons-material/PersonRounded'
 import EditRoundedIcon from '@mui/icons-material/EditRounded'
 import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded'
+import LockOpenRoundedIcon from '@mui/icons-material/LockOpenRounded'
+import LockRoundedIcon from '@mui/icons-material/LockRounded'
+import Inventory2RoundedIcon from '@mui/icons-material/Inventory2Rounded'
 import {
   cloneActivite,
   fetchActivite,
@@ -33,11 +36,11 @@ import { ParticipantsPanel } from '../components/ParticipantsPanel'
 
 const STATUT: Record<
   StatutActivite,
-  { label: string; color: 'success' | 'warning' | 'default' }
+  { label: string; color: 'success' | 'warning' | 'default'; icon: React.ReactElement }
 > = {
-  ouvert: { label: 'Ouverte', color: 'success' },
-  ferme: { label: 'Fermée', color: 'warning' },
-  archive: { label: 'Archivée', color: 'default' },
+  ouvert: { label: 'Ouverte', color: 'success', icon: <LockOpenRoundedIcon /> },
+  ferme: { label: 'Fermée', color: 'warning', icon: <LockRoundedIcon /> },
+  archive: { label: 'Archivée', color: 'default', icon: <Inventory2RoundedIcon /> },
 }
 
 export function ActiviteDetailPage() {
@@ -131,14 +134,44 @@ export function ActiviteDetailPage() {
       <Stack
         direction={{ xs: 'column', sm: 'row' }}
         spacing={2}
-        sx={{ alignItems: { sm: 'center' }, mb: 3 }}
+        sx={{ alignItems: { sm: 'flex-start' }, mb: 3 }}
       >
-        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', flexGrow: 1 }}>
-          <Typography variant="h4" component="h1">
-            {activite.nom}
-          </Typography>
-          <Chip size="small" label={statut.label} color={statut.color} />
-        </Stack>
+        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+            <Typography variant="h4" component="h1">
+              {activite.nom}
+            </Typography>
+            <Chip
+              size="small"
+              icon={statut.icon}
+              label={statut.label}
+              color={statut.color}
+              variant="outlined"
+              sx={{
+                fontWeight: 600,
+                fontSize: 12,
+                height: 24,
+                '& .MuiChip-icon': { fontSize: 14, ml: 0.5 },
+              }}
+            />
+          </Stack>
+          <Stack
+            direction="row"
+            spacing={2}
+            sx={{ mt: 0.75, color: 'text.secondary', flexWrap: 'wrap' }}
+          >
+            <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+              <PlaceRoundedIcon sx={{ fontSize: 16 }} />
+              <Typography variant="body2">{activite.lieu}</Typography>
+            </Stack>
+            <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+              <ScheduleRoundedIcon sx={{ fontSize: 16 }} />
+              <Typography variant="body2">
+                {dayjs(activite.date_debut).format('DD/MM/YYYY HH:mm')}
+              </Typography>
+            </Stack>
+          </Stack>
+        </Box>
         <Stack direction="row" spacing={1}>
           {activite.can_edit && (
             <Button
@@ -160,120 +193,147 @@ export function ActiviteDetailPage() {
         </Stack>
       </Stack>
 
-      <Stack
-        direction={{ xs: 'column', md: 'row' }}
-        spacing={3}
-        sx={{ alignItems: 'flex-start' }}
-      >
-        {/* Informations */}
-        <Paper sx={{ p: 3, flex: 1, width: '100%' }}>
-          <Typography variant="h6" sx={{ mb: 2 }}>
-            Informations
-          </Typography>
-          <Stack spacing={2.5}>
-            <Info
-              icon={<PlaceRoundedIcon fontSize="small" />}
-              label="Lieu"
-              value={activite.lieu}
+      {/* Bloc unique : informations + QR + action */}
+      <Paper sx={{ p: 3 }}>
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          spacing={3}
+          divider={
+            <Divider
+              orientation="vertical"
+              flexItem
+              sx={{ display: { xs: 'none', md: 'block' } }}
             />
-            <Info
-              icon={<ScheduleRoundedIcon fontSize="small" />}
-              label="Période"
-              value={`${dayjs(activite.date_debut).format('DD/MM/YYYY HH:mm')} → ${dayjs(
-                activite.date_fin,
-              ).format('DD/MM/YYYY HH:mm')}`}
-            />
-            <Info
-              icon={<PersonRoundedIcon fontSize="small" />}
-              label="Organisateur"
-              value={activite.created_by.username}
-            />
-            {activite.description && (
-              <Info
-                icon={<NotesRoundedIcon fontSize="small" />}
-                label="Description"
-                value={activite.description}
-              />
-            )}
-          </Stack>
-
-          <Divider sx={{ my: 3 }} />
-
-          <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
-            <Button
-              variant="contained"
-              color={activite.statut === 'ouvert' ? 'warning' : 'success'}
-              disabled={
-                !activite.can_edit ||
-                toggleStatut.isPending ||
-                activite.statut === 'archive'
-              }
-              onClick={() =>
-                toggleStatut.mutate(activite.statut === 'ouvert' ? 'ferme' : 'ouvert')
-              }
-            >
-              {activite.statut === 'ouvert'
-                ? 'Fermer la collecte'
-                : 'Ouvrir la collecte'}
-            </Button>
-            <Typography variant="body2" color="text.secondary">
-              {!activite.can_edit
-                ? 'Réservé au créateur de l’activité.'
-                : activite.statut === 'ouvert'
-                  ? 'Les participants peuvent s’enregistrer.'
-                  : 'Le formulaire public est désactivé.'}
+          }
+        >
+          {/* Informations en grille 2 colonnes */}
+          <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              Informations
             </Typography>
-          </Stack>
-        </Paper>
-
-        {/* QR Code */}
-        <Paper sx={{ p: 3, width: { xs: '100%', md: 320 }, textAlign: 'center' }}>
-          <Typography variant="h6" sx={{ mb: 2 }}>
-            QR Code du formulaire
-          </Typography>
-          <Box
-            sx={{
-              p: 2,
-              borderRadius: 2,
-              border: '1px solid',
-              borderColor: 'divider',
-              display: 'inline-flex',
-              mb: 1.5,
-            }}
-          >
-            {qrUrl ? (
-              <Box
-                component="img"
-                src={qrUrl}
-                alt="QR Code de l'activité"
-                sx={{ width: 200, height: 200, display: 'block' }}
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' },
+                rowGap: 2.5,
+                columnGap: 3,
+              }}
+            >
+              <Info
+                icon={<PlaceRoundedIcon fontSize="small" />}
+                label="Lieu"
+                value={activite.lieu}
               />
-            ) : (
-              <CircularProgress sx={{ m: 8 }} />
-            )}
+              <Info
+                icon={<ScheduleRoundedIcon fontSize="small" />}
+                label="Période"
+                value={`${dayjs(activite.date_debut).format('DD/MM/YYYY HH:mm')} → ${dayjs(
+                  activite.date_fin,
+                ).format('DD/MM/YYYY HH:mm')}`}
+              />
+              <Info
+                icon={<PersonRoundedIcon fontSize="small" />}
+                label="Organisateur"
+                value={activite.created_by.username}
+              />
+              {activite.description && (
+                <Box sx={{ gridColumn: { sm: '1 / -1' } }}>
+                  <Info
+                    icon={<NotesRoundedIcon fontSize="small" />}
+                    label="Description"
+                    value={activite.description}
+                  />
+                </Box>
+              )}
+            </Box>
           </Box>
-          <Typography
-            variant="caption"
+
+          {/* QR Code compact à droite */}
+          <Stack
+            spacing={1.5}
             sx={{
-              display: 'block',
-              color: 'text.secondary',
-              mb: 2,
-              wordBreak: 'break-all',
+              alignItems: 'center',
+              flexShrink: 0,
+              width: { xs: '100%', md: 220 },
             }}
           >
-            {activite.form_url}
-          </Typography>
+            <Box
+              sx={{
+                p: 1.5,
+                borderRadius: 2,
+                border: '1px solid',
+                borderColor: 'divider',
+                display: 'inline-flex',
+              }}
+            >
+              {qrUrl ? (
+                <Box
+                  component="img"
+                  src={qrUrl}
+                  alt="QR Code de l'activité"
+                  sx={{ width: 150, height: 150, display: 'block' }}
+                />
+              ) : (
+                <CircularProgress sx={{ m: 6 }} />
+              )}
+            </Box>
+            <Typography
+              variant="caption"
+              sx={{
+                color: 'text.secondary',
+                textAlign: 'center',
+                wordBreak: 'break-all',
+              }}
+            >
+              {activite.form_url}
+            </Typography>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<DownloadRoundedIcon />}
+              onClick={downloadQr}
+              disabled={!qrUrl}
+              fullWidth
+            >
+              Télécharger (PNG)
+            </Button>
+          </Stack>
+        </Stack>
+
+        <Divider sx={{ my: 2.5 }} />
+
+        {/* Action ouvrir / fermer */}
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={2}
+          sx={{ alignItems: { sm: 'center' } }}
+        >
           <Button
-            variant="outlined"
-            startIcon={<DownloadRoundedIcon />}
-            onClick={downloadQr}
-            disabled={!qrUrl}
-            fullWidth
+            variant="contained"
+            color={activite.statut === 'ouvert' ? 'warning' : 'success'}
+            disabled={
+              !activite.can_edit ||
+              toggleStatut.isPending ||
+              activite.statut === 'archive'
+            }
+            onClick={() =>
+              toggleStatut.mutate(activite.statut === 'ouvert' ? 'ferme' : 'ouvert')
+            }
+            sx={{ flexShrink: 0 }}
           >
-            Télécharger (PNG)
+            {activite.statut === 'ouvert'
+              ? 'Fermer la collecte'
+              : 'Ouvrir la collecte'}
           </Button>
-        </Paper>
-      </Stack>
+          <Typography variant="body2" color="text.secondary">
+            {!activite.can_edit
+              ? 'Réservé au créateur de l’activité.'
+              : activite.statut === 'ouvert'
+                ? 'Les participants peuvent s’enregistrer.'
+                : 'Le formulaire public est désactivé.'}
+          </Typography>
+        </Stack>
+      </Paper>
 
       {/* Participants */}
       <Box sx={{ mt: 4 }}>
