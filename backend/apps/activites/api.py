@@ -129,6 +129,26 @@ def list_activites(request):
     return [_with_perm(user, a) for a in activites]
 
 
+class GlobalStatsOut(Schema):
+    nb_activites: int
+    nb_participants_uniques: int
+
+
+@router.get("/stats-globales", response=GlobalStatsOut)
+def stats_globales(request):
+    """Statistiques transverses du tableau de bord (DASH-01).
+
+    `nb_participants_uniques` compte les personnes distinctes par numéro de CNI,
+    sans double comptage entre activités.
+    """
+    return GlobalStatsOut(
+        nb_activites=Activite.objects.count(),
+        nb_participants_uniques=(
+            Participant.objects.values("numero_cni").distinct().count()
+        ),
+    )
+
+
 @router.post("/", response={201: ActiviteOut})
 def create_activite(request, data: ActiviteIn):
     """Crée une activité (token QR généré automatiquement)."""

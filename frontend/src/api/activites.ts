@@ -27,6 +27,17 @@ export async function fetchActivites(): Promise<Activite[]> {
   return data
 }
 
+export interface GlobalStats {
+  nb_activites: number
+  nb_participants_uniques: number
+}
+
+/** Stats transverses du tableau de bord (participants uniques par CNI). */
+export async function fetchGlobalStats(): Promise<GlobalStats> {
+  const { data } = await api.get<GlobalStats>('/activites/stats-globales')
+  return data
+}
+
 export async function fetchActivite(id: string): Promise<Activite> {
   const { data } = await api.get<Activite>(`/activites/${id}`)
   return data

@@ -11,6 +11,7 @@ import {
   Stack,
   Typography,
   useMediaQuery,
+  alpha,
 } from '@mui/material'
 import { useTheme } from '@mui/material/styles'
 import { DataGrid, type GridColDef } from '@mui/x-data-grid'
@@ -21,7 +22,7 @@ import LockOpenRoundedIcon from '@mui/icons-material/LockOpenRounded'
 import LockRoundedIcon from '@mui/icons-material/LockRounded'
 import PersonRoundedIcon from '@mui/icons-material/PersonRounded'
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded'
-import { fetchActivites } from '../api/activites'
+import { fetchActivites, fetchGlobalStats } from '../api/activites'
 import type { Activite, StatutActivite } from '../api/types'
 import { ActiviteFormDialog } from '../components/ActiviteFormDialog'
 import { ActiviteRowActions } from '../components/ActiviteRowActions'
@@ -109,48 +110,87 @@ export function DashboardPage() {
     queryFn: fetchActivites,
   })
 
+  const { data: globalStats } = useQuery({
+    queryKey: ['stats-globales'],
+    queryFn: fetchGlobalStats,
+  })
+
   const activites = data ?? []
   const total = activites.length
   const ouvertes = activites.filter((a) => a.statut === 'ouvert').length
   const fermees = activites.filter((a) => a.statut !== 'ouvert').length
+  const participantsUniques = globalStats?.nb_participants_uniques ?? 0
 
-  const columns: GridColDef<Activite>[] = [
+ const columns: GridColDef<Activite>[] = [
     {
       field: 'nom',
       headerName: 'Activité',
-      flex: 1.5,
-      minWidth: 140,
+      // flex: 2 donne plus de poids à la colonne principale pour éviter de tronquer les longs noms d'ateliers
+      flex: 2,
+      minWidth: 220,
       renderCell: (params) => (
         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', height: '100%' }}>
           <Avatar
             sx={{
               width: 34,
               height: 34,
-              bgcolor: 'primary.light',
-              color: 'primary.dark',
+              // Utilisation du Cyan très doux du thème pour le fond
+              bgcolor: alpha(theme.palette.primary.main, 0.1),
+              color: theme.palette.primary.dark,
               fontSize: 14,
               fontWeight: 700,
             }}
           >
             {params.row.nom.charAt(0).toUpperCase()}
           </Avatar>
-          <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
+          <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }} noWrap>
             {params.row.nom}
           </Typography>
         </Stack>
       ),
     },
-    { field: 'lieu', headerName: 'Lieu', flex: 1, minWidth: 80 },
+    {
+      field: 'nb_participants',
+      headerName: 'Participants',
+      // Largeur fixe augmentée à 130 pour afficher le titre "PARTICIPANTS" en entier sans coupure
+      width: 130,
+      align: 'center',
+      headerAlign: 'center',
+      renderCell: (params) => (
+        <Stack
+          direction="row"
+          spacing={0.75}
+          sx={{ alignItems: 'center', justifyContent: 'center', height: '100%' }}
+        >
+          <GroupsRoundedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            {params.row.nb_participants}
+          </Typography>
+        </Stack>
+      ),
+    },
+    { 
+      field: 'lieu', 
+      headerName: 'Lieu', 
+      flex: 1.2, 
+      minWidth: 160,
+      renderCell: (params) => (
+        <Typography variant="body2" color="text.primary" noWrap sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+          {params.value}
+        </Typography>
+      )
+    },
     {
       field: 'created_by',
       headerName: 'Organisateur',
-      width: 100,
+      flex: 1,
+      minWidth: 130,
       sortable: false,
       renderCell: (params) => (
         <Stack direction="row" spacing={1} sx={{ alignItems: 'center', height: '100%' }}>
           <PersonRoundedIcon fontSize="small" sx={{ color: 'text.disabled' }} />
-          <Typography variant="body2" noWrap>
-            {params.row.created_by.username}
+          <Typography variant="body2" color="text.secondary" noWrap>
+            {params.row.created_by?.username || 'N/A'}
           </Typography>
         </Stack>
       ),
@@ -158,11 +198,12 @@ export function DashboardPage() {
     {
       field: 'date_debut',
       headerName: 'Période',
-      width: 125,
+      // Augmenté à 160 pour éviter que les dates et heures se chevauchent ou passent à la ligne brutalement
+      width: 160,
       sortable: true,
       renderCell: (params) => (
-        <Stack sx={{ justifyContent: 'center', height: '100%' }}>
-          <Typography variant="body2">
+        <Stack sx={{ justifyContent: 'center', height: '100%', py: 1 }}>
+          <Typography variant="body2" sx={{ fontWeight: 500 }}>
             {dayjs(params.row.date_debut).format('DD/MM/YYYY HH:mm')}
           </Typography>
           <Typography variant="caption" color="text.secondary">
@@ -172,31 +213,23 @@ export function DashboardPage() {
       ),
     },
     {
-      field: 'nb_participants',
-      headerName: 'Participants',
+      field: 'statut',
+      headerName: 'Statut',
       width: 110,
       align: 'center',
       headerAlign: 'center',
-      renderCell: (params) => (
-        <Stack
-          direction="row"
-          spacing={0.75}
-          sx={{ alignItems: 'center', justifyContent: 'center', height: '100%' }}
-        >
-          <GroupsRoundedIcon fontSize="small" sx={{ color: 'text.disabled' }} />
-          <Typography variant="body2" sx={{ fontWeight: 600 }}>
-            {params.row.nb_participants}
-          </Typography>
-        </Stack>
-      ),
-    },
-    {
-      field: 'statut',
-      headerName: 'Statut',
-      width: 100,
       renderCell: (params) => {
         const s = STATUT_LABEL[params.value as StatutActivite]
-        return <Chip size="small" label={s.label} color={s.color} />
+        return (
+          <Stack sx={{ alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+            <Chip 
+              size="small" 
+              label={s.label} 
+              color={s.color} 
+              sx={{ fontWeight: 600, px: 0.5 }} 
+            />
+          </Stack>
+        )
       },
     },
     {
@@ -207,7 +240,11 @@ export function DashboardPage() {
       filterable: false,
       align: 'right',
       headerAlign: 'right',
-      renderCell: (params) => <ActiviteRowActions activite={params.row} />,
+      renderCell: (params) => (
+        <Stack direction="row" sx={{ justifyContent: 'flex-end', alignItems: 'center', height: '100%', width: '100%' }}>
+          <ActiviteRowActions activite={params.row} />
+        </Stack>
+      ),
     },
   ]
 
@@ -223,7 +260,7 @@ export function DashboardPage() {
           <Typography variant="h4" component="h1">
             Vue d'ensemble
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="text.secondary" sx={{ opacity:  0.5 }}>
             Gérez vos activités et générer leurs QR Codes
           </Typography>
         </Box>
@@ -241,11 +278,17 @@ export function DashboardPage() {
       <Box
         sx={{
           display: 'grid',
-          gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)' },
+          gridTemplateColumns: { xs: '1fr', sm: 'repeat(4, 1fr)' },
           gap: 2,
-          mb: 3,
+          mb: 4,
         }}
       >
+        <StatCard
+          icon={<GroupsRoundedIcon />}
+          label="Participants uniques"
+          value={participantsUniques}
+          color="#0ea5e9"
+        />
         <StatCard
           icon={<EventRoundedIcon />}
           label="Activités au total"
@@ -264,6 +307,7 @@ export function DashboardPage() {
           value={fermees}
           color="#d97706"
         />
+        
       </Box>
 
       {/* Tableau */}
@@ -301,7 +345,7 @@ export function DashboardPage() {
               fontSize: 12,
               letterSpacing: 0.4,
             },
-            '& .MuiDataGrid-columnSeparator': { display: 'none' },
+            '& .MuiDataGrid-columnSeparator': { display: '' },
             '& .MuiDataGrid-cell': { borderColor: '#eef0f4' },
             '& .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within': {
               outline: 'none',
