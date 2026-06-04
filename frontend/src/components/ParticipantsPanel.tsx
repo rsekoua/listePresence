@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useSnackbar } from 'notistack'
 import dayjs from 'dayjs'
 import {
   Avatar,
@@ -23,7 +24,11 @@ import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded'
 import ApartmentRoundedIcon from '@mui/icons-material/ApartmentRounded'
 import PhoneIphoneRoundedIcon from '@mui/icons-material/PhoneIphoneRounded'
 import AttachFileRoundedIcon from '@mui/icons-material/AttachFileRounded'
+import GridOnRoundedIcon from '@mui/icons-material/GridOnRounded'
+import PictureAsPdfRoundedIcon from '@mui/icons-material/PictureAsPdfRounded'
+import FolderZipRoundedIcon from '@mui/icons-material/FolderZipRounded'
 import { fetchParticipants, type Participant } from '../api/participants'
+import { exportCniZip, exportExcel, exportPresenceList } from '../api/exports'
 import { ParticipantDetailDialog } from './ParticipantDetailDialog'
 import { AddParticipantDialog } from './AddParticipantDialog'
 
@@ -38,8 +43,21 @@ export function ParticipantsPanel({
 }) {
   const theme = useTheme()
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'))
+  const { enqueueSnackbar } = useSnackbar()
   const [selected, setSelected] = useState<Participant | null>(null)
   const [addOpen, setAddOpen] = useState(false)
+  const [exporting, setExporting] = useState(false)
+
+  const runExport = async (fn: (id: string) => Promise<void>) => {
+    setExporting(true)
+    try {
+      await fn(activiteId)
+    } catch {
+      enqueueSnackbar("L'export a échoué. Réessayez.", { variant: 'error' })
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const { data: page, isLoading } = useQuery({
     queryKey: ['participants', activiteId],
@@ -149,21 +167,51 @@ export function ParticipantsPanel({
           <GroupsRoundedIcon color="primary" />
           <Typography variant="h6">Participants</Typography>
           <Chip size="small" color="primary" label={participants.length} />
-        </Stack>
-        <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
           <Typography
             variant="caption"
             color="text.secondary"
-            sx={{ display: { xs: 'none', sm: 'block' } }}
+            sx={{ display: { xs: 'none', md: 'block' } }}
           >
             Actualisé toutes les 30 s
           </Typography>
+        </Stack>
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{ alignItems: 'center', flexWrap: 'wrap', rowGap: 1 }}
+        >
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<GridOnRoundedIcon sx={{ color: '#059669' }} />}
+            disabled={exporting || !participants.length}
+            onClick={() => runExport(exportExcel)}
+          >
+           Export en Excel
+          </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<PictureAsPdfRoundedIcon sx={{ color: '#dc2626' }} />}
+            disabled={exporting || !participants.length}
+            onClick={() => runExport(exportPresenceList)}
+          >
+            Export en PDF
+          </Button>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<FolderZipRoundedIcon sx={{ color: '#d97706' }} />}
+            disabled={exporting || !participants.length}
+            onClick={() => runExport(exportCniZip)}
+          >
+            Fiches CNI (ZIP)
+          </Button>
           {canAdd && (
             <Button
               variant="contained"
               startIcon={<PersonAddRoundedIcon />}
               onClick={() => setAddOpen(true)}
-              sx={{ width: { xs: '100%', sm: 'auto' } }}
             >
               Ajouter un participant
             </Button>

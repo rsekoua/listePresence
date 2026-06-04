@@ -59,39 +59,11 @@ def build_participants_xlsx(activite, participants) -> bytes:
     header_fill = PatternFill("solid", fgColor=_CYAN)
     header_font = Font(bold=True, color="FFFFFF", size=11)
     title_font = Font(bold=True, color=_INK, size=14)
-    label_font = Font(bold=True, color=_INK)
     center = Alignment(horizontal="center", vertical="center")
     left = Alignment(horizontal="left", vertical="center", wrap_text=True)
     thin = Side(style="thin", color="D5DEE6")
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
 
-    # Onglet 1 — Récapitulatif
-    recap = wb.active
-    recap.title = "Récapitulatif"
-    recap["A1"] = activite.nom
-    recap["A1"].font = title_font
-    recap.merge_cells("A1:B1")
-
-    complets = sum(1 for p in participants if p.photo_cni_recto and p.photo_cni_verso)
-    lignes = [
-        ("Lieu", activite.lieu),
-        ("Période", f"{_fmt(activite.date_debut)} → {_fmt(activite.date_fin)}"),
-        ("Statut", activite.get_statut_display()),
-        ("Organisateur", activite.created_by.username),
-        ("Nombre de participants", len(participants)),
-        ("CNI complètes", complets),
-        ("CNI incomplètes", len(participants) - complets),
-        ("Document généré le", _fmt(timezone.now())),
-    ]
-    for i, (label, value) in enumerate(lignes, start=3):
-        recap[f"A{i}"] = label
-        recap[f"A{i}"].font = label_font
-        recap[f"B{i}"] = value
-    recap.column_dimensions["A"].width = 26
-    recap.column_dimensions["B"].width = 48
-
-    # Onglet 2 — Participants
-    ws = wb.create_sheet("Participants")
     colonnes = [
         "N°",
         "Nom",
@@ -103,18 +75,50 @@ def build_participants_xlsx(activite, participants) -> bytes:
         "N° CNI",
         "Horodatage",
     ]
-    # Suivi de la longueur max par colonne pour l'auto-dimensionnement.
+    nb_cols = len(colonnes)
+    derniere_col = get_column_letter(nb_cols)
+
+    ws = wb.active
+    ws.title = "Participants"
+
+    # --- Bloc récapitulatif (en haut de l'unique feuille) ------------------
+    complets = sum(1 for p in participants if p.photo_cni_recto and p.photo_cni_verso)
+    recap_font = Font(color="475569", size=10)
+
+    ws.merge_cells(f"A1:{derniere_col}1")
+    ws["A1"] = activite.nom
+    ws["A1"].font = title_font
+    ws["A1"].alignment = Alignment(horizontal="left", vertical="center")
+
+    recap_lignes = [
+        f"Lieu : {activite.lieu}     •     "
+        f"Période : {_fmt(activite.date_debut)} → {_fmt(activite.date_fin)}     •     "
+        f"Statut : {activite.get_statut_display()}     •     "
+        f"Organisateur : {activite.created_by.username}",
+        f"Participants : {len(participants)}     •     "
+        f"CNI complètes : {complets}     •     "
+        f"CNI incomplètes : {len(participants) - complets}     •     "
+        f"Document généré le : {_fmt(timezone.now())}",
+    ]
+    for i, texte in enumerate(recap_lignes, start=2):
+        ws.merge_cells(f"A{i}:{derniere_col}{i}")
+        ws[f"A{i}"] = texte
+        ws[f"A{i}"].font = recap_font
+        ws[f"A{i}"].alignment = Alignment(horizontal="left", vertical="center")
+
+    # --- Tableau des participants (sous le récapitulatif) ------------------
+    header_row = len(recap_lignes) + 3  # 1 ligne titre + N lignes récap + 1 vide
     max_len = [len(titre) for titre in colonnes]
 
     for col, titre in enumerate(colonnes, start=1):
-        cell = ws.cell(row=1, column=col, value=titre)
+        cell = ws.cell(row=header_row, column=col, value=titre)
         cell.fill = header_fill
         cell.font = header_font
         cell.alignment = center
         cell.border = border
 
     for idx, p in enumerate(participants, start=1):
-        row = idx + 1
+        row = header_row + idx
         valeurs = [
             idx,
             p.nom,
@@ -138,8 +142,10 @@ def build_participants_xlsx(activite, participants) -> bytes:
     for col, longueur in enumerate(max_len, start=1):
         ws.column_dimensions[get_column_letter(col)].width = min(max(longueur + 3, 8), 50)
 
-    ws.freeze_panes = "A2"
-    ws.auto_filter.ref = f"A1:{get_column_letter(len(colonnes))}{len(participants) + 1}"
+    ws.freeze_panes = f"A{header_row + 1}"
+    ws.auto_filter.ref = (
+        f"A{header_row}:{derniere_col}{header_row + len(participants)}"
+    )
 
     buffer = io.BytesIO()
     wb.save(buffer)
@@ -150,82 +156,55 @@ def build_participants_xlsx(activite, participants) -> bytes:
 
 
 def build_participant_cni_pdf(activite, participant) -> bytes:
-    """Fiche PDF d'une page : infos + photos recto/verso positionnées."""
+    """Fiche PDF : en-tête, recto/verso empilés à taille réelle, pied de page."""
     buffer = io.BytesIO()
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
 
-    # En-tête
-    c.setFillColor(colors.HexColor(f"#{_CYAN_DARK}"))
-    c.rect(0, height - 28 * mm, width, 28 * mm, fill=1, stroke=0)
-    c.setFillColor(colors.white)
-    c.setFont("Helvetica-Bold", 15)
-    c.drawString(18 * mm, height - 14 * mm, activite.nom[:70])
-    c.setFont("Helvetica", 10)
-    c.drawString(
-        18 * mm,
-        height - 21 * mm,
-        f"{activite.lieu}  ·  {_fmt(activite.date_debut)} → {_fmt(activite.date_fin)}",
-    )
+    footer_h = 16 * mm
 
-    # Bloc informations participant
-    y = height - 40 * mm
-    c.setFillColor(colors.HexColor(f"#{_INK}"))
-    c.setFont("Helvetica-Bold", 13)
-    c.drawString(18 * mm, y, f"{participant.prenom} {participant.nom}")
-    y -= 9 * mm
+    # Taille réelle d'une carte (format carte bancaire : 85,6 x 54 mm),
+    # empilées verticalement et centrées entre le haut de page et le pied.
+    img_w = 85.6 * mm
+    img_h = 54 * mm
+    gap = 14 * mm
+    total_h = 2 * img_h + gap
+    x = (width - img_w) / 2
+    zone_bas = footer_h
+    zone_haut = height - footer_h
+    bas_bloc = zone_bas + (zone_haut - zone_bas - total_h) / 2
+    y_verso = bas_bloc
+    y_recto = bas_bloc + img_h + gap
 
-    infos = [
-        ("Structure", participant.structure),
-        ("Fonction", participant.fonction),
-        ("Téléphone Wave", participant.telephone_wave),
-        ("Email", participant.email),
-        ("N° CNI", participant.numero_cni),
-        ("Enregistré le", _fmt(participant.horodatage)),
-    ]
-    c.setFont("Helvetica", 11)
-    for label, value in infos:
-        c.setFillColor(colors.HexColor("#475569"))
-        c.drawString(18 * mm, y, f"{label} :")
-        c.setFillColor(colors.HexColor(f"#{_INK}"))
-        c.drawString(58 * mm, y, str(value))
-        y -= 7 * mm
-
-    # Photos CNI (ratio carte ~85.6 x 54 mm)
-    img_w, img_h = 85 * mm, 54 * mm
-    x = 18 * mm
-    y_imgs = 70 * mm
-    for cote, field in (
-        ("Recto", participant.photo_cni_recto),
-        ("Verso", participant.photo_cni_verso),
+    for field, y in (
+        (participant.photo_cni_recto, y_recto),
+        (participant.photo_cni_verso, y_verso),
     ):
-        c.setFont("Helvetica-Bold", 10)
-        c.setFillColor(colors.HexColor("#475569"))
-        c.drawString(x, y_imgs + img_h + 3 * mm, f"CNI — {cote}")
         c.setStrokeColor(colors.HexColor("#CBD5E1"))
-        c.rect(x, y_imgs, img_w, img_h, fill=0, stroke=1)
+        c.rect(x, y, img_w, img_h, fill=0, stroke=1)
         if field:
             try:
                 c.drawImage(
                     field.path,
                     x,
-                    y_imgs,
+                    y,
                     width=img_w,
                     height=img_h,
                     preserveAspectRatio=True,
                     anchor="c",
                 )
             except Exception:
-                _placeholder(c, x, y_imgs, img_w, img_h, "Image illisible")
+                _placeholder(c, x, y, img_w, img_h, "Image illisible")
         else:
-            _placeholder(c, x, y_imgs, img_w, img_h, "Photo non fournie")
-        x += img_w + 8 * mm
+            _placeholder(c, x, y, img_w, img_h, "Photo non fournie")
 
     # Pied de page
+    c.setStrokeColor(colors.HexColor("#E2E8F0"))
+    c.line(18 * mm, footer_h, width - 18 * mm, footer_h)
     c.setFont("Helvetica", 8)
     c.setFillColor(colors.HexColor("#94A3B8"))
-    c.drawString(18 * mm, 12 * mm, f"Fiche générée le {_fmt(timezone.now())}")
-    c.drawRightString(width - 18 * mm, 12 * mm, "Page 1 / 1")
+    c.drawString(18 * mm, 9 * mm, f"{activite.nom}  ·  Fiche générée le {_fmt(timezone.now())}")
+    c.drawRightString(width - 18 * mm, 9 * mm, "Page 1 / 1")
 
     c.showPage()
     c.save()
