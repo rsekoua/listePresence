@@ -5,6 +5,8 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
+    // host: true → écoute sur 0.0.0.0, accessible depuis le réseau local (téléphone)
+    host: true,
     port: 5173,
     proxy: {
       // Toutes les requêtes /api sont redirigées vers le backend Django

@@ -1,18 +1,13 @@
 import { useLocation } from 'react-router-dom'
-import dayjs from 'dayjs'
 import {
   Box,
   Breadcrumbs,
   IconButton,
-  InputAdornment,
   Stack,
-  TextField,
   Tooltip,
   Typography,
 } from '@mui/material'
 import NavigateNextRoundedIcon from '@mui/icons-material/NavigateNextRounded'
-import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
-import CalendarTodayRoundedIcon from '@mui/icons-material/CalendarTodayRounded'
 import NotificationsRoundedIcon from '@mui/icons-material/NotificationsRounded'
 
 const LABELS: { match: (path: string) => boolean; crumb: string }[] = [
@@ -49,7 +44,7 @@ export function AppHeader() {
       </Breadcrumbs>
 
       <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-        <TextField
+        {/* <TextField
           placeholder="Rechercher…"
           sx={{ width: 220, display: { xs: 'none', lg: 'block' } }}
           slotProps={{
@@ -79,7 +74,7 @@ export function AppHeader() {
           <Typography variant="body2">
             {dayjs().format('DD MMM YYYY')}
           </Typography>
-        </Box>
+        </Box> */}
         <Tooltip title="Notifications">
           <IconButton
             sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}
