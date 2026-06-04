@@ -9,6 +9,10 @@ import {
   Chip,
   CircularProgress,
   Divider,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem,
   Paper,
   Stack,
   Typography,
@@ -24,6 +28,11 @@ import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded'
 import LockOpenRoundedIcon from '@mui/icons-material/LockOpenRounded'
 import LockRoundedIcon from '@mui/icons-material/LockRounded'
 import Inventory2RoundedIcon from '@mui/icons-material/Inventory2Rounded'
+import FileDownloadRoundedIcon from '@mui/icons-material/FileDownloadRounded'
+import GridOnRoundedIcon from '@mui/icons-material/GridOnRounded'
+import PictureAsPdfRoundedIcon from '@mui/icons-material/PictureAsPdfRounded'
+import FolderZipRoundedIcon from '@mui/icons-material/FolderZipRounded'
+import { exportCniZip, exportExcel, exportPresenceList } from '../api/exports'
 import {
   cloneActivite,
   fetchActivite,
@@ -50,6 +59,8 @@ export function ActiviteDetailPage() {
   const { enqueueSnackbar } = useSnackbar()
   const [qrUrl, setQrUrl] = useState<string | null>(null)
   const [editOpen, setEditOpen] = useState(false)
+  const [exportAnchor, setExportAnchor] = useState<null | HTMLElement>(null)
+  const [exporting, setExporting] = useState(false)
 
   const { data: activite, isLoading } = useQuery({
     queryKey: ['activite', id],
@@ -97,6 +108,18 @@ export function ActiviteDetailPage() {
     },
     onError: () => enqueueSnackbar('Clonage impossible.', { variant: 'error' }),
   })
+
+  const runExport = async (fn: (id: string) => Promise<void>) => {
+    setExportAnchor(null)
+    setExporting(true)
+    try {
+      await fn(id)
+    } catch {
+      enqueueSnackbar("L'export a échoué. Réessayez.", { variant: 'error' })
+    } finally {
+      setExporting(false)
+    }
+  }
 
   const downloadQr = () => {
     if (!qrUrl || !activite) return
@@ -190,6 +213,55 @@ export function ActiviteDetailPage() {
           >
             Cloner
           </Button>
+          <Button
+            variant="contained"
+            startIcon={
+              exporting ? (
+                <CircularProgress size={16} color="inherit" />
+              ) : (
+                <FileDownloadRoundedIcon />
+              )
+            }
+            disabled={exporting}
+            onClick={(e) => setExportAnchor(e.currentTarget)}
+          >
+            Exporter
+          </Button>
+          <Menu
+            anchorEl={exportAnchor}
+            open={Boolean(exportAnchor)}
+            onClose={() => setExportAnchor(null)}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          >
+            <MenuItem onClick={() => runExport(exportExcel)}>
+              <ListItemIcon>
+                <GridOnRoundedIcon fontSize="small" sx={{ color: '#059669' }} />
+              </ListItemIcon>
+              <ListItemText
+                primary="Liste Excel"
+                secondary="Tous les participants (.xlsx)"
+              />
+            </MenuItem>
+            <MenuItem onClick={() => runExport(exportPresenceList)}>
+              <ListItemIcon>
+                <PictureAsPdfRoundedIcon fontSize="small" sx={{ color: '#dc2626' }} />
+              </ListItemIcon>
+              <ListItemText
+                primary="Liste de présence"
+                secondary="PDF à signer (A4)"
+              />
+            </MenuItem>
+            <MenuItem onClick={() => runExport(exportCniZip)}>
+              <ListItemIcon>
+                <FolderZipRoundedIcon fontSize="small" sx={{ color: '#d97706' }} />
+              </ListItemIcon>
+              <ListItemText
+                primary="Fiches CNI (ZIP)"
+                secondary="Une fiche PDF par participant"
+              />
+            </MenuItem>
+          </Menu>
         </Stack>
       </Stack>
 

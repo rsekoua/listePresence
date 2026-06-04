@@ -3,7 +3,10 @@ import dayjs from 'dayjs'
 import {
   Avatar,
   Box,
+  Button,
+  CircularProgress,
   Dialog,
+  DialogActions,
   DialogContent,
   DialogTitle,
   Divider,
@@ -12,7 +15,10 @@ import {
   Typography,
 } from '@mui/material'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
+import PictureAsPdfRoundedIcon from '@mui/icons-material/PictureAsPdfRounded'
+import { useSnackbar } from 'notistack'
 import { fetchParticipantPhoto, type Participant } from '../api/participants'
+import { exportParticipantPdf } from '../api/exports'
 
 interface Props {
   activiteId: string
@@ -30,6 +36,20 @@ export function ParticipantDetailDialog({
   const [recto, setRecto] = useState<string | null>(null)
   const [verso, setVerso] = useState<string | null>(null)
   const [zoom, setZoom] = useState<string | null>(null)
+  const [downloading, setDownloading] = useState(false)
+  const { enqueueSnackbar } = useSnackbar()
+
+  const downloadPdf = async () => {
+    if (!participant) return
+    setDownloading(true)
+    try {
+      await exportParticipantPdf(participant.id)
+    } catch {
+      enqueueSnackbar('Téléchargement de la fiche impossible.', { variant: 'error' })
+    } finally {
+      setDownloading(false)
+    }
+  }
 
   useEffect(() => {
     if (!open || !participant) return
@@ -108,6 +128,22 @@ export function ParticipantDetailDialog({
             <CniThumb label="Verso" url={verso} onZoom={setZoom} />
           </Stack>
         </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            variant="contained"
+            startIcon={
+              downloading ? (
+                <CircularProgress size={16} color="inherit" />
+              ) : (
+                <PictureAsPdfRoundedIcon />
+              )
+            }
+            disabled={downloading}
+            onClick={downloadPdf}
+          >
+            Télécharger la fiche PDF
+          </Button>
+        </DialogActions>
       </Dialog>
 
       {/* Zoom plein écran */}

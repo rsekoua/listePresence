@@ -1,0 +1,138 @@
+"""Endpoints d'export de documents (Sprint 5 — EXP-01 à EXP-05).
+
+Toutes les routes sont protégées par JWT. Les exports de liste (Excel, PDF
+liste de présence, ZIP) acceptent les mêmes filtres que la liste des
+participants : recherche plein texte, structure, plage de dates et complétude
+des CNI (EXP-05).
+"""
+
+from datetime import date
+from uuid import UUID
+
+from django.db.models import Q
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from ninja import Query, Router
+
+from apps.accounts.auth import JWTAuth
+from apps.activites.models import Activite
+from apps.participants.models import Participant
+
+from . import services
+
+router = Router(tags=["exports"], auth=JWTAuth())
+
+_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+def _filtrer(activite_id: UUID, search, structure, date_from, date_to, cni):
+    """Applique les filtres EXP-05 et renvoie le queryset ordonné."""
+    qs = Participant.objects.filter(activite_id=activite_id)
+    if search:
+        qs = qs.filter(
+            Q(nom__icontains=search)
+            | Q(prenom__icontains=search)
+            | Q(email__icontains=search)
+            | Q(numero_cni__icontains=search)
+        )
+    if structure:
+        qs = qs.filter(structure__icontains=structure)
+    if date_from:
+        qs = qs.filter(horodatage__date__gte=date_from)
+    if date_to:
+        qs = qs.filter(horodatage__date__lte=date_to)
+    if cni == "complete":
+        qs = qs.exclude(photo_cni_recto="").exclude(photo_cni_verso="")
+    elif cni == "incomplete":
+        qs = qs.filter(Q(photo_cni_recto="") | Q(photo_cni_verso=""))
+    return qs.order_by("nom", "prenom")
+
+
+def _attachment(content: bytes, filename: str, content_type: str) -> HttpResponse:
+    response = HttpResponse(content, content_type=content_type)
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
+
+
+def _slug(activite: Activite) -> str:
+    return services._safe(activite.nom)
+
+
+@router.get("/activites/{activite_id}/excel")
+def export_excel(
+    request,
+    activite_id: UUID,
+    search: str | None = Query(None),
+    structure: str | None = Query(None),
+    date_from: date | None = Query(None),
+    date_to: date | None = Query(None),
+    cni: str | None = Query(None),
+):
+    """EXP-01 — Liste des participants au format .xlsx."""
+    activite = get_object_or_404(
+        Activite.objects.select_related("created_by"), id=activite_id
+    )
+    participants = list(_filtrer(activite_id, search, structure, date_from, date_to, cni))
+    content = services.build_participants_xlsx(activite, participants)
+    jour = timezone.localdate().strftime("%Y%m%d")
+    return _attachment(content, f"{_slug(activite)}_{jour}_participants.xlsx", _XLSX)
+
+
+@router.get("/activites/{activite_id}/pdf-liste")
+def export_presence_pdf(
+    request,
+    activite_id: UUID,
+    search: str | None = Query(None),
+    structure: str | None = Query(None),
+    date_from: date | None = Query(None),
+    date_to: date | None = Query(None),
+    cni: str | None = Query(None),
+):
+    """EXP-03 — Liste de présence à signer (PDF A4)."""
+    activite = get_object_or_404(
+        Activite.objects.select_related("created_by"), id=activite_id
+    )
+    participants = list(_filtrer(activite_id, search, structure, date_from, date_to, cni))
+    content = services.build_presence_list_pdf(activite, participants)
+    jour = timezone.localdate().strftime("%Y%m%d")
+    return _attachment(
+        content, f"{_slug(activite)}_{jour}_liste_presence.pdf", "application/pdf"
+    )
+
+
+@router.get("/activites/{activite_id}/zip")
+def export_cni_zip(
+    request,
+    activite_id: UUID,
+    search: str | None = Query(None),
+    structure: str | None = Query(None),
+    date_from: date | None = Query(None),
+    date_to: date | None = Query(None),
+    cni: str | None = Query(None),
+):
+    """EXP-04 — Archive ZIP des fiches PDF CNI."""
+    activite = get_object_or_404(
+        Activite.objects.select_related("created_by"), id=activite_id
+    )
+    participants = list(_filtrer(activite_id, search, structure, date_from, date_to, cni))
+    content = services.build_cni_zip(activite, participants)
+    jour = timezone.localdate().strftime("%Y%m%d")
+    return _attachment(
+        content, f"{_slug(activite)}_{jour}_fiches_cni.zip", "application/zip"
+    )
+
+
+@router.get("/participants/{participant_id}/pdf")
+def export_participant_pdf(request, participant_id: UUID):
+    """EXP-02 — Fiche CNI individuelle (PDF)."""
+    participant = get_object_or_404(
+        Participant.objects.select_related("activite", "activite__created_by"),
+        id=participant_id,
+    )
+    content = services.build_participant_cni_pdf(participant.activite, participant)
+    return _attachment(
+        content,
+        f"{services._safe(participant.nom)}_{services._safe(participant.prenom)}_cni.pdf",
+        "application/pdf",
+    )

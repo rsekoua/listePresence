@@ -7,8 +7,10 @@ requires-python = ">=3.14"
 dependencies = [
     "django>=6.0.5",
     "django-ninja>=1.4",
+    "openpyxl>=3.1.5",
     "pillow>=11.0",
     "pyjwt>=2.10",
     "python-dotenv>=1.0",
     "qrcode[pil]>=8.0",
+    "reportlab>=4.5.1",
 ]
