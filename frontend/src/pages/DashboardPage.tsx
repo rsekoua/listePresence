@@ -360,6 +360,13 @@ export function DashboardPage() {
             '& .MuiDataGrid-cell .MuiTypography-root': {
               fontSize: 13,
             },
+            // Gouttière gauche/droite pour aligner le contenu sur l'en-tête de la carte
+            '& .MuiDataGrid-columnHeader:first-of-type, & .MuiDataGrid-cell:first-of-type': {
+              pl: 2.5,
+            },
+            '& .MuiDataGrid-columnHeader:last-of-type, & .MuiDataGrid-cell:last-of-type': {
+              pr: 2.5,
+            },
             '& .MuiDataGrid-columnSeparator': { display: '' },
             '& .MuiDataGrid-cell': { borderColor: '#eef0f4' },
             '& .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within': {
