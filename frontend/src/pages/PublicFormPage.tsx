@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
-import { useForm } from 'react-hook-form'
+import { useForm, type UseFormRegisterReturn } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery } from '@tanstack/react-query'
@@ -11,7 +11,6 @@ import {
   Box,
   Button,
   Container,
-  Divider,
   LinearProgress,
   Paper,
   Stack,
@@ -21,6 +20,11 @@ import {
 import QrCode2RoundedIcon from '@mui/icons-material/QrCode2Rounded'
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
 import EventBusyRoundedIcon from '@mui/icons-material/EventBusyRounded'
+import PersonRoundedIcon from '@mui/icons-material/PersonRounded'
+import ContactPhoneRoundedIcon from '@mui/icons-material/ContactPhoneRounded'
+import BadgeRoundedIcon from '@mui/icons-material/BadgeRounded'
+import PlaceRoundedIcon from '@mui/icons-material/PlaceRounded'
+import EventRoundedIcon from '@mui/icons-material/EventRounded'
 import {
   fetchActivitePublique,
   submitParticipant,
@@ -55,9 +59,34 @@ const EMPTY: FormValues = {
   numero_cni: '',
 }
 
+// Champs agrandis et police à 16 px : confort tactile + anti-zoom iOS (FORM-09).
+const FIELD_SX = {
+  '& .MuiInputBase-input': { fontSize: 16 },
+  '& .MuiInputBase-root': { borderRadius: 2 },
+  '& label': { fontSize: 16 },
+}
+
+/** Convertit un fichier en dataURL (pour persistance hors-ligne). */
+function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
+/** Reconstruit un File à partir d'une dataURL sauvegardée. */
+async function dataUrlToFile(dataUrl: string, name: string): Promise<File> {
+  const res = await fetch(dataUrl)
+  const blob = await res.blob()
+  return new File([blob], name, { type: blob.type || 'image/jpeg' })
+}
+
 export function PublicFormPage() {
   const { token = '' } = useParams()
   const storageKey = `presence_form_${token}`
+  const photoKey = `presence_photos_${token}`
 
   const { data: activite, isLoading, isError } = useQuery({
     queryKey: ['activite-publique', token],
@@ -93,6 +122,39 @@ export function PublicFormPage() {
   const [recto, setRecto] = useState<File | null>(null)
   const [verso, setVerso] = useState<File | null>(null)
   const [photoError, setPhotoError] = useState<{ recto?: string; verso?: string }>({})
+
+  // Restauration des photos après un éventuel rechargement de page (mémoire mobile).
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(photoKey)
+      if (!raw) return
+      const saved = JSON.parse(raw) as { recto?: string; verso?: string }
+      if (saved.recto) dataUrlToFile(saved.recto, 'recto.jpg').then(setRecto).catch(() => {})
+      if (saved.verso) dataUrlToFile(saved.verso, 'verso.jpg').then(setVerso).catch(() => {})
+    } catch {
+      /* dataURL illisible : on ignore */
+    }
+  }, [photoKey])
+
+  // Sauvegarde des photos (compressées) pour survivre à un rechargement.
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const obj: { recto?: string; verso?: string } = {}
+        if (recto) obj.recto = await fileToDataUrl(recto)
+        if (verso) obj.verso = await fileToDataUrl(verso)
+        if (cancelled) return
+        if (obj.recto || obj.verso) localStorage.setItem(photoKey, JSON.stringify(obj))
+        else localStorage.removeItem(photoKey)
+      } catch {
+        /* quota dépassé : on ignore la persistance des photos */
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [recto, verso, photoKey])
   const [progress, setProgress] = useState(0)
   const [serverError, setServerError] = useState<string | null>(null)
   const [confirmation, setConfirmation] = useState<ParticipantConfirmation | null>(null)
@@ -102,6 +164,7 @@ export function PublicFormPage() {
       submitParticipant(token, values, recto as File, verso as File, setProgress),
     onSuccess: (data) => {
       localStorage.removeItem(storageKey)
+      localStorage.removeItem(photoKey)
       setConfirmation(data)
     },
     onError: (err) => {
@@ -115,6 +178,7 @@ export function PublicFormPage() {
       } else {
         setServerError('Une erreur est survenue. Réessayez.')
       }
+      window.scrollTo({ top: 0, behavior: 'smooth' })
     },
   })
 
@@ -178,132 +242,151 @@ export function PublicFormPage() {
   // --- Formulaire ----------------------------------------------------------
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', py: { xs: 0, sm: 4 } }}>
-      <Container maxWidth="sm" disableGutters>
-        <Paper sx={{ borderRadius: { xs: 0, sm: 3 }, overflow: 'hidden' }}>
-          {/* En-tête activité */}
-          <Box sx={{ bgcolor: 'primary.main', color: 'common.white', p: 3 }}>
-            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-              <QrCode2RoundedIcon />
-              <Box>
-                <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: '#f0f4f8', py: { xs: 2, sm: 4 } }}>
+      <Container maxWidth="sm" sx={{ px: { xs: 1.5, sm: 2 } }}>
+        <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
+          <Stack spacing={2}>
+            {/* Carte titre (style Google Forms : bandeau d'accent en haut) */}
+            <Paper sx={{ overflow: 'hidden', borderTop: '6px solid', borderTopColor: 'primary.main' }}>
+              <Box sx={{ p: 3 }}>
+                <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', mb: 1.5 }}>
+                  <QrCode2RoundedIcon color="primary" />
+                  <Typography variant="caption" color="primary" sx={{ fontWeight: 700, letterSpacing: 0.5 }}>
+                    FORMULAIRE DE PRÉSENCE
+                  </Typography>
+                </Stack>
+                <Typography variant="h5" component="h1" sx={{ fontWeight: 800, lineHeight: 1.2 }}>
                   {activite.nom}
                 </Typography>
-                <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                  {activite.lieu} · {dayjs(activite.date_debut).format('DD/MM/YYYY')}
+                <Stack direction="row" spacing={2} sx={{ mt: 1.5, color: 'text.secondary', flexWrap: 'wrap' }}>
+                  <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+                    <PlaceRoundedIcon sx={{ fontSize: 17 }} />
+                    <Typography variant="body2">{activite.lieu}</Typography>
+                  </Stack>
+                  <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+                    <EventRoundedIcon sx={{ fontSize: 17 }} />
+                    <Typography variant="body2">
+                      {dayjs(activite.date_debut).format('DD/MM/YYYY')}
+                    </Typography>
+                  </Stack>
+                </Stack>
+                <Typography variant="caption" color="error" sx={{ display: 'block', mt: 2 }}>
+                  * Champ obligatoire
                 </Typography>
               </Box>
-            </Stack>
-          </Box>
+            </Paper>
 
-          <Box component="form" onSubmit={handleSubmit(onSubmit)} sx={{ p: 3 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
-              Vos informations
-            </Typography>
+            {serverError && <Alert severity="error">{serverError}</Alert>}
 
-            {serverError && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {serverError}
-              </Alert>
-            )}
+            {/* Section 1 — Identité */}
+            <SectionCard icon={<PersonRoundedIcon />} title="Identité">
+              <Field
+                label="Nom"
+                required
+                autoComplete="family-name"
+                autoCapitalize="words"
+                error={errors.nom?.message}
+                field={register('nom')}
+              />
+              <Field
+                label="Prénom"
+                required
+                autoComplete="given-name"
+                autoCapitalize="words"
+                error={errors.prenom?.message}
+                field={register('prenom')}
+              />
+            </SectionCard>
 
-            <Stack spacing={2.5}>
-              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                <TextField
-                  label="Nom"
-                  fullWidth
-                  error={Boolean(errors.nom)}
-                  helperText={errors.nom?.message}
-                  {...register('nom')}
-                />
-                <TextField
-                  label="Prénom"
-                  fullWidth
-                  error={Boolean(errors.prenom)}
-                  helperText={errors.prenom?.message}
-                  {...register('prenom')}
-                />
-              </Stack>
-              <TextField
+            {/* Section 2 — Coordonnées */}
+            <SectionCard icon={<ContactPhoneRoundedIcon />} title="Coordonnées">
+              <Field
                 label="Structure / Organisation"
-                fullWidth
-                error={Boolean(errors.structure)}
-                helperText={errors.structure?.message}
-                {...register('structure')}
+                required
+                autoCapitalize="words"
+                error={errors.structure?.message}
+                field={register('structure')}
               />
-              <TextField
+              <Field
                 label="Fonction / Poste"
-                fullWidth
-                error={Boolean(errors.fonction)}
-                helperText={errors.fonction?.message}
-                {...register('fonction')}
+                required
+                autoCapitalize="words"
+                error={errors.fonction?.message}
+                field={register('fonction')}
               />
-              <TextField
+              <Field
                 label="Téléphone Wave"
+                required
                 placeholder="07 01 02 03 04"
-                fullWidth
                 inputMode="tel"
-                error={Boolean(errors.telephone_wave)}
-                helperText={errors.telephone_wave?.message}
-                {...register('telephone_wave')}
+                autoComplete="tel"
+                error={errors.telephone_wave?.message}
+                field={register('telephone_wave')}
               />
-              <TextField
+              <Field
                 label="Adresse email"
+                required
                 type="email"
-                fullWidth
                 inputMode="email"
-                error={Boolean(errors.email)}
-                helperText={errors.email?.message}
-                {...register('email')}
+                autoComplete="email"
+                autoCapitalize="none"
+                error={errors.email?.message}
+                field={register('email')}
               />
-              <TextField
+            </SectionCard>
+
+            {/* Section 3 — Pièce d'identité */}
+            <SectionCard icon={<BadgeRoundedIcon />} title="Pièce d'identité (CNI)">
+              <Field
                 label="Numéro de CNI"
-                fullWidth
-                error={Boolean(errors.numero_cni)}
-                helperText={errors.numero_cni?.message}
-                {...register('numero_cni')}
+                required
+                autoCapitalize="characters"
+                error={errors.numero_cni?.message}
+                field={register('numero_cni')}
               />
-
-              <Divider />
-
-              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                Photos de la CNI
-              </Typography>
               <PhotoUpload
-                label="Recto de la CNI"
+                label="Photo recto *"
                 value={recto}
                 onChange={setRecto}
                 error={photoError.recto}
               />
               <PhotoUpload
-                label="Verso de la CNI"
+                label="Photo verso *"
                 value={verso}
                 onChange={setVerso}
                 error={photoError.verso}
               />
+            </SectionCard>
 
-              {mutation.isPending && (
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Envoi en cours… {progress}%
-                  </Typography>
-                  <LinearProgress variant="determinate" value={progress} />
-                </Box>
-              )}
+            {mutation.isPending && (
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Envoi en cours… {progress}%
+                </Typography>
+                <LinearProgress variant="determinate" value={progress} sx={{ borderRadius: 1 }} />
+              </Box>
+            )}
 
-              <Button
-                type="submit"
-                variant="contained"
-                size="large"
-                fullWidth
-                disabled={mutation.isPending}
-                sx={{ py: 1.4, fontSize: 16 }}
-              >
-                {mutation.isPending ? 'Envoi…' : 'Valider mon inscription'}
-              </Button>
-            </Stack>
-          </Box>
-        </Paper>
+            <Button
+              type="submit"
+              variant="contained"
+              size="large"
+              fullWidth
+              disabled={mutation.isPending}
+              sx={{ py: 1.5, fontSize: 16, borderRadius: 2 }}
+            >
+              {mutation.isPending ? 'Envoi…' : 'Valider mon inscription'}
+            </Button>
+
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ textAlign: 'center', display: 'block', pb: 2 }}
+            >
+              Vos données sont collectées pour la gestion de présence de l'activité.
+            </Typography>
+          </Stack>
+        </Box>
       </Container>
     </Box>
   )
@@ -311,7 +394,69 @@ export function PublicFormPage() {
 
 // --- Sous-composants -------------------------------------------------------
 
-function Centered({ children }: { children: React.ReactNode }) {
+function SectionCard({
+  icon,
+  title,
+  children,
+}: {
+  icon: ReactNode
+  title: string
+  children: ReactNode
+}) {
+  return (
+    <Paper sx={{ p: { xs: 2.5, sm: 3 } }}>
+      <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center', mb: 2.5, color: 'primary.main' }}>
+        {icon}
+        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'text.primary' }}>
+          {title}
+        </Typography>
+      </Stack>
+      <Stack spacing={2.5}>{children}</Stack>
+    </Paper>
+  )
+}
+
+function Field({
+  label,
+  field,
+  error,
+  required,
+  type,
+  placeholder,
+  inputMode,
+  autoComplete,
+  autoCapitalize,
+}: {
+  label: string
+  field: UseFormRegisterReturn
+  error?: string
+  required?: boolean
+  type?: string
+  placeholder?: string
+  inputMode?: 'text' | 'tel' | 'email'
+  autoComplete?: string
+  autoCapitalize?: string
+}) {
+  return (
+    <TextField
+      label={label}
+      required={required}
+      type={type}
+      placeholder={placeholder}
+      fullWidth
+      size="medium"
+      error={Boolean(error)}
+      helperText={error}
+      sx={FIELD_SX}
+      slotProps={{
+        htmlInput: { inputMode, autoComplete, autoCapitalize },
+      }}
+      {...field}
+    />
+  )
+}
+
+function Centered({ children }: { children: ReactNode }) {
   return (
     <Box
       sx={{
@@ -319,7 +464,7 @@ function Centered({ children }: { children: React.ReactNode }) {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        bgcolor: 'background.default',
+        bgcolor: '#f0f4f8',
         p: 2,
       }}
     >
@@ -346,31 +491,43 @@ function Confirmation({
   ]
   return (
     <Centered>
-      <Paper sx={{ p: 4, maxWidth: 460, width: '100%', textAlign: 'center' }}>
-        <CheckCircleRoundedIcon color="success" sx={{ fontSize: 56 }} />
-        <Typography variant="h5" sx={{ fontWeight: 700, mt: 1 }}>
-          Inscription confirmée
-        </Typography>
-        <Typography color="text.secondary" sx={{ mt: 1 }}>
-          Merci, votre présence à « {activiteNom} » a bien été enregistrée.
-        </Typography>
-        <Divider sx={{ my: 3 }} />
-        <Stack spacing={1.25} sx={{ textAlign: 'left' }}>
-          {rows.map(([label, value]) => (
-            <Stack
-              key={label}
-              direction="row"
-              sx={{ justifyContent: 'space-between', gap: 2 }}
-            >
-              <Typography variant="body2" color="text.secondary">
-                {label}
-              </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 600, textAlign: 'right' }}>
-                {value}
-              </Typography>
-            </Stack>
-          ))}
-        </Stack>
+      <Paper
+        sx={{
+          maxWidth: 460,
+          width: '100%',
+          overflow: 'hidden',
+          borderTop: '6px solid',
+          borderTopColor: 'success.main',
+        }}
+      >
+        <Box sx={{ p: 4, textAlign: 'center' }}>
+          <CheckCircleRoundedIcon color="success" sx={{ fontSize: 56 }} />
+          <Typography variant="h5" sx={{ fontWeight: 700, mt: 1 }}>
+            Inscription confirmée
+          </Typography>
+          <Typography color="text.secondary" sx={{ mt: 1 }}>
+            Merci, votre présence à « {activiteNom} » a bien été enregistrée.
+          </Typography>
+          <Stack
+            spacing={1.25}
+            sx={{ textAlign: 'left', mt: 3, bgcolor: '#f0f4f8', borderRadius: 2, p: 2 }}
+          >
+            {rows.map(([label, value]) => (
+              <Stack
+                key={label}
+                direction="row"
+                sx={{ justifyContent: 'space-between', gap: 2 }}
+              >
+                <Typography variant="body2" color="text.secondary">
+                  {label}
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 600, textAlign: 'right' }}>
+                  {value}
+                </Typography>
+              </Stack>
+            ))}
+          </Stack>
+        </Box>
       </Paper>
     </Centered>
   )

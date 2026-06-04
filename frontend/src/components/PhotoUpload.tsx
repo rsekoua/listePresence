@@ -126,6 +126,7 @@ export function PhotoUpload({ label, value, onChange, error }: Props) {
                 Photo ajoutée
               </Typography>
               <Button
+                type="button"
                 size="small"
                 color="error"
                 startIcon={<DeleteOutlineRoundedIcon />}
@@ -140,18 +141,30 @@ export function PhotoUpload({ label, value, onChange, error }: Props) {
             <Typography variant="body2" color="text.secondary">
               Ajoutez une photo nette et lisible
             </Typography>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ justifyContent: 'center' }}>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1.25}
+              sx={{ justifyContent: 'center' }}
+            >
               <Button
+                type="button"
                 variant="contained"
+                size="large"
+                fullWidth
                 startIcon={<PhotoCameraRoundedIcon />}
                 onClick={() => cameraRef.current?.click()}
+                sx={{ py: 1.4, fontSize: 15 }}
               >
                 Prendre une photo
               </Button>
               <Button
+                type="button"
                 variant="outlined"
+                size="large"
+                fullWidth
                 startIcon={<CollectionsRoundedIcon />}
                 onClick={() => galleryRef.current?.click()}
+                sx={{ py: 1.4, fontSize: 15 }}
               >
                 Galerie
               </Button>
