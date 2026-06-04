@@ -9,10 +9,8 @@ import {
   Alert,
   Box,
   Button,
-  Container,
   IconButton,
   InputAdornment,
-  Link,
   Paper,
   Stack,
   TextField,
@@ -33,9 +31,7 @@ const schema = z.object({
 
 type LoginForm = z.infer<typeof schema>
 
-/**
- * Page de connexion de l'organisateur (AUTH-01).
- */
+/** Page de connexion de l'organisateur (AUTH-01) — formulaire centré. */
 export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const navigate = useNavigate()
@@ -72,152 +68,107 @@ export function LoginPage() {
         bgcolor: 'background.default',
       }}
     >
-      <Container maxWidth="xs" disableGutters>
-        <Paper elevation={8} sx={{ borderRadius: 3, overflow: 'hidden' }}>
-          {/* Bandeau de marque */}
+      <Paper sx={{ width: '100%', maxWidth: 400, p: { xs: 3, sm: 4 } }}>
+        {/* Marque */}
+        <Stack spacing={1.5} sx={{ alignItems: 'center', mb: 3 }}>
           <Box
             sx={{
-              px: 4,
-              pt: 4,
-              pb: 5,
-              textAlign: 'center',
+              width: 48,
+              height: 48,
+              borderRadius: 2.5,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               color: 'common.white',
-              bgcolor: 'primary.main',
+              background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
             }}
           >
-            <Box
-              sx={{
-                width: 64,
-                height: 64,
-                mx: 'auto',
-                mb: 1.5,
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                bgcolor: 'rgba(255,255,255,0.18)',
-              }}
-            >
-              <QrCode2RoundedIcon sx={{ fontSize: 38 }} />
-            </Box>
-            <Typography variant="h5" component="h1" sx={{ fontWeight: 700 }}>
-              Gestion de Présence
+            <QrCode2RoundedIcon />
+          </Box>
+          <Box sx={{ textAlign: 'center' }}>
+            <Typography variant="h5" component="h1" sx={{ fontWeight: 800 }}>
+              Connexion
             </Typography>
-            <Typography variant="body2" sx={{ opacity: 0.9, mt: 0.5 }}>
+            <Typography variant="body2" color="text.secondary">
               Espace organisateur
             </Typography>
           </Box>
+        </Stack>
 
-          {/* Formulaire */}
-          <Box
-            component="form"
-            onSubmit={handleSubmit((data) => mutation.mutate(data))}
-            sx={{
-              p: 4,
-              mt: -2,
-              bgcolor: 'background.paper',
-              borderTopLeftRadius: 24,
-              borderTopRightRadius: 24,
-            }}
-          >
-            <Typography
-              variant="subtitle1"
-              sx={{ fontWeight: 600, mb: 2, textAlign: 'center' }}
+        <Box component="form" onSubmit={handleSubmit((data) => mutation.mutate(data))}>
+          <Stack spacing={2.5}>
+            {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
+
+            <TextField
+              label="Identifiant"
+              fullWidth
+              autoComplete="username"
+              autoFocus
+              error={Boolean(errors.username)}
+              helperText={errors.username?.message}
+              {...register('username')}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <PersonOutlineRoundedIcon fontSize="small" />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+            <TextField
+              label="Mot de passe"
+              type={showPassword ? 'text' : 'password'}
+              fullWidth
+              autoComplete="current-password"
+              error={Boolean(errors.password)}
+              helperText={errors.password?.message}
+              {...register('password')}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <LockOutlinedIcon fontSize="small" />
+                    </InputAdornment>
+                  ),
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label={
+                          showPassword
+                            ? 'Masquer le mot de passe'
+                            : 'Afficher le mot de passe'
+                        }
+                        onClick={() => setShowPassword((v) => !v)}
+                        edge="end"
+                        size="small"
+                      >
+                        {showPassword ? (
+                          <VisibilityOffRoundedIcon fontSize="small" />
+                        ) : (
+                          <VisibilityRoundedIcon fontSize="small" />
+                        )}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+
+            <Button
+              type="submit"
+              variant="contained"
+              size="large"
+              fullWidth
+              disabled={mutation.isPending}
+              sx={{ py: 1.2, fontWeight: 600 }}
             >
-              Connexion à votre compte
-            </Typography>
-
-            <Stack spacing={2.5}>
-              {errorMessage && <Alert severity="error">{errorMessage}</Alert>}
-
-              <TextField
-                label="Identifiant"
-                fullWidth
-                autoComplete="username"
-                autoFocus
-                error={Boolean(errors.username)}
-                helperText={errors.username?.message}
-                {...register('username')}
-                slotProps={{
-                  input: {
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <PersonOutlineRoundedIcon fontSize="small" />
-                      </InputAdornment>
-                    ),
-                  },
-                }}
-              />
-              <TextField
-                label="Mot de passe"
-                type={showPassword ? 'text' : 'password'}
-                fullWidth
-                autoComplete="current-password"
-                error={Boolean(errors.password)}
-                helperText={errors.password?.message}
-                {...register('password')}
-                slotProps={{
-                  input: {
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <LockOutlinedIcon fontSize="small" />
-                      </InputAdornment>
-                    ),
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton
-                          aria-label={
-                            showPassword
-                              ? 'Masquer le mot de passe'
-                              : 'Afficher le mot de passe'
-                          }
-                          onClick={() => setShowPassword((v) => !v)}
-                          edge="end"
-                          size="small"
-                        >
-                          {showPassword ? (
-                            <VisibilityOffRoundedIcon fontSize="small" />
-                          ) : (
-                            <VisibilityRoundedIcon fontSize="small" />
-                          )}
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  },
-                }}
-              />
-
-              <Box sx={{ textAlign: 'right' }}>
-                <Link href="#" underline="hover" variant="body2">
-                  Mot de passe oublié&nbsp;?
-                </Link>
-              </Box>
-
-              <Button
-                type="submit"
-                variant="contained"
-                fullWidth
-                disabled={mutation.isPending}
-                sx={{ py: 1.2, fontWeight: 600 }}
-              >
-                {mutation.isPending ? 'Connexion…' : 'Se connecter'}
-              </Button>
-            </Stack>
-          </Box>
-        </Paper>
-
-        <Typography
-          variant="caption"
-          sx={{
-            display: 'block',
-            textAlign: 'center',
-            mt: 2,
-            color: 'text.secondary',
-          }}
-        >
-          MVP — Sprint 2 (authentification JWT)
-        </Typography>
-      </Container>
+              {mutation.isPending ? 'Connexion…' : 'Se connecter'}
+            </Button>
+          </Stack>
+        </Box>
+      </Paper>
     </Box>
   )
 }
