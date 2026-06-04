@@ -149,61 +149,141 @@ def stats_globales(request):
     )
 
 
-class ParticipantGlobalOut(Schema):
-    id: UUID
+# --- Annuaire des personnes (dédupliqué par numéro de CNI) ------------------
+
+
+class PersonneOut(Schema):
+    numero_cni: str
     nom: str
     prenom: str
     structure: str
     fonction: str
     telephone_wave: str
     email: str
-    numero_cni: str
-    horodatage: datetime
+    nb_activites: int
+    derniere_participation: datetime
     cni_complete: bool
-    activite_id: UUID
-    activite_nom: str
-
-    @staticmethod
-    def resolve_cni_complete(obj: Participant) -> bool:
-        return bool(obj.photo_cni_recto) and bool(obj.photo_cni_verso)
-
-    @staticmethod
-    def resolve_activite_nom(obj: Participant) -> str:
-        return obj.activite.nom
 
 
-@router.get("/participants", response=list[ParticipantGlobalOut])
-@paginate
-def list_all_participants(
+@router.get("/personnes", response=list[PersonneOut])
+def list_personnes(
     request,
     search: str | None = Query(None),
     structure: str | None = Query(None),
-    date_from: date | None = Query(None),
-    date_to: date | None = Query(None),
     cni: str | None = Query(None),
 ):
-    """Liste globale et filtrée des participants, toutes activités confondues."""
+    """Annuaire des personnes distinctes (regroupées par numéro de CNI).
+
+    L'identité affichée provient de l'inscription la plus récente de chaque
+    personne ; `nb_activites` compte ses activités distinctes.
+    """
     from django.db.models import Q
 
-    qs = Participant.objects.select_related("activite")
+    base = Participant.objects.all()
     if search:
-        qs = qs.filter(
+        base = base.filter(
             Q(nom__icontains=search)
             | Q(prenom__icontains=search)
             | Q(email__icontains=search)
             | Q(numero_cni__icontains=search)
         )
     if structure:
-        qs = qs.filter(structure__icontains=structure)
-    if date_from:
-        qs = qs.filter(horodatage__date__gte=date_from)
-    if date_to:
-        qs = qs.filter(horodatage__date__lte=date_to)
-    if cni == "complete":
-        qs = qs.exclude(photo_cni_recto="").exclude(photo_cni_verso="")
-    elif cni == "incomplete":
-        qs = qs.filter(Q(photo_cni_recto="") | Q(photo_cni_verso=""))
-    return qs.order_by("-horodatage")
+        base = base.filter(structure__icontains=structure)
+
+    personnes: dict[str, dict] = {}
+    # Tri décroissant : la première occurrence rencontrée est la plus récente.
+    for p in base.order_by("-horodatage"):
+        info = personnes.get(p.numero_cni)
+        if info is None:
+            personnes[p.numero_cni] = {
+                "rep": p,
+                "activites": {p.activite_id},
+                "derniere": p.horodatage,
+            }
+        else:
+            info["activites"].add(p.activite_id)
+
+    resultats = []
+    for numero, info in personnes.items():
+        rep = info["rep"]
+        complete = bool(rep.photo_cni_recto) and bool(rep.photo_cni_verso)
+        if cni == "complete" and not complete:
+            continue
+        if cni == "incomplete" and complete:
+            continue
+        resultats.append(
+            PersonneOut(
+                numero_cni=numero,
+                nom=rep.nom,
+                prenom=rep.prenom,
+                structure=rep.structure,
+                fonction=rep.fonction,
+                telephone_wave=rep.telephone_wave,
+                email=rep.email,
+                nb_activites=len(info["activites"]),
+                derniere_participation=info["derniere"],
+                cni_complete=complete,
+            )
+        )
+    resultats.sort(key=lambda r: r.derniere_participation, reverse=True)
+    return resultats
+
+
+class HistoriqueLigneOut(Schema):
+    participant_id: UUID
+    activite_id: UUID
+    activite_nom: str
+    activite_lieu: str
+    horodatage: datetime
+    cni_complete: bool
+
+
+class HistoriqueOut(Schema):
+    numero_cni: str
+    nom: str
+    prenom: str
+    structure: str
+    fonction: str
+    telephone_wave: str
+    email: str
+    nb_activites: int
+    participations: list[HistoriqueLigneOut]
+
+
+@router.get("/personnes/historique", response=HistoriqueOut)
+def historique_personne(request, numero_cni: str = Query(...)):
+    """Historique de participation d'une personne (toutes ses inscriptions)."""
+    parts = list(
+        Participant.objects.select_related("activite")
+        .filter(numero_cni=numero_cni)
+        .order_by("-horodatage")
+    )
+    if not parts:
+        raise HttpError(404, "Aucune personne avec ce numéro de CNI.")
+
+    rep = parts[0]  # le plus récent
+    participations = [
+        HistoriqueLigneOut(
+            participant_id=p.id,
+            activite_id=p.activite_id,
+            activite_nom=p.activite.nom,
+            activite_lieu=p.activite.lieu,
+            horodatage=p.horodatage,
+            cni_complete=bool(p.photo_cni_recto) and bool(p.photo_cni_verso),
+        )
+        for p in parts
+    ]
+    return HistoriqueOut(
+        numero_cni=rep.numero_cni,
+        nom=rep.nom,
+        prenom=rep.prenom,
+        structure=rep.structure,
+        fonction=rep.fonction,
+        telephone_wave=rep.telephone_wave,
+        email=rep.email,
+        nb_activites=len({p.activite_id for p in parts}),
+        participations=participations,
+    )
 
 
 @router.post("/", response={201: ActiviteOut})

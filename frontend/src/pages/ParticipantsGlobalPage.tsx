@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import {
   Avatar,
   Box,
+  Chip,
   InputAdornment,
   MenuItem,
   Paper,
@@ -17,20 +17,21 @@ import { DataGrid, type GridColDef } from '@mui/x-data-grid'
 import { frFR } from '@mui/x-data-grid/locales'
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded'
 import ApartmentRoundedIcon from '@mui/icons-material/ApartmentRounded'
+import PhoneIphoneRoundedIcon from '@mui/icons-material/PhoneIphoneRounded'
 import AttachFileRoundedIcon from '@mui/icons-material/AttachFileRounded'
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded'
-import EventRoundedIcon from '@mui/icons-material/EventRounded'
 import {
-  fetchAllParticipants,
+  fetchPersonnes,
   type ParticipantFilters,
-  type ParticipantGlobal,
+  type Personne,
 } from '../api/participants'
+import { PersonneHistoriqueDialog } from '../components/PersonneHistoriqueDialog'
 
 export function ParticipantsGlobalPage() {
   const theme = useTheme()
-  const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [cni, setCni] = useState<'' | 'complete' | 'incomplete'>('')
+  const [selected, setSelected] = useState<string | null>(null)
 
   const filters: ParticipantFilters = {
     ...(search ? { search } : {}),
@@ -38,16 +39,16 @@ export function ParticipantsGlobalPage() {
   }
 
   const { data, isLoading } = useQuery({
-    queryKey: ['participants-globaux', search, cni],
-    queryFn: () => fetchAllParticipants(filters),
+    queryKey: ['personnes', search, cni],
+    queryFn: () => fetchPersonnes(filters),
   })
 
-  const participants = data?.items ?? []
+  const personnes = data ?? []
 
-  const columns: GridColDef<ParticipantGlobal>[] = [
+  const columns: GridColDef<Personne>[] = [
     {
       field: 'nom',
-      headerName: 'Participant',
+      headerName: 'Personne',
       flex: 1.4,
       minWidth: 200,
       renderCell: (params) => (
@@ -71,20 +72,6 @@ export function ParticipantsGlobalPage() {
       ),
     },
     {
-      field: 'activite_nom',
-      headerName: 'Activité',
-      flex: 1.2,
-      minWidth: 160,
-      renderCell: (params) => (
-        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', height: '100%' }}>
-          <EventRoundedIcon fontSize="small" sx={{ color: 'text.disabled' }} />
-          <Typography variant="body2" noWrap>
-            {params.row.activite_nom}
-          </Typography>
-        </Stack>
-      ),
-    },
-    {
       field: 'structure',
       headerName: 'Structure',
       flex: 1,
@@ -100,14 +87,44 @@ export function ParticipantsGlobalPage() {
     },
     { field: 'fonction', headerName: 'Fonction', flex: 1, minWidth: 140 },
     {
-      field: 'numero_cni',
-      headerName: 'N° CNI',
+      field: 'telephone_wave',
+      headerName: 'Téléphone',
       width: 160,
       renderCell: (params) => (
-        <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', height: '100%' }}>
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', height: '100%' }}>
+          <PhoneIphoneRoundedIcon fontSize="small" sx={{ color: 'text.disabled' }} />
           <Typography variant="body2" noWrap>
-            {params.row.numero_cni}
+            {params.row.telephone_wave}
           </Typography>
+        </Stack>
+      ),
+    },
+    {
+      field: 'nb_activites',
+      headerName: 'Activités',
+      width: 110,
+      align: 'center',
+      headerAlign: 'center',
+      renderCell: (params) => (
+        <Stack sx={{ height: '100%', justifyContent: 'center', alignItems: 'center' }}>
+          <Chip
+            size="small"
+            label={params.row.nb_activites}
+            color={params.row.nb_activites > 1 ? 'primary' : 'default'}
+            variant={params.row.nb_activites > 1 ? 'filled' : 'outlined'}
+            sx={{ fontWeight: 600, minWidth: 36 }}
+          />
+        </Stack>
+      ),
+    },
+    {
+      field: 'cni_complete',
+      headerName: 'CNI',
+      width: 80,
+      align: 'center',
+      headerAlign: 'center',
+      renderCell: (params) => (
+        <Stack sx={{ height: '100%', justifyContent: 'center', alignItems: 'center' }}>
           {params.row.cni_complete ? (
             <AttachFileRoundedIcon fontSize="small" sx={{ color: 'success.main' }} />
           ) : (
@@ -117,9 +134,9 @@ export function ParticipantsGlobalPage() {
       ),
     },
     {
-      field: 'horodatage',
-      headerName: 'Inscrit le',
-      width: 150,
+      field: 'derniere_participation',
+      headerName: 'Dernière participation',
+      width: 180,
       valueFormatter: (value) => dayjs(value as string).format('DD/MM/YYYY HH:mm'),
     },
   ]
@@ -131,16 +148,12 @@ export function ParticipantsGlobalPage() {
           Participants
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Tous les participants enregistrés, toutes activités confondues
+          Annuaire des personnes distinctes ({personnes.length}) — regroupées par CNI
         </Typography>
       </Box>
 
       {/* Filtres */}
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        spacing={1.5}
-        sx={{ mb: 2.5 }}
-      >
+      <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ mb: 2.5 }}>
         <TextField
           placeholder="Rechercher (nom, email, CNI…)"
           value={search}
@@ -171,11 +184,11 @@ export function ParticipantsGlobalPage() {
 
       <Paper sx={{ overflow: 'hidden' }}>
         <DataGrid
-          rows={participants}
+          rows={personnes}
           columns={columns}
           loading={isLoading}
-          getRowId={(r) => r.id}
-          onRowClick={(p) => navigate(`/activites/${p.row.activite_id}`)}
+          getRowId={(r) => r.numero_cni}
+          onRowClick={(p) => setSelected(p.row.numero_cni)}
           disableRowSelectionOnClick
           disableColumnMenu
           rowHeight={52}
@@ -206,10 +219,16 @@ export function ParticipantsGlobalPage() {
           }}
           localeText={{
             ...frFR.components.MuiDataGrid.defaultProps.localeText,
-            noRowsLabel: 'Aucun participant',
+            noRowsLabel: 'Aucune personne',
           }}
         />
       </Paper>
+
+      <PersonneHistoriqueDialog
+        numeroCni={selected}
+        open={Boolean(selected)}
+        onClose={() => setSelected(null)}
+      />
     </Box>
   )
 }

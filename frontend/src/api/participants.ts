@@ -42,24 +42,64 @@ export async function fetchParticipants(
   return data
 }
 
-export interface ParticipantGlobal extends Participant {
-  activite_id: string
-  activite_nom: string
-}
-
 export interface ParticipantFilters {
   search?: string
   structure?: string
   cni?: 'complete' | 'incomplete'
 }
 
-/** Liste globale des participants, toutes activités confondues. */
-export async function fetchAllParticipants(
+/** Une personne unique de l'annuaire (regroupée par numéro de CNI). */
+export interface Personne {
+  numero_cni: string
+  nom: string
+  prenom: string
+  structure: string
+  fonction: string
+  telephone_wave: string
+  email: string
+  nb_activites: number
+  derniere_participation: string
+  cni_complete: boolean
+}
+
+/** Annuaire des personnes distinctes (dédupliquées par CNI). */
+export async function fetchPersonnes(
   filters: ParticipantFilters = {},
-): Promise<Paginated<ParticipantGlobal>> {
-  const { data } = await api.get<Paginated<ParticipantGlobal>>(
-    '/activites/participants',
-    { params: { limit: 1000, ...filters } },
+): Promise<Personne[]> {
+  const { data } = await api.get<Personne[]>('/activites/personnes', {
+    params: filters,
+  })
+  return data
+}
+
+export interface HistoriqueLigne {
+  participant_id: string
+  activite_id: string
+  activite_nom: string
+  activite_lieu: string
+  horodatage: string
+  cni_complete: boolean
+}
+
+export interface PersonneHistorique {
+  numero_cni: string
+  nom: string
+  prenom: string
+  structure: string
+  fonction: string
+  telephone_wave: string
+  email: string
+  nb_activites: number
+  participations: HistoriqueLigne[]
+}
+
+/** Historique de participation d'une personne (toutes ses inscriptions). */
+export async function fetchPersonneHistorique(
+  numeroCni: string,
+): Promise<PersonneHistorique> {
+  const { data } = await api.get<PersonneHistorique>(
+    '/activites/personnes/historique',
+    { params: { numero_cni: numeroCni } },
   )
   return data
 }
