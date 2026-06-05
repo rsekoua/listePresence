@@ -24,6 +24,7 @@ from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
+from reportlab.lib.enums import TA_LEFT
 from reportlab.pdfgen import canvas
 from reportlab.platypus import (
     Paragraph,
@@ -249,10 +250,13 @@ def build_presence_list_pdf(activite, participants) -> bytes:
     styles = getSampleStyleSheet()
     titre = styles["Title"]
     titre.fontSize = 16
+    titre.alignment = TA_LEFT
     sous = styles["Normal"]
-    sous.fontSize = 9
+    sous.textColor = colors.HexColor("#94A3B8")  # Gris clair pour le sous-titre
+    sous.fontSize = 7
     cell = styles["Normal"].clone("cell")
     cell.fontSize = 8
+    cell.textColor = colors.HexColor("#000000")
 
     elements = [
         Paragraph(f"Liste de présence — {activite.nom}", titre),
