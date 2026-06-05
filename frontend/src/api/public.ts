@@ -5,6 +5,7 @@ const publicApi = axios.create({ baseURL: '/api' })
 
 export interface ActivitePublique {
   nom: string
+  ville: string
   lieu: string
   date_debut: string
   date_fin: string

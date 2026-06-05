@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
-import { useForm, type UseFormRegisterReturn } from 'react-hook-form'
+import {
+  Controller,
+  useForm,
+  type Control,
+  type UseFormRegisterReturn,
+} from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery } from '@tanstack/react-query'
@@ -61,9 +66,13 @@ const EMPTY: FormValues = {
 
 // Champs agrandis et police à 16 px : confort tactile + anti-zoom iOS (FORM-09).
 const FIELD_SX = {
-  '& .MuiInputBase-input': { fontSize: 16 },
-  '& .MuiInputBase-root': { borderRadius: 2 },
+  '& .MuiInputBase-input': { fontSize: 16, py: '18px' },
+  '& .MuiOutlinedInput-root': { borderRadius: '12px' },
   '& label': { fontSize: 16 },
+  // Recentre verticalement le libellé au repos dans le champ agrandi.
+  '& .MuiInputLabel-outlined:not(.MuiInputLabel-shrink)': {
+    transform: 'translate(14px, 21px) scale(1)',
+  },
 }
 
 /** Convertit un fichier en dataURL (pour persistance hors-ligne). */
@@ -107,6 +116,7 @@ export function PublicFormPage() {
     register,
     handleSubmit,
     watch,
+    control,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -261,7 +271,9 @@ export function PublicFormPage() {
                 <Stack direction="row" spacing={2} sx={{ mt: 1.5, color: 'text.secondary', flexWrap: 'wrap' }}>
                   <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
                     <PlaceRoundedIcon sx={{ fontSize: 17 }} />
-                    <Typography variant="body2">{activite.lieu}</Typography>
+                    <Typography variant="body2">
+                      {activite.ville} · {activite.lieu}
+                    </Typography>
                   </Stack>
                   <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
                     <EventRoundedIcon sx={{ fontSize: 17 }} />
@@ -314,15 +326,7 @@ export function PublicFormPage() {
                 error={errors.fonction?.message}
                 field={register('fonction')}
               />
-              <Field
-                label="Téléphone Wave"
-                required
-                placeholder="07 01 02 03 04"
-                inputMode="tel"
-                autoComplete="tel"
-                error={errors.telephone_wave?.message}
-                field={register('telephone_wave')}
-              />
+              <PhoneField control={control} error={errors.telephone_wave?.message} />
               <Field
                 label="Adresse email"
                 required
@@ -349,12 +353,14 @@ export function PublicFormPage() {
                 value={recto}
                 onChange={setRecto}
                 error={photoError.recto}
+                persistKey={`${token}_recto`}
               />
               <PhotoUpload
                 label="Photo verso *"
                 value={verso}
                 onChange={setVerso}
                 error={photoError.verso}
+                persistKey={`${token}_verso`}
               />
             </SectionCard>
 
@@ -452,6 +458,56 @@ function Field({
         htmlInput: { inputMode, autoComplete, autoCapitalize },
       }}
       {...field}
+    />
+  )
+}
+
+/** Formate 10 chiffres en « 07 01 02 03 04 ». */
+function formatPhone(digits: string): string {
+  return digits.match(/.{1,2}/g)?.join(' ') ?? ''
+}
+
+/** Champ téléphone : saisie limitée à 10 chiffres, affichage formaté au repos
+ *  et chiffres bruts une fois le champ sélectionné. */
+function PhoneField({
+  control,
+  error,
+}: {
+  control: Control<FormValues>
+  error?: string
+}) {
+  const [focused, setFocused] = useState(false)
+  return (
+    <Controller
+      name="telephone_wave"
+      control={control}
+      render={({ field }) => {
+        const digits = (field.value ?? '').replace(/\D/g, '').slice(0, 10)
+        return (
+          <TextField
+            label="Téléphone Wave"
+            required
+            fullWidth
+            size="medium"
+            placeholder="07 01 02 03 04"
+            value={focused ? digits : digits ? formatPhone(digits) : ''}
+            onChange={(e) =>
+              field.onChange(e.target.value.replace(/\D/g, '').slice(0, 10))
+            }
+            onFocus={() => setFocused(true)}
+            onBlur={() => {
+              setFocused(false)
+              field.onBlur()
+            }}
+            error={Boolean(error)}
+            helperText={error}
+            sx={FIELD_SX}
+            slotProps={{
+              htmlInput: { inputMode: 'tel', autoComplete: 'tel', maxLength: 14 },
+            }}
+          />
+        )
+      }}
     />
   )
 }

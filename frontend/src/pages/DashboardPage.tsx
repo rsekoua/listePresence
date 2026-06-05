@@ -125,7 +125,7 @@ export function DashboardPage() {
  const columns: GridColDef<Activite>[] = [
     {
       field: 'nom',
-      headerName: 'Activité',
+      headerName: 'Libellé  de l\'Activité',
       // flex: 2 donne plus de poids à la colonne principale pour éviter de tronquer les longs noms d'ateliers
       flex: 2,
       minWidth: 220,
@@ -170,16 +170,21 @@ export function DashboardPage() {
         </Stack>
       ),
     },
-    { 
-      field: 'lieu', 
-      headerName: 'Lieu', 
-      flex: 1.2, 
+    {
+      field: 'ville',
+      headerName: 'Ville / Lieu',
+      flex: 1.2,
       minWidth: 160,
       renderCell: (params) => (
-        <Typography variant="body2" color="text.primary" noWrap sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-          {params.value}
-        </Typography>
-      )
+        <Stack sx={{ justifyContent: 'center', height: '100%', py: 1 }}>
+          <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
+            {params.row.ville}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" noWrap>
+            {params.row.lieu}
+          </Typography>
+        </Stack>
+      ),
     },
     {
       field: 'created_by',
@@ -269,7 +274,7 @@ export function DashboardPage() {
             Vue d'ensemble
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ opacity:  0.5 }}>
-            Gérez vos activités et générer leurs QR Codes
+            Gérez la liste des participants aux activités 
           </Typography>
         </Box>
         <Button

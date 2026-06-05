@@ -12,15 +12,20 @@ import PhotoCameraRoundedIcon from '@mui/icons-material/PhotoCameraRounded'
 import CollectionsRoundedIcon from '@mui/icons-material/CollectionsRounded'
 import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
+import CropRoundedIcon from '@mui/icons-material/CropRounded'
+import { CniCropDialog } from './CniCropDialog'
 
 interface Props {
   label: string
   value: File | null
   onChange: (file: File | null) => void
   error?: string
+  /** Clé unique pour conserver l'image en cours de recadrage après un
+   *  rechargement de page (mémoire mobile). */
+  persistKey?: string
 }
 
-// Options de compression (IMG-01 : ≤ 800 Ko, JPEG, qualité ~85 %).
+// Compression finale (IMG-01 : ≤ 800 Ko, JPEG, qualité ~85 %).
 const COMPRESSION_OPTIONS = {
   maxSizeMB: 0.8,
   maxWidthOrHeight: 1600,
@@ -29,12 +34,44 @@ const COMPRESSION_OPTIONS = {
   initialQuality: 0.85,
 }
 
-export function PhotoUpload({ label, value, onChange, error }: Props) {
+// Pré-réduction AVANT recadrage : allège la mémoire pour éviter que le
+// navigateur mobile ne recharge la page à la prise de vue (grosses photos).
+const PREVIEW_OPTIONS = {
+  maxSizeMB: 1.5,
+  maxWidthOrHeight: 1800,
+  useWebWorker: true,
+  fileType: 'image/jpeg',
+  initialQuality: 0.9,
+}
+
+export function PhotoUpload({ label, value, onChange, error, persistKey }: Props) {
   const cameraRef = useRef<HTMLInputElement>(null)
   const galleryRef = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
+
+  const pendingStorageKey = persistKey ? `presence_pending_${persistKey}` : null
+  // Restauration de l'image en cours de recadrage si la page a été rechargée.
+  const [cropSrc, setCropSrc] = useState<string | null>(() => {
+    if (!pendingStorageKey) return null
+    try {
+      return localStorage.getItem(pendingStorageKey)
+    } catch {
+      return null
+    }
+  })
+
+  // Persiste l'image en cours de recadrage (et nettoie une fois terminé).
+  useEffect(() => {
+    if (!pendingStorageKey) return
+    try {
+      if (cropSrc) localStorage.setItem(pendingStorageKey, cropSrc)
+      else localStorage.removeItem(pendingStorageKey)
+    } catch {
+      /* quota dépassé : on ignore */
+    }
+  }, [cropSrc, pendingStorageKey])
 
   useEffect(() => {
     if (!value) {
@@ -46,6 +83,7 @@ export function PhotoUpload({ label, value, onChange, error }: Props) {
     return () => URL.revokeObjectURL(url)
   }, [value])
 
+  // 1) À la sélection / prise de vue : on réduit l'image puis on ouvre le recadrage.
   const handleFile = async (file?: File) => {
     if (!file) return
     setLocalError(null)
@@ -55,7 +93,22 @@ export function PhotoUpload({ label, value, onChange, error }: Props) {
     }
     setLoading(true)
     try {
-      const compressed = await imageCompression(file, COMPRESSION_OPTIONS)
+      const reduced = await imageCompression(file, PREVIEW_OPTIONS)
+      const dataUrl = await imageCompression.getDataUrlFromFile(reduced)
+      setCropSrc(dataUrl)
+    } catch {
+      setLocalError("Échec de la lecture de l'image.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 2) Après recadrage : compression de la carte rognée puis enregistrement.
+  const handleCropped = async (cropped: File) => {
+    setCropSrc(null)
+    setLoading(true)
+    try {
+      const compressed = await imageCompression(cropped, COMPRESSION_OPTIONS)
       onChange(compressed)
     } catch {
       setLocalError("Échec du traitement de l'image.")
@@ -76,14 +129,20 @@ export function PhotoUpload({ label, value, onChange, error }: Props) {
         accept="image/*"
         capture="environment"
         hidden
-        onChange={(e) => handleFile(e.target.files?.[0])}
+        onChange={(e) => {
+          handleFile(e.target.files?.[0])
+          e.target.value = ''
+        }}
       />
       <input
         ref={galleryRef}
         type="file"
         accept="image/*"
         hidden
-        onChange={(e) => handleFile(e.target.files?.[0])}
+        onChange={(e) => {
+          handleFile(e.target.files?.[0])
+          e.target.value = ''
+        }}
       />
 
       <Box
@@ -125,6 +184,14 @@ export function PhotoUpload({ label, value, onChange, error }: Props) {
               <Typography variant="body2" color="success.main">
                 Photo ajoutée
               </Typography>
+              <Button
+                type="button"
+                size="small"
+                startIcon={<CropRoundedIcon />}
+                onClick={() => preview && setCropSrc(preview)}
+              >
+                Recadrer
+              </Button>
               <Button
                 type="button"
                 size="small"
@@ -178,6 +245,14 @@ export function PhotoUpload({ label, value, onChange, error }: Props) {
           {error || localError}
         </Alert>
       )}
+
+      <CniCropDialog
+        open={Boolean(cropSrc)}
+        src={cropSrc}
+        label={label}
+        onCancel={() => setCropSrc(null)}
+        onConfirm={handleCropped}
+      />
     </Box>
   )
 }

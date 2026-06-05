@@ -7,11 +7,14 @@ servis dans une réponse HTTP. Aucune écriture sur disque.
   - build_participant_cni_pdf → EXP-02 (PDF fiche CNI individuelle)
   - build_presence_list_pdf   → EXP-03 (PDF liste de présence à signer)
   - build_cni_zip             → EXP-04 (ZIP des fiches CNI)
+  - build_activite_qr_pdf     → Affiche du QR Code (infos activité + QR)
 """
 
 import io
 import zipfile
 
+import qrcode
+from django.conf import settings
 from django.utils import timezone
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
@@ -20,6 +23,7 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import mm
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 from reportlab.platypus import (
     Paragraph,
@@ -41,6 +45,13 @@ def _fmt(dt) -> str:
     if not dt:
         return ""
     return timezone.localtime(dt).strftime("%d/%m/%Y %H:%M")
+
+
+def _fmt_date(dt) -> str:
+    """Formate une date (sans l'heure)."""
+    if not dt:
+        return ""
+    return timezone.localtime(dt).strftime("%d/%m/%Y")
 
 
 def _safe(name: str) -> str:
@@ -91,6 +102,7 @@ def build_participants_xlsx(activite, participants) -> bytes:
     ws["A1"].alignment = Alignment(horizontal="left", vertical="center")
 
     recap_lignes = [
+        f"Ville : {activite.ville}     •     "
         f"Lieu : {activite.lieu}     •     "
         f"Période : {_fmt(activite.date_debut)} → {_fmt(activite.date_fin)}     •     "
         f"Statut : {activite.get_statut_display()}     •     "
@@ -245,7 +257,7 @@ def build_presence_list_pdf(activite, participants) -> bytes:
     elements = [
         Paragraph(f"Liste de présence — {activite.nom}", titre),
         Paragraph(
-            f"{activite.lieu} &nbsp;·&nbsp; "
+            f"{activite.ville} &nbsp;·&nbsp; {activite.lieu} &nbsp;·&nbsp; "
             f"{_fmt(activite.date_debut)} → {_fmt(activite.date_fin)}",
             sous,
         ),
@@ -338,4 +350,64 @@ def build_cni_zip(activite, participants) -> bytes:
                 n += 1
             used.add(name)
             zf.writestr(name, build_participant_cni_pdf(activite, p))
+    return buffer.getvalue()
+
+
+# --- Affiche du QR Code (infos activité + QR) ------------------------------
+
+
+def build_activite_qr_pdf(activite) -> bytes:
+    """Affiche A4 : informations de l'activité (date sans l'heure) + QR Code."""
+    url = f"{settings.PUBLIC_FORM_BASE_URL}/form/{activite.token_qr}"
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+
+    # Bandeau d'accent
+    c.setFillColor(colors.HexColor(f"#{_CYAN_DARK}"))
+    c.rect(0, height - 10 * mm, width, 10 * mm, fill=1, stroke=0)
+
+    # Titre
+    c.setFillColor(colors.HexColor(f"#{_INK}"))
+    c.setFont("Helvetica-Bold", 22)
+    c.drawCentredString(width / 2, height - 32 * mm, activite.nom[:55])
+
+    # Informations (date sans l'heure)
+    d1, d2 = _fmt_date(activite.date_debut), _fmt_date(activite.date_fin)
+    periode = d1 if d1 == d2 else f"{d1} au {d2}"
+    infos = [
+        f"Ville : {activite.ville}",
+        f"Lieu : {activite.lieu}",
+        f"Date : {periode}",
+    ]
+    c.setFont("Helvetica", 13)
+    c.setFillColor(colors.HexColor("#475569"))
+    y = height - 46 * mm
+    for ligne in infos:
+        c.drawCentredString(width / 2, y, ligne)
+        y -= 8 * mm
+
+    # QR Code (centré, grand)
+    qr_img = qrcode.make(url)
+    qr_buf = io.BytesIO()
+    qr_img.save(qr_buf, format="PNG")
+    qr_buf.seek(0)
+    size = 95 * mm
+    qr_y = (height - size) / 2 - 18 * mm
+    c.setStrokeColor(colors.HexColor("#E2E8F0"))
+    c.rect((width - size) / 2 - 6 * mm, qr_y - 6 * mm, size + 12 * mm, size + 12 * mm)
+    c.drawImage(ImageReader(qr_buf), (width - size) / 2, qr_y, size, size)
+
+    # Instruction + URL
+    c.setFont("Helvetica-Bold", 14)
+    c.setFillColor(colors.HexColor(f"#{_CYAN_DARK}"))
+    c.drawCentredString(
+        width / 2, qr_y - 16 * mm, "Scannez ce QR Code pour vous enregistrer"
+    )
+    c.setFont("Helvetica", 9)
+    c.setFillColor(colors.HexColor("#94A3B8"))
+    c.drawCentredString(width / 2, qr_y - 24 * mm, url)
+
+    c.showPage()
+    c.save()
     return buffer.getvalue()

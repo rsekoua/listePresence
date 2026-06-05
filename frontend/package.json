@@ -25,6 +25,7 @@
     "notistack": "^3.0.2",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
+    "react-easy-crop": "^5.5.7",
     "react-hook-form": "^7.77.0",
     "react-router-dom": "^7.16.0",
     "zod": "^4.4.3"

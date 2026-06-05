@@ -36,6 +36,7 @@ MIN_SIZE = (400, 250)
 
 class ActivitePublicOut(Schema):
     nom: str
+    ville: str
     lieu: str
     date_debut: datetime
     date_fin: datetime

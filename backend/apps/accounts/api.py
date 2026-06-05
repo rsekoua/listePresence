@@ -1,6 +1,12 @@
-"""Endpoints d'authentification (AUTH-01 / AUTH-02)."""
+"""Endpoints d'authentification (AUTH-01 / AUTH-02) et gestion des comptes
+(AUTH-04, réservé à l'administrateur)."""
+
+from datetime import datetime
+from uuid import UUID
 
 from django.contrib.auth import authenticate
+from django.db.models import Count
+from django.shortcuts import get_object_or_404
 from ninja import Router, Schema
 from ninja.errors import HttpError
 
@@ -11,6 +17,7 @@ from .auth import (
     create_refresh_token,
     get_user_from_token,
 )
+from .models import User
 
 router = Router(tags=["authentification"])
 
@@ -111,3 +118,127 @@ def change_password(request, data: ChangePasswordIn):
     user.set_password(data.nouveau_mot_de_passe)
     user.save(update_fields=["password"])
     return 200, MessageOut(detail="Mot de passe mis à jour.")
+
+
+# --- Gestion des utilisateurs (réservé à l'admin — AUTH-04) ----------------
+
+
+class UserListOut(Schema):
+    id: UUID
+    username: str
+    email: str
+    role: str
+    is_active: bool
+    created_at: datetime
+    nb_activites: int = 0
+
+
+class UserCreateIn(Schema):
+    username: str
+    email: str
+    password: str
+    role: str = "organisateur"
+
+
+class UserUpdateIn(Schema):
+    is_active: bool | None = None
+    role: str | None = None
+
+
+class AdminResetPwdIn(Schema):
+    nouveau_mot_de_passe: str
+
+
+def _require_admin(request):
+    if not request.auth.is_admin:
+        raise HttpError(403, "Action réservée aux administrateurs.")
+
+
+def _with_nb(user: User) -> User:
+    user.nb_activites = user.activites.count()
+    return user
+
+
+@router.get("/users", response=list[UserListOut], auth=JWTAuth())
+def list_users(request):
+    """Liste tous les comptes (admin uniquement)."""
+    _require_admin(request)
+    return (
+        User.objects.annotate(nb_activites=Count("activites"))
+        .order_by("-created_at")
+    )
+
+
+@router.post("/users", response={201: UserListOut}, auth=JWTAuth())
+def create_user(request, data: UserCreateIn):
+    """Crée un compte organisateur ou admin (admin uniquement)."""
+    _require_admin(request)
+    if data.role not in User.Role.values:
+        raise HttpError(422, "Rôle invalide.")
+    if len(data.password) < 8:
+        raise HttpError(422, "Le mot de passe doit faire au moins 8 caractères.")
+    if User.objects.filter(username__iexact=data.username).exists():
+        raise HttpError(409, "Ce nom d'utilisateur est déjà pris.")
+    if User.objects.filter(email__iexact=data.email).exists():
+        raise HttpError(409, "Cette adresse email est déjà utilisée.")
+    user = User.objects.create_user(
+        username=data.username.strip(),
+        email=data.email.strip().lower(),
+        password=data.password,
+        role=data.role,
+    )
+    return 201, _with_nb(user)
+
+
+@router.patch("/users/{user_id}", response=UserListOut, auth=JWTAuth())
+def update_user(request, user_id: UUID, data: UserUpdateIn):
+    """Active/désactive un compte ou change son rôle (admin uniquement)."""
+    _require_admin(request)
+    user = get_object_or_404(User, id=user_id)
+    is_self = user.id == request.auth.id
+
+    if data.role is not None:
+        if data.role not in User.Role.values:
+            raise HttpError(422, "Rôle invalide.")
+        if is_self and data.role != User.Role.ADMIN:
+            raise HttpError(400, "Vous ne pouvez pas retirer votre propre rôle admin.")
+        user.role = data.role
+    if data.is_active is not None:
+        if is_self and data.is_active is False:
+            raise HttpError(400, "Vous ne pouvez pas désactiver votre propre compte.")
+        user.is_active = data.is_active
+    user.save()
+    return _with_nb(user)
+
+
+@router.post("/users/{user_id}/reset-password", response={200: MessageOut}, auth=JWTAuth())
+def reset_user_password(request, user_id: UUID, data: AdminResetPwdIn):
+    """Réinitialise le mot de passe d'un utilisateur (admin uniquement)."""
+    _require_admin(request)
+    if len(data.nouveau_mot_de_passe) < 8:
+        raise HttpError(422, "Le mot de passe doit faire au moins 8 caractères.")
+    user = get_object_or_404(User, id=user_id)
+    user.set_password(data.nouveau_mot_de_passe)
+    user.save(update_fields=["password"])
+    return 200, MessageOut(detail="Mot de passe réinitialisé.")
+
+
+@router.delete("/users/{user_id}", response={200: MessageOut}, auth=JWTAuth())
+def delete_user(request, user_id: UUID):
+    """Supprime un compte (admin uniquement).
+
+    Refusé pour son propre compte, ou si l'utilisateur a créé des activités
+    (le désactiver à la place pour ne pas perdre les données liées).
+    """
+    _require_admin(request)
+    user = get_object_or_404(User, id=user_id)
+    if user.id == request.auth.id:
+        raise HttpError(400, "Vous ne pouvez pas supprimer votre propre compte.")
+    if user.activites.exists():
+        raise HttpError(
+            409,
+            "Ce compte a créé des activités : désactivez-le plutôt que de le "
+            "supprimer (la suppression effacerait ses activités).",
+        )
+    user.delete()
+    return 200, MessageOut(detail="Compte supprimé.")

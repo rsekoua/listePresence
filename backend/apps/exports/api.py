@@ -14,6 +14,7 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from ninja import Query, Router
+from ninja.errors import HttpError
 
 from apps.accounts.auth import JWTAuth
 from apps.activites.models import Activite
@@ -59,6 +60,17 @@ def _slug(activite: Activite) -> str:
     return services._safe(activite.nom)
 
 
+def _get_activite_visible(user, activite_id: UUID) -> Activite:
+    """Activité visible par l'utilisateur (admin : toutes ; organisateur : les
+    siennes), sinon 404."""
+    activite = get_object_or_404(
+        Activite.objects.select_related("created_by"), id=activite_id
+    )
+    if not (user.is_admin or activite.created_by_id == user.id):
+        raise HttpError(404, "Activité introuvable.")
+    return activite
+
+
 @router.get("/activites/{activite_id}/excel")
 def export_excel(
     request,
@@ -70,9 +82,7 @@ def export_excel(
     cni: str | None = Query(None),
 ):
     """EXP-01 — Liste des participants au format .xlsx."""
-    activite = get_object_or_404(
-        Activite.objects.select_related("created_by"), id=activite_id
-    )
+    activite = _get_activite_visible(request.auth, activite_id)
     participants = list(_filtrer(activite_id, search, structure, date_from, date_to, cni))
     content = services.build_participants_xlsx(activite, participants)
     jour = timezone.localdate().strftime("%Y%m%d")
@@ -90,9 +100,7 @@ def export_presence_pdf(
     cni: str | None = Query(None),
 ):
     """EXP-03 — Liste de présence à signer (PDF A4)."""
-    activite = get_object_or_404(
-        Activite.objects.select_related("created_by"), id=activite_id
-    )
+    activite = _get_activite_visible(request.auth, activite_id)
     participants = list(_filtrer(activite_id, search, structure, date_from, date_to, cni))
     content = services.build_presence_list_pdf(activite, participants)
     jour = timezone.localdate().strftime("%Y%m%d")
@@ -112,14 +120,22 @@ def export_cni_zip(
     cni: str | None = Query(None),
 ):
     """EXP-04 — Archive ZIP des fiches PDF CNI."""
-    activite = get_object_or_404(
-        Activite.objects.select_related("created_by"), id=activite_id
-    )
+    activite = _get_activite_visible(request.auth, activite_id)
     participants = list(_filtrer(activite_id, search, structure, date_from, date_to, cni))
     content = services.build_cni_zip(activite, participants)
     jour = timezone.localdate().strftime("%Y%m%d")
     return _attachment(
         content, f"{_slug(activite)}_{jour}_fiches_cni.zip", "application/zip"
+    )
+
+
+@router.get("/activites/{activite_id}/qrcode-pdf")
+def export_qrcode_pdf(request, activite_id: UUID):
+    """Affiche PDF du QR Code (infos activité + QR Code)."""
+    activite = _get_activite_visible(request.auth, activite_id)
+    content = services.build_activite_qr_pdf(activite)
+    return _attachment(
+        content, f"{_slug(activite)}_qrcode.pdf", "application/pdf"
     )
 
 
@@ -130,6 +146,9 @@ def export_participant_pdf(request, participant_id: UUID):
         Participant.objects.select_related("activite", "activite__created_by"),
         id=participant_id,
     )
+    user = request.auth
+    if not (user.is_admin or participant.activite.created_by_id == user.id):
+        raise HttpError(404, "Participant introuvable.")
     content = services.build_participant_cni_pdf(participant.activite, participant)
     return _attachment(
         content,

@@ -97,7 +97,7 @@ export function ActiviteCardList({
               <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                 <PlaceRoundedIcon fontSize="small" sx={{ color: 'text.secondary' }} />
                 <Typography variant="body2" color="text.secondary" noWrap>
-                  {a.lieu}
+                  {a.ville} · {a.lieu}
                 </Typography>
               </Stack>
               <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>

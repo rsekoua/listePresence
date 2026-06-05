@@ -12,6 +12,7 @@ export interface Activite {
   description: string
   date_debut: string
   date_fin: string
+  ville: string
   lieu: string
   token_qr: string
   statut: StatutActivite
@@ -28,6 +29,7 @@ export interface ActiviteInput {
   description?: string
   date_debut: string
   date_fin: string
+  ville: string
   lieu: string
 }
 

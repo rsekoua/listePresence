@@ -22,6 +22,7 @@ import type { Activite } from '../api/types'
 const schema = z
   .object({
     nom: z.string().min(1, 'Le nom est requis'),
+    ville: z.string().min(1, 'La ville est requise'),
     lieu: z.string().min(1, 'Le lieu est requis'),
     description: z.string().optional(),
     date_debut: z.custom<Dayjs>((v) => dayjs.isDayjs(v), 'Date de début requise'),
@@ -43,6 +44,7 @@ interface Props {
 
 const emptyValues = (): FormValues => ({
   nom: '',
+  ville: '',
   lieu: '',
   description: '',
   date_debut: dayjs().add(1, 'day').hour(9).minute(0),
@@ -71,6 +73,7 @@ export function ActiviteFormDialog({ open, onClose, activite }: Props) {
     if (activite) {
       reset({
         nom: activite.nom,
+        ville: activite.ville,
         lieu: activite.lieu,
         description: activite.description,
         date_debut: dayjs(activite.date_debut),
@@ -85,6 +88,7 @@ export function ActiviteFormDialog({ open, onClose, activite }: Props) {
     mutationFn: (values: FormValues) => {
       const payload = {
         nom: values.nom,
+        ville: values.ville,
         lieu: values.lieu,
         description: values.description ?? '',
         date_debut: values.date_debut.toISOString(),
@@ -135,13 +139,22 @@ export function ActiviteFormDialog({ open, onClose, activite }: Props) {
               helperText={errors.nom?.message}
               {...register('nom')}
             />
-            <TextField
-              label="Lieu"
-              fullWidth
-              error={Boolean(errors.lieu)}
-              helperText={errors.lieu?.message}
-              {...register('lieu')}
-            />
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField
+                label="Ville"
+                fullWidth
+                error={Boolean(errors.ville)}
+                helperText={errors.ville?.message}
+                {...register('ville')}
+              />
+              <TextField
+                label="Lieu (hôtel, salle…)"
+                fullWidth
+                error={Boolean(errors.lieu)}
+                helperText={errors.lieu?.message}
+                {...register('lieu')}
+              />
+            </Stack>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
               <Controller
                 control={control}

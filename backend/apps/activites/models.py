@@ -20,6 +20,7 @@ class Activite(models.Model):
     description = models.TextField("description", blank=True, default="")
     date_debut = models.DateTimeField("date de début")
     date_fin = models.DateTimeField("date de fin")
+    ville = models.CharField("ville", max_length=255, default="")
     lieu = models.CharField("lieu", max_length=255)
     token_qr = models.UUIDField(
         "token QR Code", default=uuid.uuid4, unique=True, editable=False

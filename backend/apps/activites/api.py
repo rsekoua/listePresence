@@ -39,6 +39,7 @@ class ActiviteIn(Schema):
     description: str = ""
     date_debut: datetime
     date_fin: datetime
+    ville: str
     lieu: str
 
 
@@ -47,6 +48,7 @@ class ActiviteUpdate(Schema):
     description: str | None = None
     date_debut: datetime | None = None
     date_fin: datetime | None = None
+    ville: str | None = None
     lieu: str | None = None
     statut: str | None = None
 
@@ -62,6 +64,7 @@ class ActiviteOut(Schema):
     description: str
     date_debut: datetime
     date_fin: datetime
+    ville: str
     lieu: str
     token_qr: UUID
     statut: str
@@ -84,9 +87,24 @@ class MessageOut(Schema):
 # --- Helpers ---------------------------------------------------------------
 
 
-def _can_edit(user, activite: Activite) -> bool:
-    """Un admin peut tout modifier ; un organisateur, seulement ses activités."""
+def _can_view(user, activite: Activite) -> bool:
+    """Un admin voit tout ; un organisateur, seulement ses propres activités."""
     return user.is_admin or activite.created_by_id == user.id
+
+
+def _can_edit(user, activite: Activite) -> bool:
+    """Droits de modification (RBAC) :
+
+    - admin : tous les droits, y compris sur une activité fermée/archivée ;
+    - organisateur : seulement ses propres activités, et uniquement tant
+      qu'elles sont OUVERTES (une fois fermées, elles sont verrouillées).
+    """
+    if user.is_admin:
+        return True
+    return (
+        activite.created_by_id == user.id
+        and activite.statut == Activite.Statut.OUVERT
+    )
 
 
 def _with_perm(user, activite: Activite) -> Activite:
@@ -97,15 +115,26 @@ def _with_perm(user, activite: Activite) -> Activite:
     return activite
 
 
-def _get_activite(activite_id: UUID) -> Activite:
-    """Récupère une activité (visible par tous) ou 404."""
-    return get_object_or_404(
+def _get_activite(user, activite_id: UUID) -> Activite:
+    """Récupère une activité visible par l'utilisateur, ou 404.
+
+    Renvoie 404 (et non 403) pour un organisateur qui tente d'accéder à une
+    activité d'autrui, afin de ne pas révéler son existence.
+    """
+    activite = get_object_or_404(
         Activite.objects.select_related("created_by"), id=activite_id
     )
+    if not _can_view(user, activite):
+        raise HttpError(404, "Activité introuvable.")
+    return activite
 
 
 def _require_edit(user, activite: Activite) -> None:
     if not _can_edit(user, activite):
+        if not user.is_admin and activite.created_by_id == user.id:
+            raise HttpError(
+                403, "Cette activité est fermée : elle ne peut plus être modifiée."
+            )
         raise HttpError(403, "Vous ne pouvez modifier que vos propres activités.")
 
 
@@ -119,13 +148,14 @@ def _validate_dates(date_debut, date_fin):
 
 @router.get("/", response=list[ActiviteOut])
 def list_activites(request):
-    """Liste toutes les activités (visibilité globale)."""
+    """Liste les activités : toutes pour un admin, seulement les siennes
+    pour un organisateur (AUTH-04)."""
     user = request.auth
-    activites = (
-        Activite.objects.select_related("created_by")
-        .annotate(nb_participants=Count("participants"))
-        .all()
+    activites = Activite.objects.select_related("created_by").annotate(
+        nb_participants=Count("participants")
     )
+    if not user.is_admin:
+        activites = activites.filter(created_by=user)
     return [_with_perm(user, a) for a in activites]
 
 
@@ -297,13 +327,13 @@ def create_activite(request, data: ActiviteIn):
 @router.get("/{activite_id}", response=ActiviteOut)
 def get_activite(request, activite_id: UUID):
     """Détail d'une activité (visible par tous)."""
-    return _with_perm(request.auth, _get_activite(activite_id))
+    return _with_perm(request.auth, _get_activite(request.auth, activite_id))
 
 
 @router.put("/{activite_id}", response=ActiviteOut)
 def update_activite(request, activite_id: UUID, data: ActiviteUpdate):
     """Modifie une activité (créateur ou admin ; token QR inchangé — ACT-04)."""
-    activite = _get_activite(activite_id)
+    activite = _get_activite(request.auth, activite_id)
     _require_edit(request.auth, activite)
     payload = data.dict(exclude_unset=True)
 
@@ -327,7 +357,7 @@ def delete_activite(request, activite_id: UUID):
     Refusé si l'activité contient des participants (elle ne peut qu'être
     archivée dans ce cas).
     """
-    activite = _get_activite(activite_id)
+    activite = _get_activite(request.auth, activite_id)
     _require_edit(request.auth, activite)
     if activite.participants.exists():
         raise HttpError(
@@ -342,12 +372,13 @@ def delete_activite(request, activite_id: UUID):
 @router.post("/{activite_id}/clone", response={201: ActiviteOut})
 def clone_activite(request, activite_id: UUID):
     """Clone une activité visible. La copie appartient à l'utilisateur courant."""
-    source = _get_activite(activite_id)
+    source = _get_activite(request.auth, activite_id)
     copie = Activite.objects.create(
         nom=f"{source.nom} (copie)",
         description=source.description,
         date_debut=source.date_debut,
         date_fin=source.date_fin,
+        ville=source.ville,
         lieu=source.lieu,
         statut=Activite.Statut.OUVERT,
         created_by=request.auth,
@@ -358,7 +389,7 @@ def clone_activite(request, activite_id: UUID):
 @router.get("/{activite_id}/qrcode", auth=JWTAuth())
 def get_qrcode(request, activite_id: UUID):
     """Génère le QR Code PNG encodant l'URL du formulaire public (ACT-02)."""
-    activite = _get_activite(activite_id)
+    activite = _get_activite(request.auth, activite_id)
     url = f"{settings.PUBLIC_FORM_BASE_URL}/form/{activite.token_qr}"
 
     img = qrcode.make(url)
@@ -381,7 +412,7 @@ class StatutIn(Schema):
 @router.patch("/{activite_id}/statut", response=ActiviteOut)
 def set_statut(request, activite_id: UUID, data: StatutIn):
     """Ouvre / ferme / archive la collecte (créateur ou admin — ACT-05)."""
-    activite = _get_activite(activite_id)
+    activite = _get_activite(request.auth, activite_id)
     _require_edit(request.auth, activite)
     if data.statut not in Activite.Statut.values:
         raise HttpError(422, "Statut invalide.")
@@ -479,7 +510,7 @@ def list_participants(
     date_to: date | None = Query(None),
 ):
     """Liste paginée et filtrée des participants d'une activité (DASH-03)."""
-    _get_activite(activite_id)  # 404 si l'activité n'existe pas
+    _get_activite(request.auth, activite_id)  # 404 si l'activité n'existe pas
     qs = Participant.objects.filter(activite_id=activite_id)
     if search:
         from django.db.models import Q
@@ -502,7 +533,7 @@ def list_participants(
 @router.post("/{activite_id}/participants", response={201: ParticipantListOut, 409: MessageOut})
 def add_participant(request, activite_id: UUID, data: ParticipantManualIn):
     """Ajout manuel d'un participant (créateur ou admin — sans photos CNI)."""
-    activite = _get_activite(activite_id)
+    activite = _get_activite(request.auth, activite_id)
     _require_edit(request.auth, activite)
     if activite.statut != Activite.Statut.OUVERT:
         raise HttpError(403, "La collecte est fermée : impossible d'ajouter un participant.")
@@ -529,7 +560,7 @@ def add_participant(request, activite_id: UUID, data: ParticipantManualIn):
 @router.get("/{activite_id}/stats", response=StatsOut)
 def participants_stats(request, activite_id: UUID):
     """Statistiques d'une activité (DASH-05)."""
-    _get_activite(activite_id)
+    _get_activite(request.auth, activite_id)
     qs = Participant.objects.filter(activite_id=activite_id)
     total = qs.count()
     par_structure = [
@@ -550,6 +581,7 @@ def participants_stats(request, activite_id: UUID):
 @router.get("/{activite_id}/participants/{participant_id}", response=ParticipantListOut)
 def get_participant(request, activite_id: UUID, participant_id: UUID):
     """Fiche détaillée d'un participant (DASH-04)."""
+    _get_activite(request.auth, activite_id)  # 404 si non visible
     return get_object_or_404(
         Participant, id=participant_id, activite_id=activite_id
     )
@@ -558,6 +590,7 @@ def get_participant(request, activite_id: UUID, participant_id: UUID):
 @router.get("/{activite_id}/participants/{participant_id}/photo/{cote}")
 def participant_photo(request, activite_id: UUID, participant_id: UUID, cote: str):
     """Sert une photo CNI (accès protégé par JWT — IMG-03)."""
+    _get_activite(request.auth, activite_id)  # 404 si non visible
     participant = get_object_or_404(
         Participant, id=participant_id, activite_id=activite_id
     )

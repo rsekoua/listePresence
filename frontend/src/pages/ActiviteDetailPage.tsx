@@ -9,6 +9,7 @@ import {
   Chip,
   CircularProgress,
   Divider,
+  Link,
   Paper,
   Stack,
   Typography,
@@ -24,6 +25,8 @@ import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded'
 import LockOpenRoundedIcon from '@mui/icons-material/LockOpenRounded'
 import LockRoundedIcon from '@mui/icons-material/LockRounded'
 import Inventory2RoundedIcon from '@mui/icons-material/Inventory2Rounded'
+import PictureAsPdfRoundedIcon from '@mui/icons-material/PictureAsPdfRounded'
+import { exportQrPdf } from '../api/exports'
 import {
   cloneActivite,
   fetchActivite,
@@ -50,11 +53,13 @@ export function ActiviteDetailPage() {
   const { enqueueSnackbar } = useSnackbar()
   const [qrUrl, setQrUrl] = useState<string | null>(null)
   const [editOpen, setEditOpen] = useState(false)
+  const [qrPdfLoading, setQrPdfLoading] = useState(false)
 
-  const { data: activite, isLoading } = useQuery({
+  const { data: activite, isLoading, isError } = useQuery({
     queryKey: ['activite', id],
     queryFn: () => fetchActivite(id),
     enabled: Boolean(id),
+    retry: false,
   })
 
   useEffect(() => {
@@ -98,12 +103,45 @@ export function ActiviteDetailPage() {
     onError: () => enqueueSnackbar('Clonage impossible.', { variant: 'error' }),
   })
 
+  const downloadQrPdf = async () => {
+    setQrPdfLoading(true)
+    try {
+      await exportQrPdf(id)
+    } catch {
+      enqueueSnackbar('Téléchargement du PDF impossible.', { variant: 'error' })
+    } finally {
+      setQrPdfLoading(false)
+    }
+  }
+
   const downloadQr = () => {
     if (!qrUrl || !activite) return
     const a = document.createElement('a')
     a.href = qrUrl
     a.download = `qrcode_${activite.nom.replace(/\s+/g, '_')}.png`
     a.click()
+  }
+
+  if (isError) {
+    return (
+      <Box sx={{ maxWidth: 460, mx: 'auto', mt: 8, textAlign: 'center' }}>
+        <Paper sx={{ p: 4 }}>
+          <Typography variant="h6" sx={{ mb: 1 }}>
+            Activité introuvable
+          </Typography>
+          <Typography color="text.secondary" sx={{ mb: 3 }}>
+            Cette activité n'existe pas ou vous n'avez pas l'autorisation d'y accéder.
+          </Typography>
+          <Button
+            variant="contained"
+            startIcon={<ArrowBackRoundedIcon />}
+            onClick={() => navigate('/dashboard')}
+          >
+            Retour au tableau de bord
+          </Button>
+        </Paper>
+      </Box>
+    )
   }
 
   if (isLoading || !activite) {
@@ -163,7 +201,7 @@ export function ActiviteDetailPage() {
             <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
               <PlaceRoundedIcon sx={{ fontSize: 16 }} />
               <Typography variant="body2" sx={{ fontSize: 12}}>
-                {activite.lieu}
+                {activite.ville} · {activite.lieu}
               </Typography>
             </Stack>
             <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
@@ -223,6 +261,11 @@ export function ActiviteDetailPage() {
             >
               <Info
                 icon={<PlaceRoundedIcon fontSize="small" />}
+                label="Ville"
+                value={activite.ville}
+              />
+              <Info
+                icon={<PlaceRoundedIcon fontSize="small" />}
                 label="Lieu"
                 value={activite.lieu}
               />
@@ -279,26 +322,44 @@ export function ActiviteDetailPage() {
                 <CircularProgress sx={{ m: 6 }} />
               )}
             </Box>
-            <Typography
+            <Link
+              href={activite.form_url}
+              target="_blank"
+              rel="noopener noreferrer"
               variant="caption"
-              sx={{
-                color: 'text.secondary',
-                textAlign: 'center',
-                wordBreak: 'break-all',
-              }}
+              underline="hover"
+              sx={{ textAlign: 'center', wordBreak: 'break-all' }}
             >
               {activite.form_url}
-            </Typography>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<DownloadRoundedIcon />}
-              onClick={downloadQr}
-              disabled={!qrUrl}
-              fullWidth
-            >
-              Télécharger (PNG)
-            </Button>
+            </Link>
+            <Stack direction="row" spacing={1} sx={{ width: '100%' }}>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<DownloadRoundedIcon />}
+                onClick={downloadQr}
+                disabled={!qrUrl}
+                fullWidth
+              >
+                PNG
+              </Button>
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={
+                  qrPdfLoading ? (
+                    <CircularProgress size={14} color="inherit" />
+                  ) : (
+                    <PictureAsPdfRoundedIcon />
+                  )
+                }
+                onClick={downloadQrPdf}
+                disabled={qrPdfLoading}
+                fullWidth
+              >
+                PDF
+              </Button>
+            </Stack>
           </Stack>
         </Stack>
 

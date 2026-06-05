@@ -27,6 +27,7 @@ import MoreVertRoundedIcon from '@mui/icons-material/MoreVertRounded'
 import QrCode2RoundedIcon from '@mui/icons-material/QrCode2Rounded'
 import DashboardRoundedIcon from '@mui/icons-material/DashboardRounded'
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded'
+import ManageAccountsRoundedIcon from '@mui/icons-material/ManageAccountsRounded'
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded'
 import InfoRoundedIcon from '@mui/icons-material/InfoRounded'
 import HelpOutlineRoundedIcon from '@mui/icons-material/HelpOutlineRounded'
@@ -43,11 +44,18 @@ interface NavItem {
   icon: ReactNode
   path?: string
   soon?: boolean
+  adminOnly?: boolean
 }
 
 const MAIN_NAV: NavItem[] = [
   { label: "Vue d'ensemble", icon: <DashboardRoundedIcon />, path: '/dashboard' },
   { label: 'Participants', icon: <GroupsRoundedIcon />, path: '/participants' },
+  {
+    label: 'Utilisateurs',
+    icon: <ManageAccountsRoundedIcon />,
+    path: '/utilisateurs',
+    adminOnly: true,
+  },
   // { label: 'Exports', icon: <FileDownloadRoundedIcon />, soon: true },
 ]
 
@@ -116,7 +124,7 @@ export function AppLayout() {
 
       {/* Navigation principale */}
       <List sx={{ px: 1.5, py: 1.5, flexGrow: 1 }}>
-        {MAIN_NAV.map((item) => (
+        {MAIN_NAV.filter((item) => !item.adminOnly || me?.role === 'admin').map((item) => (
           <ListItemButton
             key={item.label}
             selected={isActive(item.path)}

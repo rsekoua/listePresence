@@ -68,3 +68,8 @@ export function exportCniZip(activiteId: string, filters?: ExportFilters) {
 export function exportParticipantPdf(participantId: string) {
   return download(`/exports/participants/${participantId}/pdf`, 'fiche_cni.pdf')
 }
+
+/** Affiche PDF du QR Code (infos activité + QR). */
+export function exportQrPdf(activiteId: string) {
+  return download(`/exports/activites/${activiteId}/qrcode-pdf`, 'qrcode.pdf')
+}
