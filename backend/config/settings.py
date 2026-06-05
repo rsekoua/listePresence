@@ -36,6 +36,47 @@ ALLOWED_HOSTS = [
     if h.strip()
 ]
 
+# Origines de confiance pour la protection CSRF (schéma + domaine, ex.
+# "https://presence.example.com"). Requis derrière HTTPS/Nginx en production.
+CSRF_TRUSTED_ORIGINS = [
+    o.strip()
+    for o in os.getenv("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",")
+    if o.strip()
+]
+
+
+# Durcissement sécurité — appliqué uniquement hors mode DEBUG (production).
+# https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
+INSECURE_SECRET_DEFAULT = (
+    "django-insecure-5bc_d=v$^1_^jkj5@21i7k_xnrchz4x85^g(31apxao-ijklyw"
+)
+
+if not DEBUG:
+    # Refuse de démarrer en production avec un secret par défaut.
+    if SECRET_KEY == INSECURE_SECRET_DEFAULT:
+        raise RuntimeError(
+            "DJANGO_SECRET_KEY doit être défini (clé de dev détectée) "
+            "lorsque DJANGO_DEBUG=False."
+        )
+
+    # Reconnaît l'en-tête X-Forwarded-Proto posé par Nginx (terminaison TLS).
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SECURE_SSL_REDIRECT = env_bool("DJANGO_SECURE_SSL_REDIRECT", True)
+
+    # HSTS : 1 an, sous-domaines inclus (ajustable via l'environnement).
+    SECURE_HSTS_SECONDS = int(os.getenv("DJANGO_HSTS_SECONDS", str(60 * 60 * 24 * 365)))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
+    # Cookies transmis uniquement via HTTPS.
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+    # Renforcements complémentaires.
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SESSION_COOKIE_HTTPONLY = True
+    X_FRAME_OPTIONS = "DENY"
+
 
 # Application definition
 

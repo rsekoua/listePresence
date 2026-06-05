@@ -7,9 +7,12 @@ photos CNI, exports Excel/PDF).
 
 - **Django 6** — structure, ORM, admin
 - **Django Ninja** — API REST typée
-- **SQLite** — base de données (MVP)
+- **SQLite / PostgreSQL** — base de données (configurable par variable d'environnement)
+- **PyJWT** — authentification JWT maison
 - **Pillow** — traitement des images CNI
 - **qrcode** — génération des QR Codes
+- **openpyxl** — exports Excel
+- **reportlab** — exports PDF (fiches CNI, listes de présence)
 - **Python 3.14** / **uv** — gestion de l'environnement
 
 ## Structure
@@ -20,10 +23,11 @@ backend/
 │   ├── settings.py
 │   ├── urls.py
 │   └── api.py         # Instance NinjaAPI + routeurs
-├── accounts/          # Authentification & comptes organisateurs (User UUID)
-├── activites/         # Gestion des activités + QR Code
-├── participants/      # Formulaire public & participants
-├── exports/           # Exports Excel / PDF / ZIP
+├── accounts/          # Auth JWT, comptes (User UUID), RBAC & journal d'audit
+├── activites/         # Gestion des activités, QR Code, clone, seed_demo
+├── participants/      # Formulaire public, participants & annuaire (anti-doublon CNI)
+├── exports/           # Exports Excel / PDF / ZIP + historique des exports
+├── logs/              # Journaux applicatifs
 ├── media/             # Photos CNI (hors versioning)
 └── manage.py
 ```
@@ -71,10 +75,13 @@ uv run python manage.py runserver
 - [x] **Sprint 1** — Setup & infrastructure (projet, apps, SQLite, API Ninja, media)
 - [x] **Sprint 2** — Auth JWT maison, modèle Activite, CRUD + QR Code
 - [x] **RBAC** — rôles admin/organisateur, visibilité globale, édition restreinte, clone
-- [x] **Sprint 3** — Modèle Participant, endpoints publics, traitement CNI (Pillow)
-- [x] **Sprint 4** — Liste/filtres participants, stats, photos CNI protégées, statut
-- [ ] Sprint 5 — Exports Excel / PDF / ZIP
-- [ ] Sprint 3 — Formulaire public & upload CNI
-- [ ] Sprint 4 — Tableau de bord participants
-- [ ] Sprint 5 — Exports Excel / PDF / ZIP
-- [ ] Sprint 6 — Tests & déploiement
+- [x] **Sprint 3** — Formulaire public, endpoints publics, traitement CNI (Pillow), anti-doublon
+- [x] **Sprint 4** — Tableau de bord : liste/filtres participants, stats, photos CNI protégées, statut
+- [x] **Sprint 5** — Exports Excel / PDF (fiche CNI, liste de présence) / ZIP, filtres, historique
+- [x] **Sprint 6** — Tests automatisés, logging, optimisation des requêtes, déploiement
+- [x] **Annuaire** — personnes dédupliquées par CNI, historique par personne, scope organisateur
+- [x] **Journal d'audit** — traçage des actions utilisateurs, logs par utilisateur (admin)
+- [x] **Base configurable** — SQLite (dev) / PostgreSQL (prod) par variable d'environnement
+
+> ✅ Tous les sprints du cahier des charges sont livrés. Suite de tests : 45 tests au vert
+> (`uv run python manage.py test`).
