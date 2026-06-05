@@ -43,7 +43,7 @@ import {
 } from '../api/users'
 import type { Role } from '../api/types'
 import { RoleSelect } from '../components/RoleSelect'
-import { UserDetailDrawer } from '../components/UserDetailDrawer'
+import { UserDetailDialog } from '../components/UserDetailDialog'
 
 function errMsg(err: unknown, fallback: string): string {
   return (
@@ -119,17 +119,7 @@ export function UsersPage() {
       flex: 1.3,
       minWidth: 200,
       renderCell: (params) => (
-        <Stack
-          direction="row"
-          spacing={1.5}
-          onClick={() => setEditUser(params.row)}
-          sx={{
-            alignItems: 'center',
-            height: '100%',
-            cursor: 'pointer',
-            '&:hover .username': { color: 'primary.main', textDecoration: 'underline' },
-          }}
-        >
+        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', height: '100%' }}>
           <Avatar
             sx={{
               width: 32,
@@ -142,7 +132,7 @@ export function UsersPage() {
           >
             {params.row.username.charAt(0).toUpperCase()}
           </Avatar>
-          <Typography className="username" variant="body2" sx={{ fontWeight: 600 }} noWrap>
+          <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
             {params.row.username}
           </Typography>
         </Stack>
@@ -207,6 +197,7 @@ export function UsersPage() {
         <IconButton
           size="small"
           onClick={(e) => {
+            e.stopPropagation()
             setMenuAnchor(e.currentTarget)
             setMenuUser(params.row)
           }}
@@ -248,6 +239,7 @@ export function UsersPage() {
           columns={columns}
           loading={isLoading}
           getRowId={(r) => r.id}
+          onRowClick={(p) => setEditUser(p.row)}
           disableRowSelectionOnClick
           disableColumnMenu
           rowHeight={56}
@@ -258,6 +250,8 @@ export function UsersPage() {
             border: 0,
             height: 520,
             fontSize: 13,
+            cursor: 'pointer',
+            '& .MuiDataGrid-row:hover': { bgcolor: 'action.hover' },
             '--DataGrid-rowBorderColor': '#eef0f4',
             '& .MuiDataGrid-columnHeader': { bgcolor: '#f8fafc' },
             '& .MuiDataGrid-columnHeaders': { bgcolor: '#f8fafc' },
@@ -342,7 +336,7 @@ export function UsersPage() {
       </Menu>
 
       <CreateUserDialog open={createOpen} onClose={() => setCreateOpen(false)} />
-      <UserDetailDrawer user={editUser} onClose={() => setEditUser(null)} />
+      <UserDetailDialog user={editUser} onClose={() => setEditUser(null)} />
       <ResetPasswordDialog user={resetFor} onClose={() => setResetFor(null)} />
     </Box>
   )

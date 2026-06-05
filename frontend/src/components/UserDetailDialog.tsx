@@ -4,12 +4,13 @@ import { useSnackbar } from 'notistack'
 import dayjs from 'dayjs'
 import {
   Avatar,
-  Badge,
   Box,
   Button,
   Chip,
   CircularProgress,
-  Drawer,
+  Dialog,
+  DialogContent,
+  DialogTitle,
   IconButton,
   Paper,
   Stack,
@@ -32,7 +33,7 @@ function errMsg(err: unknown, fallback: string): string {
   )
 }
 
-export function UserDetailDrawer({
+export function UserDetailDialog({
   user,
   onClose,
 }: {
@@ -41,22 +42,15 @@ export function UserDetailDrawer({
 }) {
   const [tab, setTab] = useState(0)
 
-  // Réinitialise sur l'onglet Profil à chaque ouverture.
   useEffect(() => {
     if (user) setTab(0)
   }, [user])
 
   return (
-    <Drawer
-      anchor="right"
-      open={Boolean(user)}
-      onClose={onClose}
-      slotProps={{ paper: { sx: { width: { xs: '100%', sm: 460 } } } }}
-    >
+    <Dialog open={Boolean(user)} onClose={onClose} fullWidth maxWidth="sm">
       {user && (
-        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-          {/* En-tête */}
-          <Box sx={{ p: 2.5, pb: 0 }}>
+        <>
+          <DialogTitle sx={{ pb: 0 }}>
             <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
               <Avatar sx={{ bgcolor: 'primary.main', width: 44, height: 44, fontWeight: 700 }}>
                 {user.username.charAt(0).toUpperCase()}
@@ -86,33 +80,27 @@ export function UserDetailDrawer({
                 <CloseRoundedIcon />
               </IconButton>
             </Stack>
-          </Box>
+          </DialogTitle>
 
           <Tabs
             value={tab}
             onChange={(_, v) => setTab(v)}
-            sx={{ px: 2.5, mt: 1, borderBottom: '1px solid', borderColor: 'divider' }}
+            sx={{ px: 3, mt: 1, borderBottom: '1px solid', borderColor: 'divider' }}
           >
             <Tab label="Profil" />
-            <Tab
-              label={
-                <Badge color="primary" variant="dot" invisible={tab === 1}>
-                  Activité
-                </Badge>
-              }
-            />
+            <Tab label="Activité" />
           </Tabs>
 
-          <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 2.5 }}>
+          <DialogContent sx={{ minHeight: 320 }}>
             {tab === 0 ? (
               <ProfileTab user={user} onSaved={onClose} />
             ) : (
               <ActivityTab userId={user.id} />
             )}
-          </Box>
-        </Box>
+          </DialogContent>
+        </>
       )}
-    </Drawer>
+    </Dialog>
   )
 }
 
@@ -149,7 +137,7 @@ function ProfileTab({ user, onSaved }: { user: AppUser; onSaved: () => void }) {
   }
 
   return (
-    <Box component="form" onSubmit={onSubmit}>
+    <Box component="form" onSubmit={onSubmit} sx={{ pt: 1 }}>
       <Stack spacing={2.5}>
         <TextField
           label="Nom d'utilisateur"
@@ -165,9 +153,11 @@ function ProfileTab({ user, onSaved }: { user: AppUser; onSaved: () => void }) {
           fullWidth
         />
         <RoleSelect value={role} onChange={setRole} />
-        <Button type="submit" variant="contained" disabled={!valid || mutation.isPending}>
-          {mutation.isPending ? 'Enregistrement…' : 'Enregistrer les modifications'}
-        </Button>
+        <Box sx={{ textAlign: 'right' }}>
+          <Button type="submit" variant="contained" disabled={!valid || mutation.isPending}>
+            {mutation.isPending ? 'Enregistrement…' : 'Enregistrer les modifications'}
+          </Button>
+        </Box>
       </Stack>
     </Box>
   )
@@ -199,15 +189,11 @@ function ActivityTab({ userId }: { userId: string }) {
   }
 
   return (
-    <Stack spacing={1.5}>
+    <Stack spacing={1.5} sx={{ pt: 1 }}>
       {logs.map((log, i) => {
         const meta = actionMeta(log.action)
         return (
-          <Paper
-            key={i}
-            variant="outlined"
-            sx={{ p: 1.75, borderRadius: 2, boxShadow: 'none' }}
-          >
+          <Paper key={i} variant="outlined" sx={{ p: 1.75, borderRadius: 2, boxShadow: 'none' }}>
             <Stack direction="row" spacing={1.5}>
               <Box
                 sx={{
@@ -251,7 +237,11 @@ function ActivityTab({ userId }: { userId: string }) {
                   </Typography>
                 )}
                 {log.ip_address && (
-                  <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 0.25 }}>
+                  <Typography
+                    variant="caption"
+                    color="text.disabled"
+                    sx={{ display: 'block', mt: 0.25 }}
+                  >
                     IP {log.ip_address}
                   </Typography>
                 )}

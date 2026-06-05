@@ -21,16 +21,7 @@ import {
   type AuditEntry,
   type AuditFilters,
 } from '../api/audit'
-
-// Couleur de la puce d'action selon sa nature.
-function actionColor(action: string): 'default' | 'success' | 'error' | 'warning' | 'info' {
-  if (action === 'login') return 'success'
-  if (action === 'login_failed') return 'error'
-  if (action.startsWith('user_')) return 'info'
-  if (action === 'activite_delete') return 'error'
-  if (action === 'export') return 'warning'
-  return 'default'
-}
+import { actionMeta } from '../components/auditMeta'
 
 export function AuditPage() {
   const { data: me } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
@@ -74,18 +65,22 @@ export function AuditPage() {
     {
       field: 'action_label',
       headerName: 'Action',
-      width: 200,
-      renderCell: (params) => (
-        <Stack sx={{ height: '100%', justifyContent: 'center' }}>
-          <Chip
-            size="small"
-            label={params.row.action_label}
-            color={actionColor(params.row.action)}
-            variant={actionColor(params.row.action) === 'default' ? 'outlined' : 'filled'}
-            sx={{ fontWeight: 600 }}
-          />
-        </Stack>
-      ),
+      width: 220,
+      renderCell: (params) => {
+        const meta = actionMeta(params.row.action)
+        return (
+          <Stack sx={{ height: '100%', justifyContent: 'center' }}>
+            <Chip
+              size="small"
+              icon={meta.icon}
+              label={params.row.action_label}
+              color={meta.color === 'default' ? undefined : meta.color}
+              variant={meta.color === 'default' ? 'outlined' : 'filled'}
+              sx={{ fontWeight: 600, '& .MuiChip-icon': { fontSize: 15 } }}
+            />
+          </Stack>
+        )
+      },
     },
     { field: 'objet', headerName: 'Détails', flex: 1, minWidth: 200 },
     { field: 'ip_address', headerName: 'IP', width: 130 },
