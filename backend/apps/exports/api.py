@@ -16,7 +16,9 @@ from django.utils import timezone
 from ninja import Query, Router, Schema
 from ninja.errors import HttpError
 
+from apps.accounts.audit import record
 from apps.accounts.auth import JWTAuth
+from apps.accounts.models import AuditLog
 from apps.activites.models import Activite
 from apps.participants.models import Participant
 
@@ -61,13 +63,18 @@ def _slug(activite: Activite) -> str:
     return services._safe(activite.nom)
 
 
-def _log_export(user, activite, type_export: str, nb_entrees: int) -> None:
-    """Trace un export dans le journal (EXP-06)."""
+def _log_export(request, activite, type_export: str, nb_entrees: int) -> None:
+    """Trace un export dans le journal (EXP-06) + le journal d'audit."""
     ExportLog.objects.create(
         activite=activite,
         type=type_export,
         nb_entrees=nb_entrees,
-        created_by=user,
+        created_by=request.auth,
+    )
+    record(
+        request,
+        AuditLog.Action.EXPORT,
+        objet=f"{ExportLog.Type(type_export).label} — {activite.nom}",
     )
 
 
@@ -96,7 +103,7 @@ def export_excel(
     activite = _get_activite_visible(request.auth, activite_id)
     participants = list(_filtrer(activite_id, search, structure, date_from, date_to, cni))
     content = services.build_participants_xlsx(activite, participants)
-    _log_export(request.auth, activite, ExportLog.Type.EXCEL, len(participants))
+    _log_export(request, activite, ExportLog.Type.EXCEL, len(participants))
     jour = timezone.localdate().strftime("%Y%m%d")
     return _attachment(content, f"{_slug(activite)}_{jour}_participants.xlsx", _XLSX)
 
@@ -115,7 +122,7 @@ def export_presence_pdf(
     activite = _get_activite_visible(request.auth, activite_id)
     participants = list(_filtrer(activite_id, search, structure, date_from, date_to, cni))
     content = services.build_presence_list_pdf(activite, participants)
-    _log_export(request.auth, activite, ExportLog.Type.PDF_LISTE, len(participants))
+    _log_export(request, activite, ExportLog.Type.PDF_LISTE, len(participants))
     jour = timezone.localdate().strftime("%Y%m%d")
     return _attachment(
         content, f"{_slug(activite)}_{jour}_liste_presence.pdf", "application/pdf"
@@ -136,7 +143,7 @@ def export_cni_zip(
     activite = _get_activite_visible(request.auth, activite_id)
     participants = list(_filtrer(activite_id, search, structure, date_from, date_to, cni))
     content = services.build_cni_zip(activite, participants)
-    _log_export(request.auth, activite, ExportLog.Type.ZIP, len(participants))
+    _log_export(request, activite, ExportLog.Type.ZIP, len(participants))
     jour = timezone.localdate().strftime("%Y%m%d")
     return _attachment(
         content, f"{_slug(activite)}_{jour}_fiches_cni.zip", "application/zip"
@@ -148,7 +155,7 @@ def export_qrcode_pdf(request, activite_id: UUID):
     """Affiche PDF du QR Code (infos activité + QR Code)."""
     activite = _get_activite_visible(request.auth, activite_id)
     content = services.build_activite_qr_pdf(activite)
-    _log_export(request.auth, activite, ExportLog.Type.QRCODE, 0)
+    _log_export(request, activite, ExportLog.Type.QRCODE, 0)
     return _attachment(
         content, f"{_slug(activite)}_qrcode.pdf", "application/pdf"
     )
@@ -165,7 +172,7 @@ def export_participant_pdf(request, participant_id: UUID):
     if not (user.is_admin or participant.activite.created_by_id == user.id):
         raise HttpError(404, "Participant introuvable.")
     content = services.build_participant_cni_pdf(participant.activite, participant)
-    _log_export(user, participant.activite, ExportLog.Type.FICHE_CNI, 1)
+    _log_export(request, participant.activite, ExportLog.Type.FICHE_CNI, 1)
     return _attachment(
         content,
         f"{services._safe(participant.nom)}_{services._safe(participant.prenom)}_cni.pdf",

@@ -23,7 +23,9 @@ from ninja.errors import HttpError
 from ninja.pagination import paginate
 from pydantic import field_validator
 
+from apps.accounts.audit import record
 from apps.accounts.auth import JWTAuth
+from apps.accounts.models import AuditLog
 from apps.participants.models import Participant
 
 from .models import Activite
@@ -326,6 +328,7 @@ def create_activite(request, data: ActiviteIn):
     """Crée une activité (token QR généré automatiquement)."""
     _validate_dates(data.date_debut, data.date_fin)
     activite = Activite.objects.create(created_by=request.auth, **data.dict())
+    record(request, AuditLog.Action.ACTIVITE_CREATE, objet=activite.nom)
     return 201, _with_perm(request.auth, activite)
 
 
@@ -352,6 +355,7 @@ def update_activite(request, activite_id: UUID, data: ActiviteUpdate):
     for field, value in payload.items():
         setattr(activite, field, value)
     activite.save()
+    record(request, AuditLog.Action.ACTIVITE_UPDATE, objet=activite.nom)
     return _with_perm(request.auth, activite)
 
 
@@ -370,7 +374,9 @@ def delete_activite(request, activite_id: UUID):
             "Cette activité contient des participants : elle ne peut pas être "
             "supprimée (archivez-la à la place).",
         )
+    nom = activite.nom
     activite.delete()
+    record(request, AuditLog.Action.ACTIVITE_DELETE, objet=nom)
     return 200, MessageOut(detail="Activité supprimée.")
 
 
@@ -388,6 +394,7 @@ def clone_activite(request, activite_id: UUID):
         statut=Activite.Statut.OUVERT,
         created_by=request.auth,
     )
+    record(request, AuditLog.Action.ACTIVITE_CLONE, objet=copie.nom)
     return 201, _with_perm(request.auth, copie)
 
 
@@ -423,6 +430,11 @@ def set_statut(request, activite_id: UUID, data: StatutIn):
         raise HttpError(422, "Statut invalide.")
     activite.statut = data.statut
     activite.save(update_fields=["statut", "updated_at"])
+    record(
+        request,
+        AuditLog.Action.ACTIVITE_STATUT,
+        objet=f"{activite.nom} → {activite.get_statut_display()}",
+    )
     return _with_perm(request.auth, activite)
 
 

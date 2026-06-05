@@ -4,7 +4,7 @@ import json
 
 from django.test import Client, TestCase
 
-from apps.accounts.models import User
+from apps.accounts.models import AuditLog, User
 from apps.testutils import bearer
 
 
@@ -139,3 +139,39 @@ class UserManagementTests(TestCase):
         r = self.client.delete(f"/api/auth/users/{self.org.id}", **bearer(self.admin))
         self.assertEqual(r.status_code, 200)
         self.assertFalse(User.objects.filter(id=self.org.id).exists())
+
+
+class AuditTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.admin = User.objects.create_user(
+            username="admin", email="a@x.ci", password="password@123", role="admin"
+        )
+        self.org = User.objects.create_user(
+            username="org", email="o@x.ci", password="password@123", role="organisateur"
+        )
+
+    def test_connexion_tracee(self):
+        jpost(self.client, "/api/auth/login", {"username": "org", "password": "password@123"})
+        self.assertTrue(
+            AuditLog.objects.filter(action="login", username="org").exists()
+        )
+
+    def test_echec_connexion_trace(self):
+        jpost(self.client, "/api/auth/login", {"username": "org", "password": "faux"})
+        self.assertTrue(
+            AuditLog.objects.filter(action="login_failed", username="org").exists()
+        )
+
+    def test_journal_admin_seulement(self):
+        self.assertEqual(self.client.get("/api/auth/audit", **bearer(self.org)).status_code, 403)
+        self.assertEqual(self.client.get("/api/auth/audit", **bearer(self.admin)).status_code, 200)
+
+    def test_creation_compte_tracee(self):
+        jpost(
+            self.client,
+            "/api/auth/users",
+            {"username": "z", "email": "z@x.ci", "password": "password@123", "role": "organisateur"},
+            **bearer(self.admin),
+        )
+        self.assertTrue(AuditLog.objects.filter(action="user_create", objet="z").exists())

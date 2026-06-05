@@ -5,9 +5,9 @@ from datetime import datetime
 from uuid import UUID
 
 from django.contrib.auth import authenticate
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
-from ninja import Router, Schema
+from ninja import Query, Router, Schema
 from ninja.errors import HttpError
 
 from .auth import (
@@ -17,7 +17,8 @@ from .auth import (
     create_refresh_token,
     get_user_from_token,
 )
-from .models import User
+from .audit import record
+from .models import AuditLog, User
 
 router = Router(tags=["authentification"])
 
@@ -69,7 +70,9 @@ def login(request, data: LoginIn):
     """Connexion organisateur : retourne un couple de tokens JWT."""
     user = authenticate(request, username=data.username, password=data.password)
     if user is None or not user.is_active:
+        record(request, AuditLog.Action.LOGIN_FAILED, username=data.username)
         raise HttpError(401, "Identifiant ou mot de passe incorrect.")
+    record(request, AuditLog.Action.LOGIN, user=user)
     return TokenOut(
         access=create_access_token(user.id),
         refresh=create_refresh_token(user.id),
@@ -92,6 +95,7 @@ def logout(request):
     L'endpoint sert de point d'extension (journalisation / future
     liste de révocation) et confirme la déconnexion.
     """
+    record(request, AuditLog.Action.LOGOUT)
     return MessageOut(detail="Déconnexion réussie.")
 
 
@@ -117,6 +121,7 @@ def change_password(request, data: ChangePasswordIn):
         raise HttpError(422, "Le nouveau mot de passe doit faire au moins 8 caractères.")
     user.set_password(data.nouveau_mot_de_passe)
     user.save(update_fields=["password"])
+    record(request, AuditLog.Action.PASSWORD_CHANGE)
     return 200, MessageOut(detail="Mot de passe mis à jour.")
 
 
@@ -189,6 +194,7 @@ def create_user(request, data: UserCreateIn):
         password=data.password,
         role=data.role,
     )
+    record(request, AuditLog.Action.USER_CREATE, objet=user.username)
     return 201, _with_nb(user)
 
 
@@ -224,6 +230,7 @@ def update_user(request, user_id: UUID, data: UserUpdateIn):
             raise HttpError(400, "Vous ne pouvez pas désactiver votre propre compte.")
         user.is_active = data.is_active
     user.save()
+    record(request, AuditLog.Action.USER_UPDATE, objet=user.username)
     return _with_nb(user)
 
 
@@ -236,6 +243,7 @@ def reset_user_password(request, user_id: UUID, data: AdminResetPwdIn):
     user = get_object_or_404(User, id=user_id)
     user.set_password(data.nouveau_mot_de_passe)
     user.save(update_fields=["password"])
+    record(request, AuditLog.Action.USER_RESET_PWD, objet=user.username)
     return 200, MessageOut(detail="Mot de passe réinitialisé.")
 
 
@@ -256,5 +264,39 @@ def delete_user(request, user_id: UUID):
             "Ce compte a créé des activités : désactivez-le plutôt que de le "
             "supprimer (la suppression effacerait ses activités).",
         )
+    cible = user.username
     user.delete()
+    record(request, AuditLog.Action.USER_DELETE, objet=cible)
     return 200, MessageOut(detail="Compte supprimé.")
+
+
+# --- Journal d'audit (admin uniquement) ------------------------------------
+
+
+class AuditLogOut(Schema):
+    username: str
+    action: str
+    action_label: str
+    objet: str
+    ip_address: str | None
+    created_at: datetime
+
+    @staticmethod
+    def resolve_action_label(obj: AuditLog) -> str:
+        return obj.get_action_display()
+
+
+@router.get("/audit", response=list[AuditLogOut], auth=JWTAuth())
+def list_audit(
+    request,
+    action: str | None = Query(None),
+    search: str | None = Query(None),
+):
+    """Journal d'audit des actions (admin uniquement), 500 entrées les plus récentes."""
+    _require_admin(request)
+    qs = AuditLog.objects.all()
+    if action:
+        qs = qs.filter(action=action)
+    if search:
+        qs = qs.filter(Q(username__icontains=search) | Q(objet__icontains=search))
+    return list(qs[:500])

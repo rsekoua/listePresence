@@ -28,6 +28,7 @@ import QrCode2RoundedIcon from '@mui/icons-material/QrCode2Rounded'
 import DashboardRoundedIcon from '@mui/icons-material/DashboardRounded'
 import GroupsRoundedIcon from '@mui/icons-material/GroupsRounded'
 import ManageAccountsRoundedIcon from '@mui/icons-material/ManageAccountsRounded'
+import HistoryRoundedIcon from '@mui/icons-material/HistoryRounded'
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded'
 import InfoRoundedIcon from '@mui/icons-material/InfoRounded'
 import HelpOutlineRoundedIcon from '@mui/icons-material/HelpOutlineRounded'
@@ -54,6 +55,12 @@ const MAIN_NAV: NavItem[] = [
     label: 'Utilisateurs',
     icon: <ManageAccountsRoundedIcon />,
     path: '/utilisateurs',
+    adminOnly: true,
+  },
+  {
+    label: "Journal d'audit",
+    icon: <HistoryRoundedIcon />,
+    path: '/journal',
     adminOnly: true,
   },
   // { label: 'Exports', icon: <FileDownloadRoundedIcon />, soon: true },
