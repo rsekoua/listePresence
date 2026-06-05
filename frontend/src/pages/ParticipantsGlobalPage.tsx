@@ -193,12 +193,12 @@ export function ParticipantsGlobalPage() {
           disableColumnMenu
           rowHeight={52}
           columnHeaderHeight={48}
-          initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
-          pageSizeOptions={[25, 50, 100]}
+          autoHeight
+          initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+          pageSizeOptions={[10, 25, 50]}
           sx={{
             border: 0,
             cursor: 'pointer',
-            height: 560,
             fontSize: 13,
             '--DataGrid-rowBorderColor': '#eef0f4',
             '& .MuiDataGrid-columnHeader': { bgcolor: '#f8fafc' },

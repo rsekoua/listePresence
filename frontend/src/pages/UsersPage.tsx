@@ -244,11 +244,11 @@ export function UsersPage() {
           disableColumnMenu
           rowHeight={56}
           columnHeaderHeight={48}
-          initialState={{ pagination: { paginationModel: { pageSize: 25 } } }}
-          pageSizeOptions={[25, 50, 100]}
+          autoHeight
+          initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+          pageSizeOptions={[10, 25, 50]}
           sx={{
             border: 0,
-            height: 520,
             fontSize: 13,
             cursor: 'pointer',
             '& .MuiDataGrid-row:hover': { bgcolor: 'action.hover' },
