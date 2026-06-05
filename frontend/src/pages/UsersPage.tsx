@@ -118,7 +118,17 @@ export function UsersPage() {
       flex: 1.3,
       minWidth: 200,
       renderCell: (params) => (
-        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', height: '100%' }}>
+        <Stack
+          direction="row"
+          spacing={1.5}
+          onClick={() => setEditUser(params.row)}
+          sx={{
+            alignItems: 'center',
+            height: '100%',
+            cursor: 'pointer',
+            '&:hover .username': { color: 'primary.main', textDecoration: 'underline' },
+          }}
+        >
           <Avatar
             sx={{
               width: 32,
@@ -131,7 +141,7 @@ export function UsersPage() {
           >
             {params.row.username.charAt(0).toUpperCase()}
           </Avatar>
-          <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
+          <Typography className="username" variant="body2" sx={{ fontWeight: 600 }} noWrap>
             {params.row.username}
           </Typography>
         </Stack>
