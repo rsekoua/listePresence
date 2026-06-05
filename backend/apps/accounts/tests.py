@@ -1,3 +1,119 @@
-from django.test import TestCase
+"""Tests d'authentification et de gestion des comptes (Sprint 6)."""
 
-# Create your tests here.
+import json
+
+from django.test import Client, TestCase
+
+from apps.accounts.models import User
+from apps.testutils import bearer
+
+
+def jpost(client, url, data, **extra):
+    return client.post(url, json.dumps(data), content_type="application/json", **extra)
+
+
+class AuthTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.org = User.objects.create_user(
+            username="org", email="o@x.ci", password="password@123", role="organisateur"
+        )
+
+    def test_login_ok(self):
+        r = jpost(self.client, "/api/auth/login", {"username": "org", "password": "password@123"})
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("access", r.json())
+
+    def test_login_invalide(self):
+        r = jpost(self.client, "/api/auth/login", {"username": "org", "password": "faux"})
+        self.assertEqual(r.status_code, 401)
+
+    def test_me_authentifie(self):
+        r = self.client.get("/api/auth/me", **bearer(self.org))
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["username"], "org")
+
+    def test_me_sans_token(self):
+        self.assertEqual(self.client.get("/api/auth/me").status_code, 401)
+
+    def test_change_password(self):
+        r = jpost(
+            self.client,
+            "/api/auth/change-password",
+            {"ancien_mot_de_passe": "password@123", "nouveau_mot_de_passe": "nouveau123"},
+            **bearer(self.org),
+        )
+        self.assertEqual(r.status_code, 200)
+        self.org.refresh_from_db()
+        self.assertTrue(self.org.check_password("nouveau123"))
+
+    def test_change_password_ancien_faux(self):
+        r = jpost(
+            self.client,
+            "/api/auth/change-password",
+            {"ancien_mot_de_passe": "faux", "nouveau_mot_de_passe": "nouveau123"},
+            **bearer(self.org),
+        )
+        self.assertEqual(r.status_code, 400)
+
+
+class UserManagementTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.admin = User.objects.create_user(
+            username="admin", email="a@x.ci", password="password@123", role="admin"
+        )
+        self.org = User.objects.create_user(
+            username="org", email="o@x.ci", password="password@123", role="organisateur"
+        )
+
+    def test_admin_cree_utilisateur(self):
+        r = jpost(
+            self.client,
+            "/api/auth/users",
+            {"username": "new", "email": "n@x.ci", "password": "password@123", "role": "organisateur"},
+            **bearer(self.admin),
+        )
+        self.assertEqual(r.status_code, 201)
+        self.assertTrue(User.objects.filter(username="new").exists())
+
+    def test_creation_doublon_username(self):
+        r = jpost(
+            self.client,
+            "/api/auth/users",
+            {"username": "org", "email": "autre@x.ci", "password": "password@123", "role": "organisateur"},
+            **bearer(self.admin),
+        )
+        self.assertEqual(r.status_code, 409)
+
+    def test_non_admin_interdit(self):
+        self.assertEqual(self.client.get("/api/auth/users", **bearer(self.org)).status_code, 403)
+
+    def test_desactivation(self):
+        r = self.client.patch(
+            f"/api/auth/users/{self.org.id}",
+            json.dumps({"is_active": False}),
+            content_type="application/json",
+            **bearer(self.admin),
+        )
+        self.assertEqual(r.status_code, 200)
+        self.org.refresh_from_db()
+        self.assertFalse(self.org.is_active)
+
+    def test_admin_ne_se_desactive_pas(self):
+        r = self.client.patch(
+            f"/api/auth/users/{self.admin.id}",
+            json.dumps({"is_active": False}),
+            content_type="application/json",
+            **bearer(self.admin),
+        )
+        self.assertEqual(r.status_code, 400)
+
+    def test_admin_ne_se_supprime_pas(self):
+        r = self.client.delete(f"/api/auth/users/{self.admin.id}", **bearer(self.admin))
+        self.assertEqual(r.status_code, 400)
+
+    def test_suppression_utilisateur(self):
+        r = self.client.delete(f"/api/auth/users/{self.org.id}", **bearer(self.admin))
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(User.objects.filter(id=self.org.id).exists())
