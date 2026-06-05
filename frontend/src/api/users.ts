@@ -30,7 +30,7 @@ export async function createUser(input: UserCreateInput): Promise<AppUser> {
 
 export async function updateUser(
   id: string,
-  patch: { is_active?: boolean; role?: Role },
+  patch: { username?: string; email?: string; is_active?: boolean; role?: Role },
 ): Promise<AppUser> {
   const { data } = await api.patch<AppUser>(`/auth/users/${id}`, patch)
   return data

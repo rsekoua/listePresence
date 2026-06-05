@@ -100,6 +100,28 @@ class UserManagementTests(TestCase):
         self.org.refresh_from_db()
         self.assertFalse(self.org.is_active)
 
+    def test_modification_nom_email_role(self):
+        r = self.client.patch(
+            f"/api/auth/users/{self.org.id}",
+            json.dumps({"username": "org2", "email": "ORG2@x.ci", "role": "admin"}),
+            content_type="application/json",
+            **bearer(self.admin),
+        )
+        self.assertEqual(r.status_code, 200)
+        self.org.refresh_from_db()
+        self.assertEqual(self.org.username, "org2")
+        self.assertEqual(self.org.email, "org2@x.ci")  # normalisé en minuscules
+        self.assertEqual(self.org.role, "admin")
+
+    def test_modification_username_en_doublon(self):
+        r = self.client.patch(
+            f"/api/auth/users/{self.org.id}",
+            json.dumps({"username": "admin"}),  # déjà pris
+            content_type="application/json",
+            **bearer(self.admin),
+        )
+        self.assertEqual(r.status_code, 409)
+
     def test_admin_ne_se_desactive_pas(self):
         r = self.client.patch(
             f"/api/auth/users/{self.admin.id}",

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSnackbar } from 'notistack'
 import dayjs from 'dayjs'
@@ -32,6 +32,7 @@ import ToggleOnRoundedIcon from '@mui/icons-material/ToggleOnRounded'
 import ToggleOffRoundedIcon from '@mui/icons-material/ToggleOffRounded'
 import LockResetRoundedIcon from '@mui/icons-material/LockResetRounded'
 import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded'
+import EditRoundedIcon from '@mui/icons-material/EditRounded'
 import { fetchMe } from '../api/activites'
 import {
   createUser,
@@ -63,6 +64,7 @@ export function UsersPage() {
   })
 
   const [createOpen, setCreateOpen] = useState(false)
+  const [editUser, setEditUser] = useState<AppUser | null>(null)
   const [resetFor, setResetFor] = useState<AppUser | null>(null)
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
   const [menuUser, setMenuUser] = useState<AppUser | null>(null)
@@ -271,6 +273,17 @@ export function UsersPage() {
       {/* Menu d'actions par ligne */}
       <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={closeMenu}>
         <MenuItem
+          onClick={() => {
+            setEditUser(menuUser)
+            closeMenu()
+          }}
+        >
+          <ListItemIcon>
+            <EditRoundedIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Modifier</ListItemText>
+        </MenuItem>
+        <MenuItem
           disabled={menuUser?.id === me?.id}
           onClick={() => {
             if (menuUser) toggleActive.mutate(menuUser)
@@ -318,6 +331,7 @@ export function UsersPage() {
       </Menu>
 
       <CreateUserDialog open={createOpen} onClose={() => setCreateOpen(false)} />
+      <EditUserDialog user={editUser} onClose={() => setEditUser(null)} />
       <ResetPasswordDialog user={resetFor} onClose={() => setResetFor(null)} />
     </Box>
   )
@@ -459,6 +473,74 @@ function CreateUserDialog({ open, onClose }: { open: boolean; onClose: () => voi
           </Button>
           <Button type="submit" variant="contained" disabled={!valid || mutation.isPending}>
             {mutation.isPending ? 'Création…' : 'Créer'}
+          </Button>
+        </DialogActions>
+      </form>
+    </Dialog>
+  )
+}
+
+function EditUserDialog({ user, onClose }: { user: AppUser | null; onClose: () => void }) {
+  const queryClient = useQueryClient()
+  const { enqueueSnackbar } = useSnackbar()
+  const [username, setUsername] = useState('')
+  const [email, setEmail] = useState('')
+  const [role, setRole] = useState<Role>('organisateur')
+
+  useEffect(() => {
+    if (user) {
+      setUsername(user.username)
+      setEmail(user.email)
+      setRole(user.role)
+    }
+  }, [user])
+
+  const mutation = useMutation({
+    mutationFn: () => updateUser(user!.id, { username, email, role }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      enqueueSnackbar('Utilisateur modifié.', { variant: 'success' })
+      onClose()
+    },
+    onError: (e) => enqueueSnackbar(errMsg(e, 'Modification impossible.'), { variant: 'error' }),
+  })
+
+  const valid = username.trim() && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)
+
+  const onSubmit = (e: FormEvent) => {
+    e.preventDefault()
+    if (valid) mutation.mutate()
+  }
+
+  return (
+    <Dialog open={Boolean(user)} onClose={onClose} fullWidth maxWidth="xs">
+      <DialogTitle>Modifier l'utilisateur</DialogTitle>
+      <form onSubmit={onSubmit}>
+        <DialogContent>
+          <Stack spacing={2.5} sx={{ mt: 1 }}>
+            <TextField
+              label="Nom d'utilisateur"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              fullWidth
+              autoFocus
+            />
+            <TextField
+              label="Email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              fullWidth
+            />
+            <RoleSelect value={role} onChange={setRole} />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={onClose} color="inherit">
+            Annuler
+          </Button>
+          <Button type="submit" variant="contained" disabled={!valid || mutation.isPending}>
+            {mutation.isPending ? 'Enregistrement…' : 'Enregistrer'}
           </Button>
         </DialogActions>
       </form>

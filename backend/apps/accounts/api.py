@@ -141,6 +141,8 @@ class UserCreateIn(Schema):
 
 
 class UserUpdateIn(Schema):
+    username: str | None = None
+    email: str | None = None
     is_active: bool | None = None
     role: str | None = None
 
@@ -192,11 +194,25 @@ def create_user(request, data: UserCreateIn):
 
 @router.patch("/users/{user_id}", response=UserListOut, auth=JWTAuth())
 def update_user(request, user_id: UUID, data: UserUpdateIn):
-    """Active/désactive un compte ou change son rôle (admin uniquement)."""
+    """Modifie un compte (nom, email, rôle, activation) — admin uniquement."""
     _require_admin(request)
     user = get_object_or_404(User, id=user_id)
     is_self = user.id == request.auth.id
 
+    if data.username is not None:
+        username = data.username.strip()
+        if not username:
+            raise HttpError(422, "Le nom d'utilisateur est requis.")
+        if User.objects.filter(username__iexact=username).exclude(id=user.id).exists():
+            raise HttpError(409, "Ce nom d'utilisateur est déjà pris.")
+        user.username = username
+    if data.email is not None:
+        email = data.email.strip().lower()
+        if not email:
+            raise HttpError(422, "L'email est requis.")
+        if User.objects.filter(email__iexact=email).exclude(id=user.id).exists():
+            raise HttpError(409, "Cette adresse email est déjà utilisée.")
+        user.email = email
     if data.role is not None:
         if data.role not in User.Role.values:
             raise HttpError(422, "Rôle invalide.")
