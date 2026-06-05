@@ -210,6 +210,9 @@ def list_personnes(
     from django.db.models import Q
 
     base = Participant.objects.all()
+    # Un organisateur ne voit que les participants de ses propres activités.
+    if not request.auth.is_admin:
+        base = base.filter(activite__created_by=request.auth)
     if search:
         base = base.filter(
             Q(nom__icontains=search)
@@ -282,12 +285,14 @@ class HistoriqueOut(Schema):
 
 @router.get("/personnes/historique", response=HistoriqueOut)
 def historique_personne(request, numero_cni: str = Query(...)):
-    """Historique de participation d'une personne (toutes ses inscriptions)."""
-    parts = list(
-        Participant.objects.select_related("activite")
-        .filter(numero_cni=numero_cni)
-        .order_by("-horodatage")
-    )
+    """Historique de participation d'une personne (toutes ses inscriptions).
+
+    Un organisateur ne voit que les participations à ses propres activités.
+    """
+    qs = Participant.objects.select_related("activite").filter(numero_cni=numero_cni)
+    if not request.auth.is_admin:
+        qs = qs.filter(activite__created_by=request.auth)
+    parts = list(qs.order_by("-horodatage"))
     if not parts:
         raise HttpError(404, "Aucune personne avec ce numéro de CNI.")
 

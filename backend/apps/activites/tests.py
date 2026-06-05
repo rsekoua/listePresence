@@ -8,6 +8,7 @@ from django.utils import timezone
 
 from apps.accounts.models import User
 from apps.activites.models import Activite
+from apps.participants.models import Participant
 from apps.testutils import bearer
 
 
@@ -102,6 +103,27 @@ class ActiviteRBACTests(TestCase):
         self.assertEqual(r.status_code, 201)
         self.assertEqual(r.json()["statut"], "ouvert")
         self.assertIn("copie", r.json()["nom"])
+
+    def test_annuaire_scope_par_organisateur(self):
+        Participant.objects.create(
+            activite=self.a_open, nom="Kouassi", prenom="Awa", structure="ONG",
+            fonction="C", telephone_wave="+2250700000000", email="a@x.ci", numero_cni="CI_A",
+        )
+        Participant.objects.create(
+            activite=self.b_open, nom="Diallo", prenom="Moussa", structure="Mairie",
+            fonction="A", telephone_wave="+2250101010101", email="m@x.ci", numero_cni="CI_B",
+        )
+        # orgA ne voit que son participant
+        ra = self.client.get("/api/activites/personnes", **bearer(self.orgA)).json()
+        self.assertEqual({p["numero_cni"] for p in ra}, {"CI_A"})
+        # admin voit les deux
+        radmin = self.client.get("/api/activites/personnes", **bearer(self.admin)).json()
+        self.assertEqual({p["numero_cni"] for p in radmin}, {"CI_A", "CI_B"})
+        # historique d'une CNI d'autrui → 404 pour orgA
+        h = self.client.get(
+            "/api/activites/personnes/historique?numero_cni=CI_B", **bearer(self.orgA)
+        )
+        self.assertEqual(h.status_code, 404)
 
     def test_liste_activites_pas_de_n_plus_1(self):
         """Le nombre de requêtes ne doit pas croître avec le nombre d'activités."""

@@ -21,7 +21,6 @@ import EventRoundedIcon from '@mui/icons-material/EventRounded'
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded'
 import PlaceRoundedIcon from '@mui/icons-material/PlaceRounded'
 import { fetchPersonneHistorique } from '../api/participants'
-import { fetchMe } from '../api/activites'
 
 interface Props {
   numeroCni: string | null
@@ -31,8 +30,6 @@ interface Props {
 
 export function PersonneHistoriqueDialog({ numeroCni, open, onClose }: Props) {
   const navigate = useNavigate()
-  const { data: me } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
-  const isAdmin = me?.role === 'admin'
 
   const { data, isLoading } = useQuery({
     queryKey: ['personne-historique', numeroCni],
@@ -104,64 +101,42 @@ export function PersonneHistoriqueDialog({ numeroCni, open, onClose }: Props) {
             </Stack>
 
             <List disablePadding>
-              {data.participations.map((p) => {
-                const infos = (
-                  <>
-                    <EventRoundedIcon
-                      fontSize="small"
-                      sx={{ color: 'text.disabled', mr: 1.5 }}
-                    />
-                    <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
-                        {p.activite_nom}
-                      </Typography>
-                      <Stack
-                        direction="row"
-                        spacing={1.5}
-                        sx={{ color: 'text.secondary', mt: 0.25 }}
-                      >
-                        <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
-                          <PlaceRoundedIcon sx={{ fontSize: 13 }} />
-                          <Typography variant="caption" noWrap>
-                            {p.activite_lieu}
-                          </Typography>
-                        </Stack>
-                        <Typography variant="caption">
-                          {dayjs(p.horodatage).format('DD/MM/YYYY HH:mm')}
+              {data.participations.map((p) => (
+                <ListItemButton
+                  key={p.participant_id}
+                  onClick={() => {
+                    navigate(`/activites/${p.activite_id}`)
+                    onClose()
+                  }}
+                  sx={{ borderRadius: 2, mb: 0.5 }}
+                >
+                  <EventRoundedIcon
+                    fontSize="small"
+                    sx={{ color: 'text.disabled', mr: 1.5 }}
+                  />
+                  <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
+                      {p.activite_nom}
+                    </Typography>
+                    <Stack
+                      direction="row"
+                      spacing={1.5}
+                      sx={{ color: 'text.secondary', mt: 0.25 }}
+                    >
+                      <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+                        <PlaceRoundedIcon sx={{ fontSize: 13 }} />
+                        <Typography variant="caption" noWrap>
+                          {p.activite_lieu}
                         </Typography>
                       </Stack>
-                    </Box>
-                  </>
-                )
-                // Cliquable uniquement pour l'admin (accès à toutes les activités).
-                return isAdmin ? (
-                  <ListItemButton
-                    key={p.participant_id}
-                    onClick={() => {
-                      navigate(`/activites/${p.activite_id}`)
-                      onClose()
-                    }}
-                    sx={{ borderRadius: 2, mb: 0.5 }}
-                  >
-                    {infos}
-                    <ChevronRightRoundedIcon fontSize="small" sx={{ color: 'text.disabled' }} />
-                  </ListItemButton>
-                ) : (
-                  <Box
-                    key={p.participant_id}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      borderRadius: 2,
-                      mb: 0.5,
-                      px: 2,
-                      py: 1,
-                    }}
-                  >
-                    {infos}
+                      <Typography variant="caption">
+                        {dayjs(p.horodatage).format('DD/MM/YYYY HH:mm')}
+                      </Typography>
+                    </Stack>
                   </Box>
-                )
-              })}
+                  <ChevronRightRoundedIcon fontSize="small" sx={{ color: 'text.disabled' }} />
+                </ListItemButton>
+              ))}
             </List>
           </>
         )}
