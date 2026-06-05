@@ -73,3 +73,19 @@ export function exportParticipantPdf(participantId: string) {
 export function exportQrPdf(activiteId: string) {
   return download(`/exports/activites/${activiteId}/qrcode-pdf`, 'qrcode.pdf')
 }
+
+/** EXP-06 — Journal des exports d'une activité. */
+export interface ExportLog {
+  type: string
+  type_label: string
+  nb_entrees: number
+  created_at: string
+  utilisateur: string | null
+}
+
+export async function fetchExportHistory(activiteId: string): Promise<ExportLog[]> {
+  const { data } = await api.get<ExportLog[]>(
+    `/exports/activites/${activiteId}/historique`,
+  )
+  return data
+}

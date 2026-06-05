@@ -36,6 +36,7 @@ import {
 import type { StatutActivite } from '../api/types'
 import { ActiviteFormDialog } from '../components/ActiviteFormDialog'
 import { ParticipantsPanel } from '../components/ParticipantsPanel'
+import { ExportHistoryPanel } from '../components/ExportHistoryPanel'
 
 const STATUT: Record<
   StatutActivite,
@@ -405,6 +406,9 @@ export function ActiviteDetailPage() {
           canAdd={activite.can_edit && activite.statut === 'ouvert'}
         />
       </Box>
+
+      {/* Historique des exports (EXP-06) */}
+      <ExportHistoryPanel activiteId={activite.id} />
 
       <ActiviteFormDialog
         open={editOpen}

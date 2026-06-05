@@ -67,3 +67,21 @@ class ExportTests(TestCase):
     def test_export_sans_auth_401(self):
         r = self.client.get(f"/api/exports/activites/{self.act.id}/excel")
         self.assertEqual(r.status_code, 401)
+
+    def test_historique_trace_les_exports(self):
+        # Aucun export au départ
+        h0 = self.client.get(f"/api/exports/activites/{self.act.id}/historique", **bearer(self.org))
+        self.assertEqual(h0.json(), [])
+        # On déclenche un export Excel
+        self.client.get(f"/api/exports/activites/{self.act.id}/excel", **bearer(self.org))
+        h1 = self.client.get(f"/api/exports/activites/{self.act.id}/historique", **bearer(self.org)).json()
+        self.assertEqual(len(h1), 1)
+        self.assertEqual(h1[0]["type"], "excel")
+        self.assertEqual(h1[0]["nb_entrees"], 1)
+        self.assertEqual(h1[0]["utilisateur"], "org")
+
+    def test_historique_autre_organisateur_404(self):
+        r = self.client.get(
+            f"/api/exports/activites/{self.act.id}/historique", **bearer(self.orgB)
+        )
+        self.assertEqual(r.status_code, 404)

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSnackbar } from 'notistack'
 import dayjs from 'dayjs'
 import {
@@ -44,6 +44,7 @@ export function ParticipantsPanel({
   const theme = useTheme()
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'))
   const { enqueueSnackbar } = useSnackbar()
+  const queryClient = useQueryClient()
   const [selected, setSelected] = useState<Participant | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
@@ -52,6 +53,7 @@ export function ParticipantsPanel({
     setExporting(true)
     try {
       await fn(activiteId)
+      queryClient.invalidateQueries({ queryKey: ['export-history', activiteId] })
     } catch {
       enqueueSnackbar("L'export a échoué. Réessayez.", { variant: 'error' })
     } finally {

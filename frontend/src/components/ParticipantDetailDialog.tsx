@@ -16,6 +16,7 @@ import {
 } from '@mui/material'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import PictureAsPdfRoundedIcon from '@mui/icons-material/PictureAsPdfRounded'
+import { useQueryClient } from '@tanstack/react-query'
 import { useSnackbar } from 'notistack'
 import { fetchParticipantPhoto, type Participant } from '../api/participants'
 import { exportParticipantPdf } from '../api/exports'
@@ -38,12 +39,14 @@ export function ParticipantDetailDialog({
   const [zoom, setZoom] = useState<string | null>(null)
   const [downloading, setDownloading] = useState(false)
   const { enqueueSnackbar } = useSnackbar()
+  const queryClient = useQueryClient()
 
   const downloadPdf = async () => {
     if (!participant) return
     setDownloading(true)
     try {
       await exportParticipantPdf(participant.id)
+      queryClient.invalidateQueries({ queryKey: ['export-history', activiteId] })
     } catch {
       enqueueSnackbar('Téléchargement de la fiche impossible.', { variant: 'error' })
     } finally {

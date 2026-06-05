@@ -6,14 +6,14 @@ participants : recherche plein texte, structure, plage de dates et complétude
 des CNI (EXP-05).
 """
 
-from datetime import date
+from datetime import date, datetime
 from uuid import UUID
 
 from django.db.models import Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from ninja import Query, Router
+from ninja import Query, Router, Schema
 from ninja.errors import HttpError
 
 from apps.accounts.auth import JWTAuth
@@ -21,6 +21,7 @@ from apps.activites.models import Activite
 from apps.participants.models import Participant
 
 from . import services
+from .models import ExportLog
 
 router = Router(tags=["exports"], auth=JWTAuth())
 
@@ -60,6 +61,16 @@ def _slug(activite: Activite) -> str:
     return services._safe(activite.nom)
 
 
+def _log_export(user, activite, type_export: str, nb_entrees: int) -> None:
+    """Trace un export dans le journal (EXP-06)."""
+    ExportLog.objects.create(
+        activite=activite,
+        type=type_export,
+        nb_entrees=nb_entrees,
+        created_by=user,
+    )
+
+
 def _get_activite_visible(user, activite_id: UUID) -> Activite:
     """Activité visible par l'utilisateur (admin : toutes ; organisateur : les
     siennes), sinon 404."""
@@ -85,6 +96,7 @@ def export_excel(
     activite = _get_activite_visible(request.auth, activite_id)
     participants = list(_filtrer(activite_id, search, structure, date_from, date_to, cni))
     content = services.build_participants_xlsx(activite, participants)
+    _log_export(request.auth, activite, ExportLog.Type.EXCEL, len(participants))
     jour = timezone.localdate().strftime("%Y%m%d")
     return _attachment(content, f"{_slug(activite)}_{jour}_participants.xlsx", _XLSX)
 
@@ -103,6 +115,7 @@ def export_presence_pdf(
     activite = _get_activite_visible(request.auth, activite_id)
     participants = list(_filtrer(activite_id, search, structure, date_from, date_to, cni))
     content = services.build_presence_list_pdf(activite, participants)
+    _log_export(request.auth, activite, ExportLog.Type.PDF_LISTE, len(participants))
     jour = timezone.localdate().strftime("%Y%m%d")
     return _attachment(
         content, f"{_slug(activite)}_{jour}_liste_presence.pdf", "application/pdf"
@@ -123,6 +136,7 @@ def export_cni_zip(
     activite = _get_activite_visible(request.auth, activite_id)
     participants = list(_filtrer(activite_id, search, structure, date_from, date_to, cni))
     content = services.build_cni_zip(activite, participants)
+    _log_export(request.auth, activite, ExportLog.Type.ZIP, len(participants))
     jour = timezone.localdate().strftime("%Y%m%d")
     return _attachment(
         content, f"{_slug(activite)}_{jour}_fiches_cni.zip", "application/zip"
@@ -134,6 +148,7 @@ def export_qrcode_pdf(request, activite_id: UUID):
     """Affiche PDF du QR Code (infos activité + QR Code)."""
     activite = _get_activite_visible(request.auth, activite_id)
     content = services.build_activite_qr_pdf(activite)
+    _log_export(request.auth, activite, ExportLog.Type.QRCODE, 0)
     return _attachment(
         content, f"{_slug(activite)}_qrcode.pdf", "application/pdf"
     )
@@ -150,8 +165,32 @@ def export_participant_pdf(request, participant_id: UUID):
     if not (user.is_admin or participant.activite.created_by_id == user.id):
         raise HttpError(404, "Participant introuvable.")
     content = services.build_participant_cni_pdf(participant.activite, participant)
+    _log_export(user, participant.activite, ExportLog.Type.FICHE_CNI, 1)
     return _attachment(
         content,
         f"{services._safe(participant.nom)}_{services._safe(participant.prenom)}_cni.pdf",
         "application/pdf",
     )
+
+
+class ExportLogOut(Schema):
+    type: str
+    type_label: str
+    nb_entrees: int
+    created_at: datetime
+    utilisateur: str | None
+
+    @staticmethod
+    def resolve_type_label(obj: ExportLog) -> str:
+        return obj.get_type_display()
+
+    @staticmethod
+    def resolve_utilisateur(obj: ExportLog) -> str | None:
+        return obj.created_by.username if obj.created_by else None
+
+
+@router.get("/activites/{activite_id}/historique", response=list[ExportLogOut])
+def export_history(request, activite_id: UUID):
+    """EXP-06 — Journal des exports générés pour une activité."""
+    activite = _get_activite_visible(request.auth, activite_id)
+    return activite.exports.select_related("created_by").all()
