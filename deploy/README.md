@@ -10,6 +10,7 @@ Ce dossier fournit des modèles à adapter :
 | `gunicorn.service` | Service systemd lançant Gunicorn (WSGI Django) |
 | `deploy.sh` | Script de mise à jour (git pull → migrate → collectstatic → build front → restart) |
 | `.env.prod.example` | Variables d'environnement de production (à copier en `backend/.env`) |
+| `backup.sh` | Sauvegarde quotidienne (dump base + archive médias, rétention 30 j) |
 
 ## 1. Pré-requis serveur
 ```bash
@@ -28,28 +29,17 @@ uv add gunicorn                       # serveur WSGI de production
 ```
 
 ## 3. Base de données (PostgreSQL)
-⚠️ **Important** : `config/settings.py` utilise **SQLite par défaut** (MVP/dev). Pour la
-production, le cahier des charges prévoit **PostgreSQL 16**. Installe-le puis adapte
-`DATABASES` (par ex. via variables d'environnement) :
+La base est **pilotée par l'environnement** (aucun changement de code) : sans variable,
+l'app utilise SQLite (dev) ; **dès que `DB_NAME` est défini** (cf. `.env.prod.example`),
+elle bascule sur **PostgreSQL**.
 ```bash
 sudo apt install -y postgresql
 sudo -u postgres createdb presence
-sudo -u postgres createuser presence --pwprompt
+sudo -u postgres createuser presence --pwprompt   # renseigner DB_PASSWORD du .env
+cd /var/www/presence/backend && uv add "psycopg[binary]"
 ```
-```python
-# config/settings.py (bloc DATABASES en prod)
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("DB_NAME", "presence"),
-        "USER": os.getenv("DB_USER", "presence"),
-        "PASSWORD": os.getenv("DB_PASSWORD", ""),
-        "HOST": os.getenv("DB_HOST", "127.0.0.1"),
-        "PORT": os.getenv("DB_PORT", "5432"),
-    }
-}
-```
-(ne pas oublier `uv add psycopg[binary]`).
+Renseigne ensuite `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT` dans
+`backend/.env`, puis lance les migrations (étape 4).
 
 ## 4. Premier déploiement
 ```bash
@@ -87,4 +77,6 @@ bash deploy/deploy.sh
   transitent uniquement par l'API authentifiée. Ne pas ajouter de `location /media/`.
 - Les **logs** applicatifs sont écrits dans `backend/logs/app.log` (rotation 5×5 Mo) et
   sur la sortie standard (récupérée par journald via systemd : `journalctl -u presence`).
-- Sauvegardes (pg_dump + media) : à planifier via cron — non couvert ici.
+- **Sauvegardes** : `deploy/backup.sh` (dump base + archive `media/`, purge > 30 j).
+  Planifier via cron, ex. quotidien à 2h :
+  `0 2 * * * /usr/local/bin/presence-backup.sh >> /var/log/presence-backup.log 2>&1`

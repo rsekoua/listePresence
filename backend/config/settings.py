@@ -83,15 +83,32 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 
 
-# Database — SQLite (MVP)
+# Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
+#
+# Par défaut : SQLite (dev). Si DB_NAME est défini (prod), bascule sur
+# PostgreSQL via les variables d'environnement — aucun changement de code.
+# (PostgreSQL requiert le paquet psycopg : `uv add "psycopg[binary]"`.)
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+if os.getenv("DB_NAME"):
+    DATABASES = {
+        "default": {
+            "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.postgresql"),
+            "NAME": os.getenv("DB_NAME"),
+            "USER": os.getenv("DB_USER", ""),
+            "PASSWORD": os.getenv("DB_PASSWORD", ""),
+            "HOST": os.getenv("DB_HOST", "127.0.0.1"),
+            "PORT": os.getenv("DB_PORT", "5432"),
+            "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "60")),
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 
 # Modèle utilisateur personnalisé (organisateur)
