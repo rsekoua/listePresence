@@ -1,5 +1,6 @@
 import { api } from './client'
 import type { Role } from './types'
+import type { AuditEntry } from './audit'
 
 export interface AppUser {
   id: string
@@ -45,4 +46,10 @@ export async function resetUserPassword(
 
 export async function deleteUser(id: string): Promise<void> {
   await api.delete(`/auth/users/${id}`)
+}
+
+/** Journal d'audit d'un utilisateur précis. */
+export async function fetchUserAudit(id: string): Promise<AuditEntry[]> {
+  const { data } = await api.get<AuditEntry[]>(`/auth/users/${id}/audit`)
+  return data
 }

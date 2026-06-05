@@ -300,3 +300,12 @@ def list_audit(
     if search:
         qs = qs.filter(Q(username__icontains=search) | Q(objet__icontains=search))
     return list(qs[:500])
+
+
+@router.get("/users/{user_id}/audit", response=list[AuditLogOut], auth=JWTAuth())
+def user_audit(request, user_id: UUID):
+    """Journal d'audit d'un utilisateur précis (admin uniquement)."""
+    _require_admin(request)
+    user = get_object_or_404(User, id=user_id)
+    qs = AuditLog.objects.filter(Q(user_id=user.id) | Q(username=user.username))
+    return list(qs[:200])

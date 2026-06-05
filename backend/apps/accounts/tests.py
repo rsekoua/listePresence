@@ -167,6 +167,18 @@ class AuditTests(TestCase):
         self.assertEqual(self.client.get("/api/auth/audit", **bearer(self.org)).status_code, 403)
         self.assertEqual(self.client.get("/api/auth/audit", **bearer(self.admin)).status_code, 200)
 
+    def test_audit_par_utilisateur(self):
+        # une connexion de org
+        jpost(self.client, "/api/auth/login", {"username": "org", "password": "password@123"})
+        r = self.client.get(f"/api/auth/users/{self.org.id}/audit", **bearer(self.admin))
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(any(e["action"] == "login" for e in r.json()))
+        # non-admin interdit
+        self.assertEqual(
+            self.client.get(f"/api/auth/users/{self.org.id}/audit", **bearer(self.org)).status_code,
+            403,
+        )
+
     def test_creation_compte_tracee(self):
         jpost(
             self.client,

@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSnackbar } from 'notistack'
 import dayjs from 'dayjs'
@@ -18,7 +18,6 @@ import {
   Menu,
   MenuItem,
   Paper,
-  Radio,
   Stack,
   TextField,
   Typography,
@@ -43,6 +42,8 @@ import {
   type AppUser,
 } from '../api/users'
 import type { Role } from '../api/types'
+import { RoleSelect } from '../components/RoleSelect'
+import { UserDetailDrawer } from '../components/UserDetailDrawer'
 
 function errMsg(err: unknown, fallback: string): string {
   return (
@@ -341,74 +342,13 @@ export function UsersPage() {
       </Menu>
 
       <CreateUserDialog open={createOpen} onClose={() => setCreateOpen(false)} />
-      <EditUserDialog user={editUser} onClose={() => setEditUser(null)} />
+      <UserDetailDrawer user={editUser} onClose={() => setEditUser(null)} />
       <ResetPasswordDialog user={resetFor} onClose={() => setResetFor(null)} />
     </Box>
   )
 }
 
 // --- Dialogs ---------------------------------------------------------------
-
-const ROLE_OPTIONS: { value: Role; label: string; desc: string }[] = [
-  {
-    value: 'organisateur',
-    label: 'Organisateur',
-    desc: 'Crée et gère ses propres activités.',
-  },
-  {
-    value: 'admin',
-    label: 'Administrateur',
-    desc: 'Accès complet : toutes les activités et la gestion des comptes.',
-  },
-]
-
-function RoleSelect({ value, onChange }: { value: Role; onChange: (r: Role) => void }) {
-  return (
-    <Box>
-      <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>
-        Rôle
-      </Typography>
-      <Stack spacing={1.25}>
-        {ROLE_OPTIONS.map((opt) => {
-          const selected = value === opt.value
-          return (
-            <Box
-              key={opt.value}
-              role="button"
-              onClick={() => onChange(opt.value)}
-              sx={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: 1,
-                p: 1.5,
-                borderRadius: 2,
-                cursor: 'pointer',
-                border: '1px solid',
-                borderColor: selected ? 'primary.main' : 'divider',
-                bgcolor: (t) =>
-                  selected ? alpha(t.palette.primary.main, 0.06) : 'transparent',
-                boxShadow: (t) =>
-                  selected ? `0 0 0 1px ${t.palette.primary.main}` : 'none',
-                transition: 'all .15s ease',
-                '&:hover': { borderColor: selected ? 'primary.main' : 'text.disabled' },
-              }}
-            >
-              <Radio checked={selected} size="small" sx={{ p: 0, mt: 0.25 }} />
-              <Box>
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {opt.label}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {opt.desc}
-                </Typography>
-              </Box>
-            </Box>
-          )
-        })}
-      </Stack>
-    </Box>
-  )
-}
 
 function CreateUserDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const queryClient = useQueryClient()
@@ -483,74 +423,6 @@ function CreateUserDialog({ open, onClose }: { open: boolean; onClose: () => voi
           </Button>
           <Button type="submit" variant="contained" disabled={!valid || mutation.isPending}>
             {mutation.isPending ? 'Création…' : 'Créer'}
-          </Button>
-        </DialogActions>
-      </form>
-    </Dialog>
-  )
-}
-
-function EditUserDialog({ user, onClose }: { user: AppUser | null; onClose: () => void }) {
-  const queryClient = useQueryClient()
-  const { enqueueSnackbar } = useSnackbar()
-  const [username, setUsername] = useState('')
-  const [email, setEmail] = useState('')
-  const [role, setRole] = useState<Role>('organisateur')
-
-  useEffect(() => {
-    if (user) {
-      setUsername(user.username)
-      setEmail(user.email)
-      setRole(user.role)
-    }
-  }, [user])
-
-  const mutation = useMutation({
-    mutationFn: () => updateUser(user!.id, { username, email, role }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] })
-      enqueueSnackbar('Utilisateur modifié.', { variant: 'success' })
-      onClose()
-    },
-    onError: (e) => enqueueSnackbar(errMsg(e, 'Modification impossible.'), { variant: 'error' }),
-  })
-
-  const valid = username.trim() && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)
-
-  const onSubmit = (e: FormEvent) => {
-    e.preventDefault()
-    if (valid) mutation.mutate()
-  }
-
-  return (
-    <Dialog open={Boolean(user)} onClose={onClose} fullWidth maxWidth="xs">
-      <DialogTitle>Modifier l'utilisateur</DialogTitle>
-      <form onSubmit={onSubmit}>
-        <DialogContent>
-          <Stack spacing={2.5} sx={{ mt: 1 }}>
-            <TextField
-              label="Nom d'utilisateur"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              fullWidth
-              autoFocus
-            />
-            <TextField
-              label="Email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              fullWidth
-            />
-            <RoleSelect value={role} onChange={setRole} />
-          </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={onClose} color="inherit">
-            Annuler
-          </Button>
-          <Button type="submit" variant="contained" disabled={!valid || mutation.isPending}>
-            {mutation.isPending ? 'Enregistrement…' : 'Enregistrer'}
           </Button>
         </DialogActions>
       </form>
