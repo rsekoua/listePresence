@@ -15,7 +15,7 @@ import {
   ThemeIcon,
   Title,
 } from '@mantine/core'
-import { DataTable } from 'mantine-datatable'
+import { DataTable, type DataTableSortStatus } from 'mantine-datatable'
 import {
   IconCalendarEvent,
   IconLock,
@@ -70,6 +70,10 @@ export function DashboardPage() {
 
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(PAGE_SIZES[0])
+  const [sortStatus, setSortStatus] = useState<DataTableSortStatus<Activite>>({
+    columnAccessor: 'date_debut',
+    direction: 'desc',
+  })
 
   const { data, isLoading } = useQuery({ queryKey: ['activites'], queryFn: fetchActivites })
   const { data: globalStats } = useQuery({
@@ -83,11 +87,44 @@ export function DashboardPage() {
   const fermees = activites.filter((a) => a.statut !== 'ouvert').length
   const participantsUniques = globalStats?.nb_participants_uniques ?? 0
 
+  // Tri client de la liste complète, avant pagination.
+  const sorted = useMemo(() => {
+    const all = [...(data ?? [])]
+    const { columnAccessor, direction } = sortStatus
+    const getVal = (a: Activite): string | number => {
+      switch (columnAccessor) {
+        case 'nb_participants':
+          return a.nb_participants
+        case 'date_debut':
+          return a.date_debut // ISO → comparable chronologiquement
+        case 'created_by':
+          return a.created_by?.username?.toLowerCase() ?? ''
+        case 'nom':
+          return a.nom.toLowerCase()
+        case 'ville':
+          return a.ville.toLowerCase()
+        case 'statut':
+          return a.statut
+        default:
+          return ''
+      }
+    }
+    all.sort((a, b) => {
+      const va = getVal(a)
+      const vb = getVal(b)
+      const cmp =
+        typeof va === 'number' && typeof vb === 'number'
+          ? va - vb
+          : String(va).localeCompare(String(vb), 'fr')
+      return direction === 'desc' ? -cmp : cmp
+    })
+    return all
+  }, [data, sortStatus])
+
   const paginated = useMemo(() => {
-    const all = data ?? []
     const from = (page - 1) * pageSize
-    return all.slice(from, from + pageSize)
-  }, [data, page, pageSize])
+    return sorted.slice(from, from + pageSize)
+  }, [sorted, page, pageSize])
 
   return (
     <Box>
@@ -138,7 +175,7 @@ export function DashboardPage() {
           <Text fw={600}>Liste des activités</Text>
         </Box>
         {!isDesktop ? (
-          <ActiviteCardList activites={activites} isLoading={isLoading} />
+          <ActiviteCardList activites={sorted} isLoading={isLoading} />
         ) : (
           <DataTable<Activite>
             minHeight={180}
@@ -159,10 +196,16 @@ export function DashboardPage() {
               setPageSize(size)
               setPage(1)
             }}
+            sortStatus={sortStatus}
+            onSortStatusChange={(status) => {
+              setSortStatus(status)
+              setPage(1)
+            }}
             columns={[
               {
                 accessor: 'nom',
                 title: "Libellé de l'activité",
+                sortable: true,
                 render: (a) => (
                   <Group gap="sm" wrap="nowrap">
                     <Avatar radius="xl" size={34} color="brand" variant="light">
@@ -179,6 +222,7 @@ export function DashboardPage() {
                 title: 'Participants',
                 width: 130,
                 textAlign: 'center',
+                sortable: true,
                 render: (a) => (
                   <Group gap={6} justify="center" wrap="nowrap">
                     <IconUsersGroup size={16} color="var(--mantine-color-gray-6)" />
@@ -191,6 +235,7 @@ export function DashboardPage() {
               {
                 accessor: 'ville',
                 title: 'Ville / Lieu',
+                sortable: true,
                 render: (a) => (
                   <Box>
                     <Text size="sm" fw={600} truncate>
@@ -205,6 +250,7 @@ export function DashboardPage() {
               {
                 accessor: 'created_by',
                 title: 'Organisateur',
+                sortable: true,
                 render: (a) => (
                   <Group gap={6} wrap="nowrap">
                     <IconUser size={16} color="var(--mantine-color-gray-5)" />
@@ -218,6 +264,7 @@ export function DashboardPage() {
                 accessor: 'date_debut',
                 title: 'Période',
                 width: 170,
+                sortable: true,
                 render: (a) => (
                   <Box>
                     <Text size="sm" fw={500}>
@@ -234,6 +281,7 @@ export function DashboardPage() {
                 title: 'Statut',
                 width: 120,
                 textAlign: 'center',
+                sortable: true,
                 render: (a) => {
                   const s = STATUT_META[a.statut]
                   return (
