@@ -18,6 +18,18 @@ body {
   font-size: 13px;
 }
 
+/* Entêtes de tableaux bien mis en valeur (DataTable + Table Mantine) :
+   bandeau zinc clair, casse normale, gras, police légèrement agrandie et
+   bordure basse appuyée pour bien détacher l'entête du corps. */
+.mantine-datatable .mantine-datatable-header th,
+.mantine-Table-thead .mantine-Table-th {
+  background-color: var(--mantine-color-gray-1);
+  color: var(--mantine-color-gray-8);
+  font-weight: 700;
+  font-size: 12px;
+  border-bottom: 2px solid var(--mantine-color-gray-3);
+}
+
 /* Scrollbars fines et discrètes */
 *::-webkit-scrollbar {
   width: 8px;

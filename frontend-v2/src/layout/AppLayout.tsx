@@ -19,7 +19,6 @@ import {
 } from '@mantine/core'
 import {
   IconDotsVertical,
-  IconHelpCircle,
   IconHistory,
   IconInfoCircle,
   IconLayoutDashboard,
@@ -55,17 +54,20 @@ const SECONDARY_NAV: NavItem[] = [
   { label: 'À propos', icon: IconInfoCircle, path: '/a-propos' },
 ]
 
-// Style flat des entrées de nav : accent latéral gauche quand actif.
+// Style des entrées de nav : pill à fond atténué arrondi quand actif (shadcn).
 const navLinkStyles = {
   root: {
-    borderRadius: rem(4),
-    marginBottom: rem(1),
+    borderRadius: rem(8),
+    marginBottom: rem(2),
     paddingTop: rem(7),
     paddingBottom: rem(7),
-    borderLeft: '2px solid transparent',
   },
   label: { fontSize: rem(13) },
 }
+
+// Gabarit du corps de page (figé après tests visuels).
+const BODY_MAX_WIDTH = 1320 // px — largeur max centrée du contenu
+const BODY_PADDING = 24 // px — marge bord ↔ contenu en desktop
 
 export function AppLayout() {
   const [opened, { toggle, close }] = useDisclosure(false)
@@ -95,13 +97,7 @@ export function AppLayout() {
             leftSection={<item.icon size={17} stroke={1.7} />}
             onClick={() => go(item.path)}
             variant="light"
-            styles={{
-              ...navLinkStyles,
-              root: {
-                ...navLinkStyles.root,
-                borderLeftColor: active ? 'var(--mantine-color-brand-6)' : 'transparent',
-              },
-            }}
+            styles={navLinkStyles}
           />
         )
       })
@@ -110,7 +106,7 @@ export function AppLayout() {
     <AppShell
       header={{ height: { base: 52, md: 0 } }}
       navbar={{ width: 232, breakpoint: 'md', collapsed: { mobile: !opened } }}
-      padding={{ base: 'md', md: 'lg' }}
+      padding={{ base: 'md', md: BODY_PADDING }}
     >
       {/* En-tête mobile (burger + marque) — masqué en desktop */}
       <AppShell.Header hiddenFrom="md">
@@ -142,14 +138,18 @@ export function AppLayout() {
         </Group>
         <Divider />
 
-        {/* Navigation principale */}
+        {/* Navigation principale (zone défilante qui occupe l'espace libre) */}
         <AppShell.Section grow component={ScrollArea} px="xs" py="sm">
           <Text size="xs" c="dimmed" fw={600} px="xs" mb={6} tt="uppercase" style={{ letterSpacing: 0.4 }}>
             Menu
           </Text>
           {renderNav(MAIN_NAV)}
+        </AppShell.Section>
 
-          <Text size="xs" c="dimmed" fw={600} px="xs" mb={6} mt="md" tt="uppercase" style={{ letterSpacing: 0.4 }}>
+        {/* Système — ancré en bas, juste au-dessus de la carte utilisateur */}
+        <Divider />
+        <AppShell.Section px="xs" py="sm">
+          <Text size="xs" c="dimmed" fw={600} px="xs" mb={6} tt="uppercase" style={{ letterSpacing: 0.4 }}>
             Système
           </Text>
           {renderNav(SECONDARY_NAV)}
@@ -205,7 +205,7 @@ export function AppLayout() {
       </AppShell.Navbar>
 
       <AppShell.Main>
-        <Box style={{ maxWidth: rem(1320), marginInline: 'auto' }}>
+        <Box style={{ maxWidth: rem(BODY_MAX_WIDTH), marginInline: 'auto' }}>
           <AppHeader />
           <Outlet />
         </Box>

@@ -597,6 +597,62 @@ def add_participant(
     return 201, participant
 
 
+@router.post(
+    "/{activite_id}/participants/{participant_id}",
+    response={200: ParticipantListOut, 409: MessageOut},
+)
+def update_participant(
+    request,
+    activite_id: UUID,
+    participant_id: UUID,
+    payload: ParticipantManualIn = Form(...),
+    photo_cni_recto: UploadedFile | None = File(None),
+    photo_cni_verso: UploadedFile | None = File(None),
+):
+    """Modifie un participant (créateur ou admin).
+
+    Permet notamment d'ajouter ou de remplacer les photos CNI a posteriori
+    lorsqu'elles n'étaient pas disponibles à l'enregistrement. Une face non
+    fournie conserve la photo existante.
+    """
+    from django.core.files.base import ContentFile
+
+    from apps.participants.api import _process_cni_image
+
+    activite = _get_activite(request.auth, activite_id)
+    _require_edit(request.auth, activite)
+    participant = get_object_or_404(
+        Participant, id=participant_id, activite_id=activite_id
+    )
+
+    # Anti-doublon : un autre participant de l'activité ne doit pas avoir ce CNI.
+    if (
+        Participant.objects.filter(activite=activite, numero_cni=payload.numero_cni)
+        .exclude(id=participant.id)
+        .exists()
+    ):
+        return 409, MessageOut(
+            detail="Un autre participant avec ce numéro de CNI est déjà "
+            "enregistré pour cette activité."
+        )
+
+    participant.nom = payload.nom.strip()
+    participant.prenom = payload.prenom.strip()
+    participant.structure = payload.structure.strip()
+    participant.fonction = payload.fonction.strip()
+    participant.telephone_wave = payload.telephone_wave
+    participant.email = payload.email
+    participant.numero_cni = payload.numero_cni
+    if photo_cni_recto is not None:
+        recto_bytes = _process_cni_image(photo_cni_recto)
+        participant.photo_cni_recto.save("recto.jpg", ContentFile(recto_bytes), save=False)
+    if photo_cni_verso is not None:
+        verso_bytes = _process_cni_image(photo_cni_verso)
+        participant.photo_cni_verso.save("verso.jpg", ContentFile(verso_bytes), save=False)
+    participant.save()
+    return 200, participant
+
+
 @router.get("/{activite_id}/stats", response=StatsOut)
 def participants_stats(request, activite_id: UUID):
     """Statistiques d'une activité (DASH-05)."""

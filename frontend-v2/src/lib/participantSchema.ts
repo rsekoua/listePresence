@@ -43,3 +43,12 @@ export function normalizePhoneDigits(raw: string): string {
 export function formatPhone(digits: string): string {
   return digits.match(/.{1,2}/g)?.join(' ') ?? ''
 }
+
+/**
+ * Convertit un numéro stocké (« +2250701020304 ») en 10 chiffres locaux
+ * (« 0701020304 ») pour pré-remplir le champ téléphone à l'édition.
+ */
+export function toLocalPhoneDigits(stored: string): string {
+  const raw = stored.replace(/\D/g, '')
+  return (raw.startsWith('225') ? raw.slice(3) : raw).slice(0, 10)
+}

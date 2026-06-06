@@ -1,62 +1,53 @@
 import { createTheme, type MantineColorsTuple } from '@mantine/core'
 
 /**
- * Identité « Graphite & Ambre — Premium / Éditorial ».
- * Base neutre ardoise (graphite) reposante pour les tableaux denses, relevée
- * par un unique accent ambre chaud sur les actions. Bordures fines, pas
- * d'ombres, coins modérément arrondis, typographie compacte (≈ 13 px).
+ * Identité « shadcn/ui — Neutral ».
+ * Base neutre zinc (gris froid), primaire quasi-noir sur les actions, bordures
+ * fines gris clair, coins arrondis ~8px et ombres très subtiles. Look épuré,
+ * beaucoup de blanc, à la https://ui.shadcn.com/.
  */
 
-// Accent ambre (couleur primaire « brand »).
-const brand: MantineColorsTuple = [
-  '#fffbeb', // 0
-  '#fef3c7', // 1
-  '#fde68a', // 2
-  '#fcd34d', // 3
-  '#fbbf24', // 4
-  '#f59e0b', // 5
-  '#d97706', // 6 ← accent vif
-  '#b45309', // 7 ← principal (ambre brûlé, contraste AA sur blanc)
-  '#92400e', // 8
-  '#78350f', // 9
-]
-
-// Base neutre ardoise : remplace le gris Mantine (texte atténué, bordures,
-// fonds clairs) pour une tonalité graphite cohérente.
-const slate: MantineColorsTuple = [
-  '#f8fafc', // 0
-  '#f1f5f9', // 1
-  '#e2e8f0', // 2
-  '#cbd5e1', // 3
-  '#94a3b8', // 4
-  '#64748b', // 5
-  '#475569', // 6
-  '#334155', // 7
-  '#1e293b', // 8
-  '#0f172a', // 9
+// Échelle neutre « zinc » (Tailwind) — sert à la fois de base (gris) et de
+// couleur primaire quasi-noire (shade 9 = #18181b, texte blanc).
+const zinc: MantineColorsTuple = [
+  '#fafafa', // 0
+  '#f4f4f5', // 1
+  '#e4e4e7', // 2  ← bordures
+  '#d4d4d8', // 3
+  '#a1a1aa', // 4
+  '#71717a', // 5  ← texte atténué
+  '#52525b', // 6
+  '#3f3f46', // 7
+  '#27272a', // 8
+  // '#0f0f8b', // 9  ← primaire (quasi-noir)
+  '#18181b', // 9  ← primaire (quasi-noir)
 ]
 
 export const theme = createTheme({
   primaryColor: 'brand',
-  // Ambre brûlé (shade 7) comme couleur de remplissage : contraste suffisant
-  // avec le texte blanc des boutons, rendu plus « premium » que l'orange vif.
-  primaryShade: 7,
-  colors: { brand, gray: slate },
-  // Encre graphite plutôt que noir pur (ton éditorial).
-  black: '#0f172a',
+  // Primaire quasi-noir en clair (boutons foncés, texte blanc), quasi-blanc en
+  // sombre — exactement le comportement shadcn.
+  primaryShade: { light: 9, dark: 0 },
+  colors: { brand: zinc, gray: zinc },
+  white: '#ffffff',
+  black: '#09090b', // zinc-950 (texte principal)
   fontFamily:
     '"Inter Variable", Inter, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
   fontFamilyMonospace: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-  // Coins modérément arrondis (un peu plus aéré que le flat émeraude).
+  // Coins arrondis ~0.5rem (radius shadcn par défaut).
   defaultRadius: 'md',
   radius: {
     xs: '4px',
     sm: '6px',
     md: '8px',
-    lg: '11px',
-    xl: '14px',
+    lg: '12px',
+    xl: '16px',
   },
-  // Typographie compacte (base ≈ 13 px) — app de données dense.
+  // Ombres très douces (style shadcn shadow-sm).
+  shadows: {
+    xs: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+    sm: '0 1px 3px 0 rgba(0, 0, 0, 0.07), 0 1px 2px -1px rgba(0, 0, 0, 0.07)',
+  },
   fontSizes: {
     xs: '0.6875rem', // 11
     sm: '0.75rem', // 12
@@ -66,30 +57,30 @@ export const theme = createTheme({
   },
   lineHeights: {
     xs: '1.3',
-    sm: '1.35',
-    md: '1.4',
-    lg: '1.45',
-    xl: '1.5',
+    sm: '1.4',
+    md: '1.45',
+    lg: '1.5',
+    xl: '1.55',
   },
   headings: {
-    fontWeight: '700',
+    fontWeight: '600',
     sizes: {
       h1: { fontSize: '1.5rem', fontWeight: '700', lineHeight: '1.25' },
-      h2: { fontSize: '1.25rem', fontWeight: '700', lineHeight: '1.3' },
-      h3: { fontSize: '1.0625rem', fontWeight: '700', lineHeight: '1.3' },
-      h4: { fontSize: '0.9375rem', fontWeight: '700', lineHeight: '1.35' },
-      h5: { fontSize: '0.85rem', fontWeight: '700', lineHeight: '1.4' },
-      h6: { fontSize: '0.78rem', fontWeight: '700', lineHeight: '1.4' },
+      h2: { fontSize: '1.25rem', fontWeight: '600', lineHeight: '1.3' },
+      h3: { fontSize: '1.0625rem', fontWeight: '600', lineHeight: '1.3' },
+      h4: { fontSize: '0.9375rem', fontWeight: '600', lineHeight: '1.35' },
+      h5: { fontSize: '0.85rem', fontWeight: '600', lineHeight: '1.4' },
+      h6: { fontSize: '0.78rem', fontWeight: '600', lineHeight: '1.4' },
     },
   },
   cursorType: 'pointer',
   components: {
-    // Surfaces plates : bordure fine, aucune ombre, coins un peu plus doux.
+    // Surfaces : bordure fine zinc + ombre très douce (carte shadcn).
     Paper: {
-      defaultProps: { radius: 'md', withBorder: true, shadow: undefined },
+      defaultProps: { radius: 'md', withBorder: true, shadow: 'xs' },
     },
     Card: {
-      defaultProps: { radius: 'md', withBorder: true, shadow: undefined },
+      defaultProps: { radius: 'lg', withBorder: true, shadow: 'xs' },
     },
     Button: {
       defaultProps: { radius: 'md', size: 'sm' },

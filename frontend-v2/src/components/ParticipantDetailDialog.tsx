@@ -2,21 +2,31 @@ import { useState } from 'react'
 import dayjs from 'dayjs'
 import { useQueryClient } from '@tanstack/react-query'
 import { Avatar, Box, Button, Divider, Group, Modal, Stack, Text } from '@mantine/core'
-import { IconFileTypePdf } from '@tabler/icons-react'
+import { IconFileTypePdf, IconPencil } from '@tabler/icons-react'
 import { type Participant } from '../api/participants'
 import { exportParticipantPdf } from '../api/exports'
 import { notify } from '../lib/notify'
 import { CniPhotos } from './CniPhotos'
+import { EditParticipantDialog } from './EditParticipantDialog'
 
 interface Props {
   activiteId: string
   participant: Participant | null
   opened: boolean
   onClose: () => void
+  /** Affiche l'action « Modifier » (édition réservée aux comptes autorisés). */
+  canEdit?: boolean
 }
 
-export function ParticipantDetailDialog({ activiteId, participant, opened, onClose }: Props) {
+export function ParticipantDetailDialog({
+  activiteId,
+  participant,
+  opened,
+  onClose,
+  canEdit = false,
+}: Props) {
   const [downloading, setDownloading] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
   const queryClient = useQueryClient()
 
   const downloadPdf = async () => {
@@ -47,11 +57,11 @@ export function ParticipantDetailDialog({ activiteId, participant, opened, onClo
     <Modal opened={opened} onClose={onClose} size="lg" centered title={null}>
       <Group gap="md" align="center" wrap="nowrap" mb="md">
         <Avatar color="brand" radius="md">
-          {participant.prenom.charAt(0).toUpperCase()}
+          {participant.prenom.charAt(0).toUpperCase()}{participant.nom.charAt(0).toUpperCase()}
         </Avatar>
         <Box style={{ flexGrow: 1, minWidth: 0 }}>
-          <Text fw={700} truncate>
-            {participant.prenom} {participant.nom}
+          <Text fw={700} size="lg" truncate>
+            {participant.prenom.toUpperCase()} {participant.nom.toUpperCase()}
           </Text>
           <Text size="xs" c="dimmed" truncate>
             {participant.structure}
@@ -75,7 +85,16 @@ export function ParticipantDetailDialog({ activiteId, participant, opened, onClo
       <Divider my="md" />
       <CniPhotos activiteId={activiteId} participantId={participant.id} enabled={opened} />
 
-      <Group justify="flex-end" mt="lg">
+      <Group justify={canEdit ? 'space-between' : 'flex-end'} mt="lg">
+        {canEdit && (
+          <Button
+            variant="default"
+            leftSection={<IconPencil size={18} />}
+            onClick={() => setEditOpen(true)}
+          >
+            Modifier
+          </Button>
+        )}
         <Button
           leftSection={<IconFileTypePdf size={18} />}
           loading={downloading}
@@ -84,6 +103,14 @@ export function ParticipantDetailDialog({ activiteId, participant, opened, onClo
           Télécharger la fiche PDF
         </Button>
       </Group>
+
+      <EditParticipantDialog
+        activiteId={activiteId}
+        participant={participant}
+        opened={editOpen}
+        onClose={() => setEditOpen(false)}
+        onUpdated={onClose}
+      />
     </Modal>
   )
 }

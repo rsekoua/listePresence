@@ -170,6 +170,13 @@ class AjoutManuelParticipantTests(TestCase):
             **bearer(self.org),
         )
 
+    def _update(self, pid, **extra):
+        return self.client.post(
+            f"/api/activites/{self.act.id}/participants/{pid}",
+            data={**self.BASE, **extra},
+            **bearer(self.org),
+        )
+
     def test_ajout_sans_photo(self):
         r = self._add()
         self.assertEqual(r.status_code, 201, r.content)
@@ -196,3 +203,44 @@ class AjoutManuelParticipantTests(TestCase):
 
     def test_telephone_invalide_422(self):
         self.assertEqual(self._add(telephone_wave="123").status_code, 422)
+
+    # --- Modification d'un participant -------------------------------------
+
+    def test_update_champs(self):
+        pid = self._add().json()["id"]
+        r = self._update(pid, fonction="Directrice", email="awa2@x.ci")
+        self.assertEqual(r.status_code, 200, r.content)
+        p = Participant.objects.get(id=pid)
+        self.assertEqual(p.fonction, "Directrice")
+        self.assertEqual(p.email, "awa2@x.ci")
+
+    def test_update_ajoute_cni_a_posteriori(self):
+        pid = self._add().json()["id"]  # saisi sans photo
+        self.assertFalse(Participant.objects.get(id=pid).photo_cni_recto)
+        r = self._update(
+            pid,
+            photo_cni_recto=SimpleUploadedFile("r.jpg", fake_image(), "image/jpeg"),
+            photo_cni_verso=SimpleUploadedFile("v.jpg", fake_image(), "image/jpeg"),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertTrue(r.json()["cni_complete"])
+        p = Participant.objects.get(id=pid)
+        self.assertTrue(p.photo_cni_recto)
+        self.assertTrue(p.photo_cni_verso)
+
+    def test_update_conserve_photos_si_absentes(self):
+        pid = self._add(
+            photo_cni_recto=SimpleUploadedFile("r.jpg", fake_image(), "image/jpeg"),
+            photo_cni_verso=SimpleUploadedFile("v.jpg", fake_image(), "image/jpeg"),
+        ).json()["id"]
+        r = self._update(pid, fonction="Chef")  # MAJ texte seule, sans photo
+        self.assertEqual(r.status_code, 200, r.content)
+        p = Participant.objects.get(id=pid)
+        self.assertTrue(p.photo_cni_recto)
+        self.assertTrue(p.photo_cni_verso)
+
+    def test_update_anti_doublon(self):
+        self.assertEqual(self._add(numero_cni="CNIA").status_code, 201)
+        pid_b = self._add(numero_cni="CNIB").json()["id"]
+        r = self._update(pid_b, numero_cni="CNIA")
+        self.assertEqual(r.status_code, 409)
