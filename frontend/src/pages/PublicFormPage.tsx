@@ -349,14 +349,14 @@ export function PublicFormPage() {
                 field={register('numero_cni')}
               />
               <PhotoUpload
-                label="Photo recto *"
+                label="Photo du recto de votre CNI *"
                 value={recto}
                 onChange={setRecto}
                 error={photoError.recto}
                 persistKey={`${token}_recto`}
               />
               <PhotoUpload
-                label="Photo verso *"
+                label="Photo du verso de votre CNI *"
                 value={verso}
                 onChange={setVerso}
                 error={photoError.verso}

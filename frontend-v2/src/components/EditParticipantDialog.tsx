@@ -166,8 +166,8 @@ export function EditParticipantDialog({
               : 'CNI actuelle incomplète. Ajoutez les photos manquantes ci-dessous.'}{' '}
             Laisser une face vide conserve la photo existante.
           </Text>
-          <PhotoUpload label="Photo recto" value={recto} onChange={setRecto} />
-          <PhotoUpload label="Photo verso" value={verso} onChange={setVerso} />
+          <PhotoUpload label="Photo du recto de votre CNI" value={recto} onChange={setRecto} />
+          <PhotoUpload label="Photo du verso de votre CNI" value={verso} onChange={setVerso} />
 
           {mutation.isError && !form.errors.numero_cni && (
             <Alert color="red" icon={<IconAlertCircle size={18} />} variant="light">
