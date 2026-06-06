@@ -210,7 +210,7 @@ JWT_ACCESS_LIFETIME_HOURS = int(os.getenv("JWT_ACCESS_LIFETIME_HOURS", "8"))
 JWT_REFRESH_LIFETIME_DAYS = int(os.getenv("JWT_REFRESH_LIFETIME_DAYS", "7"))
 
 # URL de base du formulaire public (encodée dans les QR Codes — cf. ACT-02)
-PUBLIC_FORM_BASE_URL = os.getenv("PUBLIC_FORM_BASE_URL", "http://localhost:5173")
+PUBLIC_FORM_BASE_URL = os.getenv("PUBLIC_FORM_BASE_URL", "http://localhost:5174")
 
 
 # Journalisation (Sprint 6) — console + fichier tournant dans logs/
