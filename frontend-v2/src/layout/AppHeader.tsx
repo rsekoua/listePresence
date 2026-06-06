@@ -38,11 +38,11 @@ export function AppHeader() {
           </Text>
         </Breadcrumbs>
 
-        <Tooltip label="Notifications">
+        {/* <Tooltip label="Notifications">
           <ActionIcon variant="default" size="md" aria-label="Notifications">
             <IconBell size={16} stroke={1.7} />
           </ActionIcon>
-        </Tooltip>
+        </Tooltip> */}
       </Group>
     </Box>
   )

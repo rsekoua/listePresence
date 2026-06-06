@@ -45,13 +45,14 @@ const MAIN_NAV: NavItem[] = [
   { label: "Vue d'ensemble", icon: IconLayoutDashboard, path: '/dashboard' },
   { label: 'Participants', icon: IconUsersGroup, path: '/participants' },
   { label: 'Utilisateurs', icon: IconUserCog, path: '/utilisateurs', adminOnly: true },
-  { label: "Journal d'audit", icon: IconHistory, path: '/journal', adminOnly: true },
+  
 ]
 
 const SECONDARY_NAV: NavItem[] = [
   { label: 'Paramètres', icon: IconSettings, path: '/parametres' },
+  // { label: 'Aide', icon: IconHelpCircle, path: '/aide' },
+  { label: "Journal d'audit", icon: IconHistory, path: '/journal', adminOnly: true },
   { label: 'À propos', icon: IconInfoCircle, path: '/a-propos' },
-  { label: 'Aide', icon: IconHelpCircle, path: '/aide' },
 ]
 
 // Style flat des entrées de nav : accent latéral gauche quand actif.

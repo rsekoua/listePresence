@@ -1,40 +1,62 @@
 import { createTheme, type MantineColorsTuple } from '@mantine/core'
 
 /**
- * Identité « Émeraude — Flat & Dense ».
- * Style administrateur/données : accent vert émeraude, bordures fines,
- * pas d'ombres, coins peu arrondis, typographie compacte (≈ 13 px).
+ * Identité « Graphite & Ambre — Premium / Éditorial ».
+ * Base neutre ardoise (graphite) reposante pour les tableaux denses, relevée
+ * par un unique accent ambre chaud sur les actions. Bordures fines, pas
+ * d'ombres, coins modérément arrondis, typographie compacte (≈ 13 px).
  */
+
+// Accent ambre (couleur primaire « brand »).
 const brand: MantineColorsTuple = [
-  '#ecfdf5', // 0
-  '#d1fae5', // 1
-  '#a7f3d0', // 2
-  '#6ee7b7', // 3
-  '#34d399', // 4
-  '#10b981', // 5
-  '#059669', // 6 ← principal (émeraude 600)
-  '#047857', // 7
-  '#065f46', // 8
-  '#064e3b', // 9
+  '#fffbeb', // 0
+  '#fef3c7', // 1
+  '#fde68a', // 2
+  '#fcd34d', // 3
+  '#fbbf24', // 4
+  '#f59e0b', // 5
+  '#d97706', // 6 ← accent vif
+  '#b45309', // 7 ← principal (ambre brûlé, contraste AA sur blanc)
+  '#92400e', // 8
+  '#78350f', // 9
+]
+
+// Base neutre ardoise : remplace le gris Mantine (texte atténué, bordures,
+// fonds clairs) pour une tonalité graphite cohérente.
+const slate: MantineColorsTuple = [
+  '#f8fafc', // 0
+  '#f1f5f9', // 1
+  '#e2e8f0', // 2
+  '#cbd5e1', // 3
+  '#94a3b8', // 4
+  '#64748b', // 5
+  '#475569', // 6
+  '#334155', // 7
+  '#1e293b', // 8
+  '#0f172a', // 9
 ]
 
 export const theme = createTheme({
   primaryColor: 'brand',
-  primaryShade: 6,
-  colors: { brand },
+  // Ambre brûlé (shade 7) comme couleur de remplissage : contraste suffisant
+  // avec le texte blanc des boutons, rendu plus « premium » que l'orange vif.
+  primaryShade: 7,
+  colors: { brand, gray: slate },
+  // Encre graphite plutôt que noir pur (ton éditorial).
+  black: '#0f172a',
   fontFamily:
     '"Inter Variable", Inter, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
   fontFamilyMonospace: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-  // Coins peu arrondis (look flat).
-  defaultRadius: 'sm',
+  // Coins modérément arrondis (un peu plus aéré que le flat émeraude).
+  defaultRadius: 'md',
   radius: {
-    xs: '3px',
-    sm: '5px',
-    md: '7px',
-    lg: '9px',
-    xl: '12px',
+    xs: '4px',
+    sm: '6px',
+    md: '8px',
+    lg: '11px',
+    xl: '14px',
   },
-  // Typographie compacte (base ≈ 13 px).
+  // Typographie compacte (base ≈ 13 px) — app de données dense.
   fontSizes: {
     xs: '0.6875rem', // 11
     sm: '0.75rem', // 12
@@ -62,18 +84,18 @@ export const theme = createTheme({
   },
   cursorType: 'pointer',
   components: {
-    // Surfaces plates : bordure fine, aucune ombre.
+    // Surfaces plates : bordure fine, aucune ombre, coins un peu plus doux.
     Paper: {
-      defaultProps: { radius: 'sm', withBorder: true, shadow: undefined },
+      defaultProps: { radius: 'md', withBorder: true, shadow: undefined },
     },
     Card: {
-      defaultProps: { radius: 'sm', withBorder: true, shadow: undefined },
+      defaultProps: { radius: 'md', withBorder: true, shadow: undefined },
     },
     Button: {
-      defaultProps: { radius: 'sm', size: 'sm' },
+      defaultProps: { radius: 'md', size: 'sm' },
     },
     ActionIcon: {
-      defaultProps: { radius: 'sm' },
+      defaultProps: { radius: 'md' },
     },
     Badge: {
       defaultProps: { radius: 'sm' },
@@ -84,7 +106,7 @@ export const theme = createTheme({
     Textarea: { defaultProps: { size: 'sm' } },
     NumberInput: { defaultProps: { size: 'sm' } },
     Modal: {
-      defaultProps: { radius: 'sm' },
+      defaultProps: { radius: 'md' },
     },
   },
 })

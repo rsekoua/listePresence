@@ -16,6 +16,7 @@ import {
 } from '@mantine/core'
 import { IconCalendarEvent, IconChevronRight, IconMapPin } from '@tabler/icons-react'
 import { fetchPersonneHistorique } from '../api/participants'
+import { CniPhotos } from './CniPhotos'
 
 interface Props {
   numeroCni: string | null
@@ -74,6 +75,30 @@ export function PersonneHistoriqueDialog({ numeroCni, opened, onClose }: Props) 
               </Group>
             ))}
           </Stack>
+
+          <Divider my="md" />
+
+          {/* Pièce d'identité — issue de la participation la plus récente
+              disposant d'une CNI complète (la personne est dédupliquée par CNI). */}
+          {(() => {
+            const source = data.participations.find((p) => p.cni_complete)
+            return source ? (
+              <CniPhotos
+                activiteId={source.activite_id}
+                participantId={source.participant_id}
+                enabled={opened}
+              />
+            ) : (
+              <>
+                <Text fw={600} size="sm" mb="sm">
+                  Pièce d'identité
+                </Text>
+                <Text size="sm" c="dimmed">
+                  Aucune photo de CNI enregistrée pour cette personne.
+                </Text>
+              </>
+            )
+          })()}
 
           <Divider my="md" />
 

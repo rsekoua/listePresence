@@ -208,18 +208,19 @@ export function ActiviteDetailPage() {
               Informations
             </Title>
             <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md" verticalSpacing="md">
-              <Info icon={<IconMapPin size={18} />} label="Ville" value={activite.ville} />
-              <Info icon={<IconMapPin size={18} />} label="Lieu" value={activite.lieu} />
+              <Info icon={<IconMapPin size={18} />} label="Ville de l'activité" value={activite.ville} />
+              <Info icon={<IconMapPin size={18} />} label="Lieu de l'activité" value={activite.lieu} />
               <Info
                 icon={<IconClock size={18} />}
-                label="Période"
+                label="Période de  l'activité"
                 value={`${dayjs(activite.date_debut).format('DD/MM/YYYY HH:mm')} → ${dayjs(
                   activite.date_fin,
                 ).format('DD/MM/YYYY HH:mm')}`}
+                
               />
               <Info
                 icon={<IconUser size={18} />}
-                label="Organisateur"
+                label="Agent administrateur"
                 value={activite.created_by.username}
               />
               {activite.description && (
@@ -331,7 +332,7 @@ function Info({ icon, label, value }: { icon: ReactNode; label: string; value: s
         <Text size="xs" c="dimmed">
           {label}
         </Text>
-        <Text>{value}</Text>
+        <Text fw={500}>{value}</Text>
       </Box>
     </Group>
   )
