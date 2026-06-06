@@ -118,9 +118,15 @@ export async function createParticipant(
   activiteId: string,
   input: ParticipantInput,
 ): Promise<Participant> {
+  // L'endpoint accepte désormais des photos CNI optionnelles (multipart) ;
+  // la saisie manuelle envoie uniquement les champs texte. `Content-Type: false`
+  // retire le défaut JSON du client pour laisser le navigateur poser le boundary.
+  const fd = new FormData()
+  Object.entries(input).forEach(([key, value]) => fd.append(key, value))
   const { data } = await api.post<Participant>(
     `/activites/${activiteId}/participants`,
-    input,
+    fd,
+    { headers: { 'Content-Type': false } },
   )
   return data
 }

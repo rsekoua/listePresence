@@ -117,10 +117,20 @@ export interface ParticipantInput {
 export async function createParticipant(
   activiteId: string,
   input: ParticipantInput,
+  photos?: { recto?: File | null; verso?: File | null },
 ): Promise<Participant> {
+  const fd = new FormData()
+  Object.entries(input).forEach(([key, value]) => fd.append(key, value))
+  if (photos?.recto) fd.append('photo_cni_recto', photos.recto)
+  if (photos?.verso) fd.append('photo_cni_verso', photos.verso)
+
   const { data } = await api.post<Participant>(
     `/activites/${activiteId}/participants`,
-    input,
+    fd,
+    // Le client a un Content-Type JSON par défaut, qui sérialiserait le
+    // FormData en JSON (photos perdues) ; `false` le retire pour laisser le
+    // navigateur poser le boundary multipart.
+    { headers: { 'Content-Type': false } },
   )
   return data
 }

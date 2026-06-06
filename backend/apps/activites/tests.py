@@ -1,15 +1,17 @@
 """Tests RBAC et CRUD des activités (Sprint 6)."""
 
 import json
+import tempfile
 from datetime import timedelta
 
-from django.test import Client, TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import Client, TestCase, override_settings
 from django.utils import timezone
 
 from apps.accounts.models import User
 from apps.activites.models import Activite
 from apps.participants.models import Participant
-from apps.testutils import bearer
+from apps.testutils import bearer, fake_image
 
 
 def make_activite(owner, statut="ouvert", nom="Activité"):
@@ -138,3 +140,59 @@ class ActiviteRBACTests(TestCase):
         with CaptureQueriesContext(connection) as ctx2:
             self.client.get("/api/activites/", **bearer(self.admin))
         self.assertEqual(len(ctx2), len(ctx1))
+
+
+@override_settings(MEDIA_ROOT=tempfile.mkdtemp())
+class AjoutManuelParticipantTests(TestCase):
+    """Ajout manuel d'un participant (multipart, photos CNI facultatives)."""
+
+    def setUp(self):
+        self.client = Client()
+        self.org = User.objects.create_user(
+            username="org", email="o@x.ci", password="x", role="organisateur"
+        )
+        self.act = make_activite(self.org, "ouvert", "Atelier")
+
+    BASE = {
+        "nom": "Kouassi",
+        "prenom": "Awa",
+        "structure": "ONG",
+        "fonction": "Coordinatrice",
+        "telephone_wave": "0701020304",
+        "email": "awa@x.ci",
+        "numero_cni": "CI123456",
+    }
+
+    def _add(self, **extra):
+        return self.client.post(
+            f"/api/activites/{self.act.id}/participants",
+            data={**self.BASE, **extra},
+            **bearer(self.org),
+        )
+
+    def test_ajout_sans_photo(self):
+        r = self._add()
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertFalse(r.json()["cni_complete"])
+        p = Participant.objects.get(activite=self.act)
+        self.assertEqual(p.telephone_wave, "+2250701020304")
+        self.assertFalse(p.photo_cni_recto)
+
+    def test_ajout_avec_photos(self):
+        r = self._add(
+            numero_cni="CI999",
+            photo_cni_recto=SimpleUploadedFile("r.jpg", fake_image(), "image/jpeg"),
+            photo_cni_verso=SimpleUploadedFile("v.jpg", fake_image(), "image/jpeg"),
+        )
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertTrue(r.json()["cni_complete"])
+        p = Participant.objects.get(numero_cni="CI999")
+        self.assertTrue(p.photo_cni_recto)
+        self.assertTrue(p.photo_cni_verso)
+
+    def test_anti_doublon_cni(self):
+        self.assertEqual(self._add().status_code, 201)
+        self.assertEqual(self._add().status_code, 409)
+
+    def test_telephone_invalide_422(self):
+        self.assertEqual(self._add(telephone_wave="123").status_code, 422)

@@ -18,8 +18,9 @@ from django.conf import settings
 from django.db.models import Count
 from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404
-from ninja import Query, Router, Schema
+from ninja import File, Form, Query, Router, Schema
 from ninja.errors import HttpError
+from ninja.files import UploadedFile
 from ninja.pagination import paginate
 from pydantic import field_validator
 
@@ -481,7 +482,7 @@ class StatsOut(Schema):
 
 
 class ParticipantManualIn(Schema):
-    """Ajout manuel d'un participant par un organisateur (sans photos CNI)."""
+    """Ajout manuel d'un participant par un organisateur (photos CNI facultatives)."""
 
     nom: str
     prenom: str
@@ -548,29 +549,51 @@ def list_participants(
 
 
 @router.post("/{activite_id}/participants", response={201: ParticipantListOut, 409: MessageOut})
-def add_participant(request, activite_id: UUID, data: ParticipantManualIn):
-    """Ajout manuel d'un participant (créateur ou admin — sans photos CNI)."""
+def add_participant(
+    request,
+    activite_id: UUID,
+    payload: ParticipantManualIn = Form(...),
+    photo_cni_recto: UploadedFile | None = File(None),
+    photo_cni_verso: UploadedFile | None = File(None),
+):
+    """Ajout manuel d'un participant (créateur ou admin).
+
+    Les photos CNI sont facultatives : l'organisateur peut saisir un
+    participant sans pièce, ou joindre le recto et/ou le verso s'il les
+    possède (mêmes traitement et validation que le formulaire public).
+    """
+    from django.core.files.base import ContentFile
+
+    from apps.participants.api import _process_cni_image
+
     activite = _get_activite(request.auth, activite_id)
     _require_edit(request.auth, activite)
     if activite.statut != Activite.Statut.OUVERT:
         raise HttpError(403, "La collecte est fermée : impossible d'ajouter un participant.")
     if Participant.objects.filter(
-        activite=activite, numero_cni=data.numero_cni
+        activite=activite, numero_cni=payload.numero_cni
     ).exists():
         return 409, MessageOut(
             detail="Un participant avec ce numéro de CNI est déjà enregistré "
             "pour cette activité."
         )
-    participant = Participant.objects.create(
+    participant = Participant(
         activite=activite,
-        nom=data.nom.strip(),
-        prenom=data.prenom.strip(),
-        structure=data.structure.strip(),
-        fonction=data.fonction.strip(),
-        telephone_wave=data.telephone_wave,
-        email=data.email,
-        numero_cni=data.numero_cni,
+        nom=payload.nom.strip(),
+        prenom=payload.prenom.strip(),
+        structure=payload.structure.strip(),
+        fonction=payload.fonction.strip(),
+        telephone_wave=payload.telephone_wave,
+        email=payload.email,
+        numero_cni=payload.numero_cni,
     )
+    if photo_cni_recto is not None:
+        recto_bytes = _process_cni_image(photo_cni_recto)
+        participant.photo_cni_recto.save("recto.jpg", ContentFile(recto_bytes), save=False)
+    if photo_cni_verso is not None:
+        verso_bytes = _process_cni_image(photo_cni_verso)
+        participant.photo_cni_verso.save("verso.jpg", ContentFile(verso_bytes), save=False)
+    participant.save()
     return 201, participant
 
 

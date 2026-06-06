@@ -1,40 +1,20 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from '@mantine/form'
-import { zodResolver } from 'mantine-form-zod-resolver'
-import { z } from 'zod'
+import { zod4Resolver } from 'mantine-form-zod-resolver'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
-import { Alert, Button, Group, Modal, Stack, Text, TextInput } from '@mantine/core'
+import { Alert, Button, Divider, Group, Modal, Stack, Text, TextInput } from '@mantine/core'
 import { IconAlertCircle } from '@tabler/icons-react'
 import { createParticipant } from '../api/participants'
 import { notify } from '../lib/notify'
-
-const schema = z.object({
-  nom: z.string().min(1, 'Le nom est requis'),
-  prenom: z.string().min(1, 'Le prénom est requis'),
-  structure: z.string().min(1, 'La structure est requise'),
-  fonction: z.string().min(1, 'La fonction est requise'),
-  telephone_wave: z
-    .string()
-    .refine(
-      (v) => /^(?:\+?225)?\d{10}$/.test(v.replace(/[\s.\-()]/g, '')),
-      'Numéro ivoirien invalide (ex : 07 01 02 03 04)',
-    ),
-  email: z.string().email('Adresse email invalide'),
-  numero_cni: z.string().min(4, 'Numéro de CNI invalide'),
-})
-
-type FormValues = z.infer<typeof schema>
-
-const EMPTY: FormValues = {
-  nom: '',
-  prenom: '',
-  structure: '',
-  fonction: '',
-  telephone_wave: '',
-  email: '',
-  numero_cni: '',
-}
+import { PhotoUpload } from './PhotoUpload'
+import {
+  EMPTY_PARTICIPANT,
+  formatPhone,
+  normalizePhoneDigits,
+  participantSchema,
+  type ParticipantFormValues as FormValues,
+} from '../lib/participantSchema'
 
 interface Props {
   activiteId: string
@@ -44,10 +24,15 @@ interface Props {
 
 export function AddParticipantDialog({ activiteId, opened, onClose }: Props) {
   const queryClient = useQueryClient()
+  const [phoneFocused, setPhoneFocused] = useState(false)
+  const [recto, setRecto] = useState<File | null>(null)
+  const [verso, setVerso] = useState<File | null>(null)
   const form = useForm<FormValues>({
-    mode: 'uncontrolled',
-    initialValues: EMPTY,
-    validate: zodResolver(schema),
+    mode: 'controlled',
+    initialValues: EMPTY_PARTICIPANT,
+    validate: zod4Resolver(participantSchema),
+    // Retour immédiat : le champ requis se borde de rouge dès qu'on le quitte.
+    validateInputOnBlur: true,
   })
 
   useEffect(() => {
@@ -55,14 +40,22 @@ export function AddParticipantDialog({ activiteId, opened, onClose }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened])
 
+  // Réinitialise les photos à chaque fermeture (toutes voies : annuler,
+  // Échap, clic hors-modale, succès).
+  const handleClose = () => {
+    setRecto(null)
+    setVerso(null)
+    onClose()
+  }
+
   const mutation = useMutation({
-    mutationFn: (values: FormValues) => createParticipant(activiteId, values),
+    mutationFn: (values: FormValues) => createParticipant(activiteId, values, { recto, verso }),
     onSuccess: (p) => {
       queryClient.invalidateQueries({ queryKey: ['participants', activiteId] })
       queryClient.invalidateQueries({ queryKey: ['stats', activiteId] })
       queryClient.invalidateQueries({ queryKey: ['activites'] })
       notify.success(`Participant « ${p.prenom} ${p.nom} » ajouté.`)
-      onClose()
+      handleClose()
     },
     onError: (err) => {
       if (isAxiosError(err) && err.response?.status === 409) {
@@ -76,51 +69,86 @@ export function AddParticipantDialog({ activiteId, opened, onClose }: Props) {
     },
   })
 
+  const phoneDigits = normalizePhoneDigits(form.getValues().telephone_wave ?? '')
+
   return (
-    <Modal opened={opened} onClose={onClose} title="Ajouter un participant" size="lg" centered>
-      <form onSubmit={form.onSubmit((v) => mutation.mutate(v))}>
-        <Text size="sm" c="dimmed" mb="md">
-          Saisie manuelle (les photos de la CNI ne sont pas requises).
+    <Modal opened={opened} onClose={handleClose} title="Ajouter un participant" size="lg" centered>
+      <form onSubmit={form.onSubmit((v) => mutation.mutate(v))} noValidate>
+        <Text size="sm" c="dimmed" mb={4}>
+          Saisie manuelle. Les photos de la CNI sont facultatives.
+        </Text>
+        <Text size="xs" c="red" mb="md">
+          * Champ obligatoire
         </Text>
         <Stack gap="md">
           <Group grow align="flex-start">
-            <TextInput label="Nom" {...form.getInputProps('nom')} key={form.key('nom')} />
-            <TextInput label="Prénom" {...form.getInputProps('prenom')} key={form.key('prenom')} />
+            <TextInput
+              label="Nom"
+              required
+              {...form.getInputProps('nom')}
+              key={form.key('nom')}
+            />
+            <TextInput
+              label="Prénom"
+              required
+              {...form.getInputProps('prenom')}
+              key={form.key('prenom')}
+            />
           </Group>
           <TextInput
             label="Structure / Organisation"
+            required
             {...form.getInputProps('structure')}
             key={form.key('structure')}
           />
           <TextInput
             label="Fonction / Poste"
+            required
             {...form.getInputProps('fonction')}
             key={form.key('fonction')}
           />
           <TextInput
             label="Téléphone Wave"
+            required
             placeholder="07 01 02 03 04"
-            {...form.getInputProps('telephone_wave')}
-            key={form.key('telephone_wave')}
+            inputMode="tel"
+            maxLength={14}
+            value={phoneFocused ? phoneDigits : phoneDigits ? formatPhone(phoneDigits) : ''}
+            onChange={(e) =>
+              form.setFieldValue('telephone_wave', normalizePhoneDigits(e.currentTarget.value))
+            }
+            onFocus={() => setPhoneFocused(true)}
+            onBlur={() => {
+              setPhoneFocused(false)
+              form.validateField('telephone_wave')
+            }}
+            error={form.errors.telephone_wave}
           />
           <TextInput
             label="Adresse email"
+            required
             type="email"
             {...form.getInputProps('email')}
             key={form.key('email')}
           />
           <TextInput
             label="Numéro de CNI"
+            required
             {...form.getInputProps('numero_cni')}
             key={form.key('numero_cni')}
           />
+
+          <Divider label="Photos de la CNI (facultatif)" labelPosition="center" />
+          <PhotoUpload label="Photo recto" value={recto} onChange={setRecto} />
+          <PhotoUpload label="Photo verso" value={verso} onChange={setVerso} />
+
           {mutation.isError && !form.errors.numero_cni && (
             <Alert color="red" icon={<IconAlertCircle size={18} />} variant="light">
               Une erreur est survenue.
             </Alert>
           )}
           <Group justify="flex-end" mt="sm">
-            <Button variant="default" onClick={onClose}>
+            <Button variant="default" onClick={handleClose}>
               Annuler
             </Button>
             <Button type="submit" loading={mutation.isPending}>

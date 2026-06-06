@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useForm } from '@mantine/form'
-import { zodResolver } from 'mantine-form-zod-resolver'
+import { zod4Resolver } from 'mantine-form-zod-resolver'
 import { z } from 'zod'
 import { useMutation } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
@@ -36,7 +36,7 @@ export function LoginPage() {
   const form = useForm<LoginForm>({
     mode: 'uncontrolled',
     initialValues: { username: '', password: '' },
-    validate: zodResolver(schema),
+    validate: zod4Resolver(schema),
   })
 
   const mutation = useMutation({

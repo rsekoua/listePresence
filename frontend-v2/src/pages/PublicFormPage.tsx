@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
 import { useForm } from '@mantine/form'
-import { zodResolver } from 'mantine-form-zod-resolver'
-import { z } from 'zod'
+import { zod4Resolver } from 'mantine-form-zod-resolver'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
 import dayjs from 'dayjs'
@@ -37,33 +36,13 @@ import {
   type ParticipantConfirmation,
 } from '../api/public'
 import { PhotoUpload } from '../components/PhotoUpload'
-
-const schema = z.object({
-  nom: z.string().min(1, 'Le nom est requis'),
-  prenom: z.string().min(1, 'Le prénom est requis'),
-  structure: z.string().min(1, 'La structure est requise'),
-  fonction: z.string().min(1, 'La fonction est requise'),
-  telephone_wave: z
-    .string()
-    .refine(
-      (v) => /^(?:\+?225)?\d{10}$/.test(v.replace(/[\s.\-()]/g, '')),
-      'Numéro ivoirien invalide (ex : 07 01 02 03 04)',
-    ),
-  email: z.string().email('Adresse email invalide'),
-  numero_cni: z.string().min(4, 'Numéro de CNI invalide'),
-})
-
-type FormValues = z.infer<typeof schema>
-
-const EMPTY: FormValues = {
-  nom: '',
-  prenom: '',
-  structure: '',
-  fonction: '',
-  telephone_wave: '',
-  email: '',
-  numero_cni: '',
-}
+import {
+  EMPTY_PARTICIPANT,
+  formatPhone,
+  normalizePhoneDigits,
+  participantSchema,
+  type ParticipantFormValues as FormValues,
+} from '../lib/participantSchema'
 
 /** Convertit un fichier en dataURL (pour persistance hors-ligne). */
 function fileToDataUrl(file: File): Promise<string> {
@@ -80,11 +59,6 @@ async function dataUrlToFile(dataUrl: string, name: string): Promise<File> {
   const res = await fetch(dataUrl)
   const blob = await res.blob()
   return new File([blob], name, { type: blob.type || 'image/jpeg' })
-}
-
-/** Formate 10 chiffres en « 07 01 02 03 04 ». */
-function formatPhone(digits: string): string {
-  return digits.match(/.{1,2}/g)?.join(' ') ?? ''
 }
 
 export function PublicFormPage() {
@@ -109,8 +83,8 @@ export function PublicFormPage() {
 
   const form = useForm<FormValues>({
     mode: 'controlled',
-    initialValues: saved ?? EMPTY,
-    validate: zodResolver(schema),
+    initialValues: saved ?? EMPTY_PARTICIPANT,
+    validate: zod4Resolver(participantSchema),
     // Sauvegarde hors-ligne partielle (FORM-08) — champs texte uniquement.
     onValuesChange: (values) => {
       localStorage.setItem(storageKey, JSON.stringify(values))
@@ -245,7 +219,7 @@ export function PublicFormPage() {
 
   // --- Formulaire ----------------------------------------------------------
 
-  const phoneDigits = (form.getValues().telephone_wave ?? '').replace(/\D/g, '').slice(0, 10)
+  const phoneDigits = normalizePhoneDigits(form.getValues().telephone_wave ?? '')
 
   return (
     <Box mih="100vh" bg="#f0f4f8" py={{ base: 'sm', sm: 'xl' }}>
@@ -338,10 +312,7 @@ export function PublicFormPage() {
                 maxLength={14}
                 value={phoneFocused ? phoneDigits : phoneDigits ? formatPhone(phoneDigits) : ''}
                 onChange={(e) =>
-                  form.setFieldValue(
-                    'telephone_wave',
-                    e.currentTarget.value.replace(/\D/g, '').slice(0, 10),
-                  )
+                  form.setFieldValue('telephone_wave', normalizePhoneDigits(e.currentTarget.value))
                 }
                 onFocus={() => setPhoneFocused(true)}
                 onBlur={() => setPhoneFocused(false)}
