@@ -1,0 +1,3004 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "API Gestion de Présence",
+    "version": "1.0.0",
+    "description": "API du système web de gestion de présence aux activités (MVP)."
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "operationId": "config_api_health",
+        "summary": "Health",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "description": "Vérification simple de disponibilité de l'API.",
+        "tags": [
+          "système"
+        ]
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "operationId": "apps_accounts_api_login",
+        "summary": "Login",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Connexion organisateur : retourne un couple de tokens JWT.",
+        "tags": [
+          "authentification"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginIn"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/auth/refresh": {
+      "post": {
+        "operationId": "apps_accounts_api_refresh",
+        "summary": "Refresh",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Renouvelle le token d'accès à partir d'un token de rafraîchissement.",
+        "tags": [
+          "authentification"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshIn"
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "operationId": "apps_accounts_api_logout",
+        "summary": "Logout",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Déconnexion : avec des JWT sans état, le client supprime ses tokens.\n\nL'endpoint sert de point d'extension (journalisation / future\nliste de révocation) et confirme la déconnexion.",
+        "tags": [
+          "authentification"
+        ],
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "operationId": "apps_accounts_api_me",
+        "summary": "Me",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Retourne les informations de l'organisateur connecté.",
+        "tags": [
+          "authentification"
+        ],
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      }
+    },
+    "/api/auth/change-password": {
+      "post": {
+        "operationId": "apps_accounts_api_change_password",
+        "summary": "Change Password",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Change le mot de passe de l'organisateur connecté.",
+        "tags": [
+          "authentification"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangePasswordIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      }
+    },
+    "/api/auth/users": {
+      "get": {
+        "operationId": "apps_accounts_api_list_users",
+        "summary": "List Users",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/UserListOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            }
+          }
+        },
+        "description": "Liste tous les comptes (admin uniquement).",
+        "tags": [
+          "authentification"
+        ],
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "apps_accounts_api_create_user",
+        "summary": "Create User",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserListOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Crée un compte organisateur ou admin (admin uniquement).",
+        "tags": [
+          "authentification"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCreateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      }
+    },
+    "/api/auth/users/{user_id}": {
+      "patch": {
+        "operationId": "apps_accounts_api_update_user",
+        "summary": "Update User",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserListOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Modifie un compte (nom, email, rôle, activation) — admin uniquement.",
+        "tags": [
+          "authentification"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserUpdateIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "apps_accounts_api_delete_user",
+        "summary": "Delete User",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Supprime un compte (admin uniquement).\n\nRefusé pour son propre compte, ou si l'utilisateur a créé des activités\n(le désactiver à la place pour ne pas perdre les données liées).",
+        "tags": [
+          "authentification"
+        ],
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      }
+    },
+    "/api/auth/users/{user_id}/reset-password": {
+      "post": {
+        "operationId": "apps_accounts_api_reset_user_password",
+        "summary": "Reset User Password",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Réinitialise le mot de passe d'un utilisateur (admin uniquement).",
+        "tags": [
+          "authentification"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminResetPwdIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      }
+    },
+    "/api/auth/audit": {
+      "get": {
+        "operationId": "apps_accounts_api_list_audit",
+        "summary": "List Audit",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "action",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Action"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AuditLogOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            }
+          }
+        },
+        "description": "Journal d'audit des actions (admin uniquement), 500 entrées les plus récentes.",
+        "tags": [
+          "authentification"
+        ],
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      }
+    },
+    "/api/auth/users/{user_id}/audit": {
+      "get": {
+        "operationId": "apps_accounts_api_user_audit",
+        "summary": "User Audit",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AuditLogOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            }
+          }
+        },
+        "description": "Journal d'audit d'un utilisateur précis (admin uniquement).",
+        "tags": [
+          "authentification"
+        ],
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      }
+    },
+    "/api/activites/": {
+      "get": {
+        "operationId": "apps_activites_api_list_activites",
+        "summary": "List Activites",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ActiviteOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            }
+          }
+        },
+        "description": "Liste les activités : toutes pour un admin, seulement les siennes\npour un organisateur (AUTH-04).",
+        "tags": [
+          "activités"
+        ],
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "apps_activites_api_create_activite",
+        "summary": "Create Activite",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiviteOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Crée une activité (token QR généré automatiquement).",
+        "tags": [
+          "activités"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActiviteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      }
+    },
+    "/api/activites/stats-globales": {
+      "get": {
+        "operationId": "apps_activites_api_stats_globales",
+        "summary": "Stats Globales",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GlobalStatsOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Statistiques transverses du tableau de bord (DASH-01).\n\n`nb_participants_uniques` compte les personnes distinctes par numéro de CNI,\nsans double comptage entre activités.",
+        "tags": [
+          "activités"
+        ],
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      }
+    },
+    "/api/activites/personnes": {
+      "get": {
+        "operationId": "apps_activites_api_list_personnes",
+        "summary": "List Personnes",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "search",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "structure",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Structure"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "cni",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cni"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PersonneOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            }
+          }
+        },
+        "description": "Annuaire des personnes distinctes (regroupées par numéro de CNI).\n\nL'identité affichée provient de l'inscription la plus récente de chaque\npersonne ; `nb_activites` compte ses activités distinctes.",
+        "tags": [
+          "activités"
+        ],
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      }
+    },
+    "/api/activites/personnes/historique": {
+      "get": {
+        "operationId": "apps_activites_api_historique_personne",
+        "summary": "Historique Personne",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "numero_cni",
+            "schema": {
+              "title": "Numero Cni",
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoriqueOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Historique de participation d'une personne (toutes ses inscriptions).\n\nUn organisateur ne voit que les participations à ses propres activités.",
+        "tags": [
+          "activités"
+        ],
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      }
+    },
+    "/api/activites/{activite_id}": {
+      "get": {
+        "operationId": "apps_activites_api_get_activite",
+        "summary": "Get Activite",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "activite_id",
+            "schema": {
+              "format": "uuid",
+              "title": "Activite Id",
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiviteOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Détail d'une activité (visible par tous).",
+        "tags": [
+          "activités"
+        ],
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "apps_activites_api_update_activite",
+        "summary": "Update Activite",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "activite_id",
+            "schema": {
+              "format": "uuid",
+              "title": "Activite Id",
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiviteOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Modifie une activité (créateur ou admin ; token QR inchangé — ACT-04).",
+        "tags": [
+          "activités"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActiviteUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "apps_activites_api_delete_activite",
+        "summary": "Delete Activite",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "activite_id",
+            "schema": {
+              "format": "uuid",
+              "title": "Activite Id",
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Supprime une activité (créateur ou admin — ACT-06).\n\nRefusé si l'activité contient des participants (elle ne peut qu'être\narchivée dans ce cas).",
+        "tags": [
+          "activités"
+        ],
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      }
+    },
+    "/api/activites/{activite_id}/clone": {
+      "post": {
+        "operationId": "apps_activites_api_clone_activite",
+        "summary": "Clone Activite",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "activite_id",
+            "schema": {
+              "format": "uuid",
+              "title": "Activite Id",
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiviteOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Clone une activité visible. La copie appartient à l'utilisateur courant.",
+        "tags": [
+          "activités"
+        ],
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      }
+    },
+    "/api/activites/{activite_id}/qrcode": {
+      "get": {
+        "operationId": "apps_activites_api_get_qrcode",
+        "summary": "Get Qrcode",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "activite_id",
+            "schema": {
+              "format": "uuid",
+              "title": "Activite Id",
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "description": "Génère le QR Code PNG encodant l'URL du formulaire public (ACT-02).",
+        "tags": [
+          "activités"
+        ],
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      }
+    },
+    "/api/activites/{activite_id}/statut": {
+      "patch": {
+        "operationId": "apps_activites_api_set_statut",
+        "summary": "Set Statut",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "activite_id",
+            "schema": {
+              "format": "uuid",
+              "title": "Activite Id",
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActiviteOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Ouvre / ferme / archive la collecte (créateur ou admin — ACT-05).",
+        "tags": [
+          "activités"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StatutIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      }
+    },
+    "/api/activites/{activite_id}/participants": {
+      "get": {
+        "operationId": "apps_activites_api_list_participants",
+        "summary": "List Participants",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "activite_id",
+            "schema": {
+              "format": "uuid",
+              "title": "Activite Id",
+              "type": "string"
+            },
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "structure",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Structure"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "date_from",
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedParticipantListOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Liste paginée et filtrée des participants d'une activité (DASH-03).",
+        "tags": [
+          "activités"
+        ],
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "apps_activites_api_add_participant",
+        "summary": "Add Participant",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "activite_id",
+            "schema": {
+              "format": "uuid",
+              "title": "Activite Id",
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParticipantListOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Ajout manuel d'un participant (créateur ou admin — sans photos CNI).",
+        "tags": [
+          "activités"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ParticipantManualIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      }
+    },
+    "/api/activites/{activite_id}/stats": {
+      "get": {
+        "operationId": "apps_activites_api_participants_stats",
+        "summary": "Participants Stats",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "activite_id",
+            "schema": {
+              "format": "uuid",
+              "title": "Activite Id",
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatsOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Statistiques d'une activité (DASH-05).",
+        "tags": [
+          "activités"
+        ],
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      }
+    },
+    "/api/activites/{activite_id}/participants/{participant_id}": {
+      "get": {
+        "operationId": "apps_activites_api_get_participant",
+        "summary": "Get Participant",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "activite_id",
+            "schema": {
+              "format": "uuid",
+              "title": "Activite Id",
+              "type": "string"
+            },
+            "required": true
+          },
+          {
+            "in": "path",
+            "name": "participant_id",
+            "schema": {
+              "format": "uuid",
+              "title": "Participant Id",
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParticipantListOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Fiche détaillée d'un participant (DASH-04).",
+        "tags": [
+          "activités"
+        ],
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      }
+    },
+    "/api/activites/{activite_id}/participants/{participant_id}/photo/{cote}": {
+      "get": {
+        "operationId": "apps_activites_api_participant_photo",
+        "summary": "Participant Photo",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "activite_id",
+            "schema": {
+              "format": "uuid",
+              "title": "Activite Id",
+              "type": "string"
+            },
+            "required": true
+          },
+          {
+            "in": "path",
+            "name": "participant_id",
+            "schema": {
+              "format": "uuid",
+              "title": "Participant Id",
+              "type": "string"
+            },
+            "required": true
+          },
+          {
+            "in": "path",
+            "name": "cote",
+            "schema": {
+              "title": "Cote",
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "description": "Sert une photo CNI (accès protégé par JWT — IMG-03).",
+        "tags": [
+          "activités"
+        ],
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      }
+    },
+    "/api/public/activite/{token}": {
+      "get": {
+        "operationId": "apps_participants_api_get_activite_publique",
+        "summary": "Get Activite Publique",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "schema": {
+              "format": "uuid",
+              "title": "Token",
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActivitePublicOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Vérifie le token et retourne les infos publiques de l'activité (FORM-01).",
+        "tags": [
+          "formulaire public"
+        ]
+      }
+    },
+    "/api/public/activite/{token}/participer": {
+      "post": {
+        "operationId": "apps_participants_api_participer",
+        "summary": "Participer",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "schema": {
+              "format": "uuid",
+              "title": "Token",
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParticipantOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageOut"
+                }
+              }
+            }
+          }
+        },
+        "description": "Enregistre un participant avec ses photos CNI (FORM-02 à FORM-06).",
+        "tags": [
+          "formulaire public"
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "title": "MultiPartBodyParams",
+                "type": "object",
+                "properties": {
+                  "nom": {
+                    "minLength": 1,
+                    "title": "Nom",
+                    "type": "string"
+                  },
+                  "prenom": {
+                    "minLength": 1,
+                    "title": "Prenom",
+                    "type": "string"
+                  },
+                  "structure": {
+                    "minLength": 1,
+                    "title": "Structure",
+                    "type": "string"
+                  },
+                  "fonction": {
+                    "minLength": 1,
+                    "title": "Fonction",
+                    "type": "string"
+                  },
+                  "telephone_wave": {
+                    "title": "Telephone Wave",
+                    "type": "string"
+                  },
+                  "email": {
+                    "title": "Email",
+                    "type": "string"
+                  },
+                  "numero_cni": {
+                    "title": "Numero Cni",
+                    "type": "string"
+                  },
+                  "photo_cni_recto": {
+                    "format": "binary",
+                    "title": "Photo Cni Recto",
+                    "type": "string"
+                  },
+                  "photo_cni_verso": {
+                    "format": "binary",
+                    "title": "Photo Cni Verso",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "nom",
+                  "prenom",
+                  "structure",
+                  "fonction",
+                  "telephone_wave",
+                  "email",
+                  "numero_cni",
+                  "photo_cni_recto",
+                  "photo_cni_verso"
+                ]
+              }
+            }
+          },
+          "required": true
+        }
+      }
+    },
+    "/api/exports/activites/{activite_id}/excel": {
+      "get": {
+        "operationId": "apps_exports_api_export_excel",
+        "summary": "Export Excel",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "activite_id",
+            "schema": {
+              "format": "uuid",
+              "title": "Activite Id",
+              "type": "string"
+            },
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "structure",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Structure"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "date_from",
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "cni",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cni"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "description": "EXP-01 — Liste des participants au format .xlsx.",
+        "tags": [
+          "exports"
+        ],
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      }
+    },
+    "/api/exports/activites/{activite_id}/pdf-liste": {
+      "get": {
+        "operationId": "apps_exports_api_export_presence_pdf",
+        "summary": "Export Presence Pdf",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "activite_id",
+            "schema": {
+              "format": "uuid",
+              "title": "Activite Id",
+              "type": "string"
+            },
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "structure",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Structure"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "date_from",
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "cni",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cni"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "description": "EXP-03 — Liste de présence à signer (PDF A4).",
+        "tags": [
+          "exports"
+        ],
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      }
+    },
+    "/api/exports/activites/{activite_id}/zip": {
+      "get": {
+        "operationId": "apps_exports_api_export_cni_zip",
+        "summary": "Export Cni Zip",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "activite_id",
+            "schema": {
+              "format": "uuid",
+              "title": "Activite Id",
+              "type": "string"
+            },
+            "required": true
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "structure",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Structure"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "date_from",
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date From"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Date To"
+            },
+            "required": false
+          },
+          {
+            "in": "query",
+            "name": "cni",
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cni"
+            },
+            "required": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "description": "EXP-04 — Archive ZIP des fiches PDF CNI.",
+        "tags": [
+          "exports"
+        ],
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      }
+    },
+    "/api/exports/activites/{activite_id}/qrcode-pdf": {
+      "get": {
+        "operationId": "apps_exports_api_export_qrcode_pdf",
+        "summary": "Export Qrcode Pdf",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "activite_id",
+            "schema": {
+              "format": "uuid",
+              "title": "Activite Id",
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "description": "Affiche PDF du QR Code (infos activité + QR Code).",
+        "tags": [
+          "exports"
+        ],
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      }
+    },
+    "/api/exports/participants/{participant_id}/pdf": {
+      "get": {
+        "operationId": "apps_exports_api_export_participant_pdf",
+        "summary": "Export Participant Pdf",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "participant_id",
+            "schema": {
+              "format": "uuid",
+              "title": "Participant Id",
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        },
+        "description": "EXP-02 — Fiche CNI individuelle (PDF).",
+        "tags": [
+          "exports"
+        ],
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      }
+    },
+    "/api/exports/activites/{activite_id}/historique": {
+      "get": {
+        "operationId": "apps_exports_api_export_history",
+        "summary": "Export History",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "activite_id",
+            "schema": {
+              "format": "uuid",
+              "title": "Activite Id",
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ExportLogOut"
+                  },
+                  "title": "Response",
+                  "type": "array"
+                }
+              }
+            }
+          }
+        },
+        "description": "EXP-06 — Journal des exports générés pour une activité.",
+        "tags": [
+          "exports"
+        ],
+        "security": [
+          {
+            "JWTAuth": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "TokenOut": {
+        "properties": {
+          "access": {
+            "title": "Access",
+            "type": "string"
+          },
+          "refresh": {
+            "title": "Refresh",
+            "type": "string"
+          },
+          "token_type": {
+            "default": "bearer",
+            "title": "Token Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "access",
+          "refresh"
+        ],
+        "title": "TokenOut",
+        "type": "object"
+      },
+      "LoginIn": {
+        "properties": {
+          "username": {
+            "title": "Username",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ],
+        "title": "LoginIn",
+        "type": "object"
+      },
+      "AccessOut": {
+        "properties": {
+          "access": {
+            "title": "Access",
+            "type": "string"
+          },
+          "token_type": {
+            "default": "bearer",
+            "title": "Token Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "access"
+        ],
+        "title": "AccessOut",
+        "type": "object"
+      },
+      "RefreshIn": {
+        "properties": {
+          "refresh": {
+            "title": "Refresh",
+            "type": "string"
+          }
+        },
+        "required": [
+          "refresh"
+        ],
+        "title": "RefreshIn",
+        "type": "object"
+      },
+      "MessageOut": {
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "MessageOut",
+        "type": "object"
+      },
+      "UserOut": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "email",
+          "role"
+        ],
+        "title": "UserOut",
+        "type": "object"
+      },
+      "ChangePasswordIn": {
+        "properties": {
+          "ancien_mot_de_passe": {
+            "title": "Ancien Mot De Passe",
+            "type": "string"
+          },
+          "nouveau_mot_de_passe": {
+            "title": "Nouveau Mot De Passe",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ancien_mot_de_passe",
+          "nouveau_mot_de_passe"
+        ],
+        "title": "ChangePasswordIn",
+        "type": "object"
+      },
+      "UserListOut": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "nb_activites": {
+            "default": 0,
+            "title": "Nb Activites",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "email",
+          "role",
+          "is_active",
+          "created_at"
+        ],
+        "title": "UserListOut",
+        "type": "object"
+      },
+      "UserCreateIn": {
+        "properties": {
+          "username": {
+            "title": "Username",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "title": "Password",
+            "type": "string"
+          },
+          "role": {
+            "default": "organisateur",
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "email",
+          "password"
+        ],
+        "title": "UserCreateIn",
+        "type": "object"
+      },
+      "UserUpdateIn": {
+        "properties": {
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          }
+        },
+        "title": "UserUpdateIn",
+        "type": "object"
+      },
+      "AdminResetPwdIn": {
+        "properties": {
+          "nouveau_mot_de_passe": {
+            "title": "Nouveau Mot De Passe",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nouveau_mot_de_passe"
+        ],
+        "title": "AdminResetPwdIn",
+        "type": "object"
+      },
+      "AuditLogOut": {
+        "properties": {
+          "username": {
+            "title": "Username",
+            "type": "string"
+          },
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "action_label": {
+            "title": "Action Label",
+            "type": "string"
+          },
+          "objet": {
+            "title": "Objet",
+            "type": "string"
+          },
+          "ip_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ip Address"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "username",
+          "action",
+          "action_label",
+          "objet",
+          "ip_address",
+          "created_at"
+        ],
+        "title": "AuditLogOut",
+        "type": "object"
+      },
+      "ActiviteOut": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "nom": {
+            "title": "Nom",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "date_debut": {
+            "format": "date-time",
+            "title": "Date Debut",
+            "type": "string"
+          },
+          "date_fin": {
+            "format": "date-time",
+            "title": "Date Fin",
+            "type": "string"
+          },
+          "ville": {
+            "title": "Ville",
+            "type": "string"
+          },
+          "lieu": {
+            "title": "Lieu",
+            "type": "string"
+          },
+          "token_qr": {
+            "format": "uuid",
+            "title": "Token Qr",
+            "type": "string"
+          },
+          "statut": {
+            "title": "Statut",
+            "type": "string"
+          },
+          "form_url": {
+            "title": "Form Url",
+            "type": "string"
+          },
+          "created_by": {
+            "$ref": "#/components/schemas/CreatedByOut"
+          },
+          "can_edit": {
+            "title": "Can Edit",
+            "type": "boolean"
+          },
+          "nb_participants": {
+            "title": "Nb Participants",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "nom",
+          "description",
+          "date_debut",
+          "date_fin",
+          "ville",
+          "lieu",
+          "token_qr",
+          "statut",
+          "form_url",
+          "created_by",
+          "can_edit",
+          "nb_participants",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ActiviteOut",
+        "type": "object"
+      },
+      "CreatedByOut": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "username": {
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "username"
+        ],
+        "title": "CreatedByOut",
+        "type": "object"
+      },
+      "ActiviteIn": {
+        "properties": {
+          "nom": {
+            "title": "Nom",
+            "type": "string"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "date_debut": {
+            "format": "date-time",
+            "title": "Date Debut",
+            "type": "string"
+          },
+          "date_fin": {
+            "format": "date-time",
+            "title": "Date Fin",
+            "type": "string"
+          },
+          "ville": {
+            "title": "Ville",
+            "type": "string"
+          },
+          "lieu": {
+            "title": "Lieu",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nom",
+          "date_debut",
+          "date_fin",
+          "ville",
+          "lieu"
+        ],
+        "title": "ActiviteIn",
+        "type": "object"
+      },
+      "GlobalStatsOut": {
+        "properties": {
+          "nb_activites": {
+            "title": "Nb Activites",
+            "type": "integer"
+          },
+          "nb_participants_uniques": {
+            "title": "Nb Participants Uniques",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "nb_activites",
+          "nb_participants_uniques"
+        ],
+        "title": "GlobalStatsOut",
+        "type": "object"
+      },
+      "PersonneOut": {
+        "properties": {
+          "numero_cni": {
+            "title": "Numero Cni",
+            "type": "string"
+          },
+          "nom": {
+            "title": "Nom",
+            "type": "string"
+          },
+          "prenom": {
+            "title": "Prenom",
+            "type": "string"
+          },
+          "structure": {
+            "title": "Structure",
+            "type": "string"
+          },
+          "fonction": {
+            "title": "Fonction",
+            "type": "string"
+          },
+          "telephone_wave": {
+            "title": "Telephone Wave",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "nb_activites": {
+            "title": "Nb Activites",
+            "type": "integer"
+          },
+          "derniere_participation": {
+            "format": "date-time",
+            "title": "Derniere Participation",
+            "type": "string"
+          },
+          "cni_complete": {
+            "title": "Cni Complete",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "numero_cni",
+          "nom",
+          "prenom",
+          "structure",
+          "fonction",
+          "telephone_wave",
+          "email",
+          "nb_activites",
+          "derniere_participation",
+          "cni_complete"
+        ],
+        "title": "PersonneOut",
+        "type": "object"
+      },
+      "HistoriqueLigneOut": {
+        "properties": {
+          "participant_id": {
+            "format": "uuid",
+            "title": "Participant Id",
+            "type": "string"
+          },
+          "activite_id": {
+            "format": "uuid",
+            "title": "Activite Id",
+            "type": "string"
+          },
+          "activite_nom": {
+            "title": "Activite Nom",
+            "type": "string"
+          },
+          "activite_lieu": {
+            "title": "Activite Lieu",
+            "type": "string"
+          },
+          "horodatage": {
+            "format": "date-time",
+            "title": "Horodatage",
+            "type": "string"
+          },
+          "cni_complete": {
+            "title": "Cni Complete",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "participant_id",
+          "activite_id",
+          "activite_nom",
+          "activite_lieu",
+          "horodatage",
+          "cni_complete"
+        ],
+        "title": "HistoriqueLigneOut",
+        "type": "object"
+      },
+      "HistoriqueOut": {
+        "properties": {
+          "numero_cni": {
+            "title": "Numero Cni",
+            "type": "string"
+          },
+          "nom": {
+            "title": "Nom",
+            "type": "string"
+          },
+          "prenom": {
+            "title": "Prenom",
+            "type": "string"
+          },
+          "structure": {
+            "title": "Structure",
+            "type": "string"
+          },
+          "fonction": {
+            "title": "Fonction",
+            "type": "string"
+          },
+          "telephone_wave": {
+            "title": "Telephone Wave",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "nb_activites": {
+            "title": "Nb Activites",
+            "type": "integer"
+          },
+          "participations": {
+            "items": {
+              "$ref": "#/components/schemas/HistoriqueLigneOut"
+            },
+            "title": "Participations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "numero_cni",
+          "nom",
+          "prenom",
+          "structure",
+          "fonction",
+          "telephone_wave",
+          "email",
+          "nb_activites",
+          "participations"
+        ],
+        "title": "HistoriqueOut",
+        "type": "object"
+      },
+      "ActiviteUpdate": {
+        "properties": {
+          "nom": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nom"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "date_debut": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Debut"
+          },
+          "date_fin": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Fin"
+          },
+          "ville": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ville"
+          },
+          "lieu": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lieu"
+          },
+          "statut": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Statut"
+          }
+        },
+        "title": "ActiviteUpdate",
+        "type": "object"
+      },
+      "StatutIn": {
+        "properties": {
+          "statut": {
+            "title": "Statut",
+            "type": "string"
+          }
+        },
+        "required": [
+          "statut"
+        ],
+        "title": "StatutIn",
+        "type": "object"
+      },
+      "Input": {
+        "properties": {
+          "limit": {
+            "default": 100,
+            "minimum": 1,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Offset",
+            "type": "integer"
+          }
+        },
+        "title": "Input",
+        "type": "object"
+      },
+      "PagedParticipantListOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ParticipantListOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "count"
+        ],
+        "title": "PagedParticipantListOut",
+        "type": "object"
+      },
+      "ParticipantListOut": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "nom": {
+            "title": "Nom",
+            "type": "string"
+          },
+          "prenom": {
+            "title": "Prenom",
+            "type": "string"
+          },
+          "structure": {
+            "title": "Structure",
+            "type": "string"
+          },
+          "fonction": {
+            "title": "Fonction",
+            "type": "string"
+          },
+          "telephone_wave": {
+            "title": "Telephone Wave",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "numero_cni": {
+            "title": "Numero Cni",
+            "type": "string"
+          },
+          "horodatage": {
+            "format": "date-time",
+            "title": "Horodatage",
+            "type": "string"
+          },
+          "photo_recto_url": {
+            "title": "Photo Recto Url",
+            "type": "string"
+          },
+          "photo_verso_url": {
+            "title": "Photo Verso Url",
+            "type": "string"
+          },
+          "cni_complete": {
+            "title": "Cni Complete",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "nom",
+          "prenom",
+          "structure",
+          "fonction",
+          "telephone_wave",
+          "email",
+          "numero_cni",
+          "horodatage",
+          "photo_recto_url",
+          "photo_verso_url",
+          "cni_complete"
+        ],
+        "title": "ParticipantListOut",
+        "type": "object"
+      },
+      "ParticipantManualIn": {
+        "description": "Ajout manuel d'un participant par un organisateur (sans photos CNI).",
+        "properties": {
+          "nom": {
+            "title": "Nom",
+            "type": "string"
+          },
+          "prenom": {
+            "title": "Prenom",
+            "type": "string"
+          },
+          "structure": {
+            "title": "Structure",
+            "type": "string"
+          },
+          "fonction": {
+            "title": "Fonction",
+            "type": "string"
+          },
+          "telephone_wave": {
+            "title": "Telephone Wave",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "numero_cni": {
+            "title": "Numero Cni",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nom",
+          "prenom",
+          "structure",
+          "fonction",
+          "telephone_wave",
+          "email",
+          "numero_cni"
+        ],
+        "title": "ParticipantManualIn",
+        "type": "object"
+      },
+      "StatsOut": {
+        "properties": {
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          },
+          "cni_completes": {
+            "title": "Cni Completes",
+            "type": "integer"
+          },
+          "cni_incompletes": {
+            "title": "Cni Incompletes",
+            "type": "integer"
+          },
+          "par_structure": {
+            "items": {
+              "$ref": "#/components/schemas/StructureStat"
+            },
+            "title": "Par Structure",
+            "type": "array"
+          }
+        },
+        "required": [
+          "total",
+          "cni_completes",
+          "cni_incompletes",
+          "par_structure"
+        ],
+        "title": "StatsOut",
+        "type": "object"
+      },
+      "StructureStat": {
+        "properties": {
+          "structure": {
+            "title": "Structure",
+            "type": "string"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "structure",
+          "count"
+        ],
+        "title": "StructureStat",
+        "type": "object"
+      },
+      "ActivitePublicOut": {
+        "properties": {
+          "nom": {
+            "title": "Nom",
+            "type": "string"
+          },
+          "ville": {
+            "title": "Ville",
+            "type": "string"
+          },
+          "lieu": {
+            "title": "Lieu",
+            "type": "string"
+          },
+          "date_debut": {
+            "format": "date-time",
+            "title": "Date Debut",
+            "type": "string"
+          },
+          "date_fin": {
+            "format": "date-time",
+            "title": "Date Fin",
+            "type": "string"
+          },
+          "statut": {
+            "title": "Statut",
+            "type": "string"
+          },
+          "is_open": {
+            "title": "Is Open",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "nom",
+          "ville",
+          "lieu",
+          "date_debut",
+          "date_fin",
+          "statut",
+          "is_open"
+        ],
+        "title": "ActivitePublicOut",
+        "type": "object"
+      },
+      "ParticipantOut": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "nom": {
+            "title": "Nom",
+            "type": "string"
+          },
+          "prenom": {
+            "title": "Prenom",
+            "type": "string"
+          },
+          "structure": {
+            "title": "Structure",
+            "type": "string"
+          },
+          "fonction": {
+            "title": "Fonction",
+            "type": "string"
+          },
+          "telephone_wave": {
+            "title": "Telephone Wave",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "numero_cni": {
+            "title": "Numero Cni",
+            "type": "string"
+          },
+          "horodatage": {
+            "format": "date-time",
+            "title": "Horodatage",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "nom",
+          "prenom",
+          "structure",
+          "fonction",
+          "telephone_wave",
+          "email",
+          "numero_cni",
+          "horodatage"
+        ],
+        "title": "ParticipantOut",
+        "type": "object"
+      },
+      "ParticiperSchema": {
+        "properties": {
+          "nom": {
+            "minLength": 1,
+            "title": "Nom",
+            "type": "string"
+          },
+          "prenom": {
+            "minLength": 1,
+            "title": "Prenom",
+            "type": "string"
+          },
+          "structure": {
+            "minLength": 1,
+            "title": "Structure",
+            "type": "string"
+          },
+          "fonction": {
+            "minLength": 1,
+            "title": "Fonction",
+            "type": "string"
+          },
+          "telephone_wave": {
+            "title": "Telephone Wave",
+            "type": "string"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "numero_cni": {
+            "title": "Numero Cni",
+            "type": "string"
+          }
+        },
+        "required": [
+          "nom",
+          "prenom",
+          "structure",
+          "fonction",
+          "telephone_wave",
+          "email",
+          "numero_cni"
+        ],
+        "title": "ParticiperSchema",
+        "type": "object"
+      },
+      "ExportLogOut": {
+        "properties": {
+          "type": {
+            "title": "Type",
+            "type": "string"
+          },
+          "type_label": {
+            "title": "Type Label",
+            "type": "string"
+          },
+          "nb_entrees": {
+            "title": "Nb Entrees",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "utilisateur": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Utilisateur"
+          }
+        },
+        "required": [
+          "type",
+          "type_label",
+          "nb_entrees",
+          "created_at",
+          "utilisateur"
+        ],
+        "title": "ExportLogOut",
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "JWTAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "servers": []
+}
