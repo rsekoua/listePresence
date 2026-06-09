@@ -3,6 +3,7 @@
 Thumbs.db
 .idea/
 .vscode/
+.claude/
 
 # Node (frontend)
 node_modules/

@@ -717,8 +717,8 @@ de l'application, qui inclut :
 
   Étape  Action
   -----  -----------------------------------------------------------------------
-  1      Démarrage du sprint : tu annonces le sprint. Claude génère le code
-         complet sprint par sprint.
+  1      Démarrage du sprint : le sprint est annoncé, puis le code complet
+         est généré sprint par sprint.
   2      Backend en premier : modèles, migrations et endpoints API générés en
          premier pour chaque fonctionnalité.
   3      Frontend ensuite : composants React générés une fois le backend validé.
