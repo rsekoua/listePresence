@@ -185,9 +185,17 @@ def build_participant_cni_pdf(activite, participant) -> bytes:
     x = (width - img_w) / 2
     zone_bas = footer_h
     zone_haut = height - footer_h
-    bas_bloc = zone_bas + (zone_haut - zone_bas - total_h) / 2
+    # Bloc recto/verso centré verticalement puis remonté de 3 cm
+    # pour dégager l'espace du nom au-dessus.
+    bas_bloc = zone_bas + (zone_haut - zone_bas - total_h) / 2 + 30 * mm
     y_verso = bas_bloc
     y_recto = bas_bloc + img_h + gap
+
+    # Nom du participant, bien visible au-dessus des cartes
+    nom_complet = f"{participant.nom} {participant.prenom}".strip()
+    c.setFont("Helvetica-Bold", 16)
+    c.setFillColor(colors.HexColor(f"#{_INK}"))
+    c.drawCentredString(width / 2, y_recto + img_h + 8 * mm, nom_complet)
 
     for field, y in (
         (participant.photo_cni_recto, y_recto),
