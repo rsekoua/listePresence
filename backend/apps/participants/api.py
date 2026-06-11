@@ -102,13 +102,17 @@ class MessageOut(Schema):
 
 
 def _process_cni_image(uploaded: UploadedFile) -> bytes:
-    """Vérifie, redimensionne et réencode une photo CNI en JPEG (IMG-02/04)."""
-    if not (uploaded.content_type or "").startswith("image/"):
-        raise HttpError(422, "Le fichier fourni n'est pas une image.")
+    """Vérifie, redimensionne et réencode une photo CNI en JPEG (IMG-02/04).
+
+    La validation « est-ce une image » repose sur Pillow (ouverture réelle du
+    fichier) et non sur l'en-tête Content-Type fourni par le client : celui-ci
+    est peu fiable (absent ou générique selon le navigateur/mobile, ou une photo
+    restaurée depuis le localStorage) et provoquait de faux rejets 422.
+    """
     try:
         Image.open(uploaded).verify()
     except Exception:
-        raise HttpError(422, "Image invalide ou corrompue.")
+        raise HttpError(422, "Le fichier fourni n'est pas une image valide.")
     uploaded.seek(0)
     img = Image.open(uploaded)
     if img.width < MIN_SIZE[0] or img.height < MIN_SIZE[1]:

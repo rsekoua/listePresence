@@ -148,7 +148,12 @@ export function PublicFormPage() {
           err.response.data?.detail ?? 'Un participant avec ce numéro de CNI existe déjà.',
         )
       } else if (isAxiosError(err) && err.response?.status === 422) {
-        setServerError('Certaines informations sont invalides. Vérifiez le formulaire.')
+        const detail = err.response.data?.detail
+        setServerError(
+          typeof detail === 'string'
+            ? detail
+            : 'Certaines informations sont invalides. Vérifiez le formulaire.',
+        )
       } else {
         setServerError('Une erreur est survenue. Réessayez.')
       }

@@ -76,3 +76,41 @@ class PublicFormTests(TestCase):
     def test_telephone_invalide(self):
         r = self._submit(self.act.token_qr, tel="123")
         self.assertEqual(r.status_code, 422)
+
+    def test_image_content_type_generique_accepte(self):
+        """Régression : une vraie image envoyée avec un Content-Type non
+        « image/* » (cas fréquent selon navigateur/mobile) doit être acceptée,
+        la validation reposant sur Pillow et non sur l'en-tête déclaré."""
+        r = self.client.post(
+            f"/api/public/activite/{self.act.token_qr}/participer",
+            data={
+                "nom": "Kouassi", "prenom": "Awa", "structure": "ONG",
+                "fonction": "Coordinatrice", "telephone_wave": "0701020304",
+                "email": "awa@x.ci", "numero_cni": "CI777111",
+                "photo_cni_recto": SimpleUploadedFile(
+                    "r.jpg", fake_image(), "application/octet-stream"
+                ),
+                "photo_cni_verso": SimpleUploadedFile(
+                    "v.jpg", fake_image(), "application/octet-stream"
+                ),
+            },
+        )
+        self.assertEqual(r.status_code, 201)
+
+    def test_fichier_non_image_refuse(self):
+        """Un fichier qui n'est pas réellement une image reste rejeté (422)."""
+        r = self.client.post(
+            f"/api/public/activite/{self.act.token_qr}/participer",
+            data={
+                "nom": "Kouassi", "prenom": "Awa", "structure": "ONG",
+                "fonction": "Coordinatrice", "telephone_wave": "0701020304",
+                "email": "awa@x.ci", "numero_cni": "CI777222",
+                "photo_cni_recto": SimpleUploadedFile(
+                    "r.jpg", b"pas une image", "image/jpeg"
+                ),
+                "photo_cni_verso": SimpleUploadedFile(
+                    "v.jpg", fake_image(), "image/jpeg"
+                ),
+            },
+        )
+        self.assertEqual(r.status_code, 422)
