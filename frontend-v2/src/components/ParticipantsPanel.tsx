@@ -101,7 +101,7 @@ export function ParticipantsPanel({
             disabled={exporting || !participants.length}
             onClick={() => runExport(exportExcel)}
           >
-            Export en Excel
+            Export la liste en Excel
           </Button>
           <Button
             variant="default"
@@ -110,7 +110,7 @@ export function ParticipantsPanel({
             disabled={exporting || !participants.length}
             onClick={() => runExport(exportPresenceList)}
           >
-            Export en PDF
+            Export la liste en PDF
           </Button>
           <Button
             variant="default"
@@ -123,7 +123,7 @@ export function ParticipantsPanel({
           </Button>
           {canAdd && (
             <Button leftSection={<IconUserPlus size={18} />} onClick={openAdd}>
-              Ajouter un participant
+              Nouveau participant
             </Button>
           )}
         </Group>
