@@ -28,7 +28,10 @@ SECRET_KEY = os.getenv(
 )
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = env_bool("DJANGO_DEBUG", True)
+# Défaut volontairement à False : si la variable d'environnement est oubliée
+# (typiquement en production), l'application démarre en mode durci plutôt qu'en
+# mode debug. Le développement active explicitement DJANGO_DEBUG=True via .env.
+DEBUG = env_bool("DJANGO_DEBUG", False)
 
 ALLOWED_HOSTS = [
     h.strip()
