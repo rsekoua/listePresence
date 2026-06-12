@@ -127,6 +127,24 @@ class ActiviteRBACTests(TestCase):
         )
         self.assertEqual(h.status_code, 404)
 
+    def test_stats_globales_scope_par_role(self):
+        Participant.objects.create(
+            activite=self.a_open, nom="Kouassi", prenom="Awa", structure="ONG",
+            fonction="C", telephone_wave="+2250700000000", email="a@x.ci", numero_cni="CNI_A",
+        )
+        Participant.objects.create(
+            activite=self.b_open, nom="Diallo", prenom="Moussa", structure="Mairie",
+            fonction="A", telephone_wave="+2250101010101", email="m@x.ci", numero_cni="CNI_B",
+        )
+        # orgA : ses 2 activités, 1 participant unique (le sien uniquement)
+        ra = self.client.get("/api/activites/stats-globales", **bearer(self.orgA)).json()
+        self.assertEqual(ra["nb_activites"], 2)
+        self.assertEqual(ra["nb_participants_uniques"], 1)
+        # admin : les 3 activités, 2 participants uniques
+        radmin = self.client.get("/api/activites/stats-globales", **bearer(self.admin)).json()
+        self.assertEqual(radmin["nb_activites"], 3)
+        self.assertEqual(radmin["nb_participants_uniques"], 2)
+
     def test_liste_activites_pas_de_n_plus_1(self):
         """Le nombre de requêtes ne doit pas croître avec le nombre d'activités."""
         from django.db import connection

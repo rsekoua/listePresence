@@ -171,14 +171,19 @@ class GlobalStatsOut(Schema):
 def stats_globales(request):
     """Statistiques transverses du tableau de bord (DASH-01).
 
-    `nb_participants_uniques` compte les personnes distinctes par numéro de CNI,
-    sans double comptage entre activités.
+    Restreint au périmètre de l'utilisateur (comme la liste des activités) :
+    un admin voit tout, un organisateur uniquement ses propres activités et
+    leurs participants. `nb_participants_uniques` compte les personnes
+    distinctes par numéro de CNI, sans double comptage entre activités.
     """
+    activites = Activite.objects.all()
+    participants = Participant.objects.all()
+    if not request.auth.is_admin:
+        activites = activites.filter(created_by=request.auth)
+        participants = participants.filter(activite__created_by=request.auth)
     return GlobalStatsOut(
-        nb_activites=Activite.objects.count(),
-        nb_participants_uniques=(
-            Participant.objects.values("numero_cni").distinct().count()
-        ),
+        nb_activites=activites.count(),
+        nb_participants_uniques=participants.values("numero_cni").distinct().count(),
     )
 
 
