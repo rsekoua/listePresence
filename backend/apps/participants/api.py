@@ -12,6 +12,7 @@ import re
 from datetime import datetime
 from uuid import UUID
 
+from django.conf import settings
 from django.core.files.base import ContentFile
 from django.shortcuts import get_object_or_404
 from ninja import File, Form, Router, Schema
@@ -20,6 +21,7 @@ from ninja.files import UploadedFile
 from PIL import Image, ImageOps
 from pydantic import Field, field_validator
 
+from apps import throttle
 from apps.activites.models import Activite
 
 from .models import Participant
@@ -153,6 +155,12 @@ def participer(
     photo_cni_verso: UploadedFile = File(...),
 ):
     """Enregistre un participant avec ses photos CNI (FORM-02 à FORM-06)."""
+    throttle.hit(
+        request,
+        "participer",
+        settings.PUBLIC_RATELIMIT,
+        settings.PUBLIC_RATELIMIT_WINDOW,
+    )
     activite = get_object_or_404(Activite, token_qr=token)
 
     if activite.statut != Activite.Statut.OUVERT:

@@ -4,6 +4,7 @@ import tempfile
 import uuid
 from datetime import timedelta
 
+from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.utils import timezone
@@ -19,6 +20,7 @@ MEDIA = tempfile.mkdtemp()
 @override_settings(MEDIA_ROOT=MEDIA)
 class PublicFormTests(TestCase):
     def setUp(self):
+        cache.clear()  # le compteur anti-spam est partagé entre tests
         self.client = Client()
         org = User.objects.create_user(
             username="org", email="o@x.ci", password="x", role="organisateur"
@@ -96,6 +98,13 @@ class PublicFormTests(TestCase):
             },
         )
         self.assertEqual(r.status_code, 201)
+
+    @override_settings(PUBLIC_RATELIMIT=2, PUBLIC_RATELIMIT_WINDOW=300)
+    def test_anti_spam_limite_les_soumissions(self):
+        """Au-delà du quota par IP, les soumissions publiques sont bloquées (429)."""
+        self.assertEqual(self._submit(self.act.token_qr, cni="CI0001").status_code, 201)
+        self.assertEqual(self._submit(self.act.token_qr, cni="CI0002").status_code, 201)
+        self.assertEqual(self._submit(self.act.token_qr, cni="CI0003").status_code, 429)
 
     def test_fichier_non_image_refuse(self):
         """Un fichier qui n'est pas réellement une image reste rejeté (422)."""

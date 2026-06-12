@@ -213,6 +213,17 @@ JWT_REFRESH_LIFETIME_DAYS = int(os.getenv("JWT_REFRESH_LIFETIME_DAYS", "7"))
 PUBLIC_FORM_BASE_URL = os.getenv("PUBLIC_FORM_BASE_URL", "http://localhost:5174")
 
 
+# Limitation de débit (anti-bruteforce / anti-spam) — cf. apps/throttle.py
+# Connexion : nombre d'échecs tolérés par IP avant blocage temporaire.
+LOGIN_RATELIMIT = int(os.getenv("LOGIN_RATELIMIT", "10"))
+LOGIN_RATELIMIT_WINDOW = int(os.getenv("LOGIN_RATELIMIT_WINDOW", "900"))  # 15 min
+# Formulaire public : soumissions tolérées par IP et par fenêtre. À AJUSTER selon
+# la taille des événements : derrière un Wi-Fi/4G partagé (même IP publique), une
+# limite trop basse bloquerait des participants légitimes lors d'un afflux.
+PUBLIC_RATELIMIT = int(os.getenv("PUBLIC_RATELIMIT", "60"))
+PUBLIC_RATELIMIT_WINDOW = int(os.getenv("PUBLIC_RATELIMIT_WINDOW", "300"))  # 5 min
+
+
 # Journalisation (Sprint 6) — console + fichier tournant dans logs/
 LOG_DIR = BASE_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True)

@@ -2,7 +2,8 @@
 
 import json
 
-from django.test import Client, TestCase
+from django.core.cache import cache
+from django.test import Client, TestCase, override_settings
 
 from apps.accounts.models import AuditLog, User
 from apps.testutils import bearer
@@ -55,6 +56,37 @@ class AuthTests(TestCase):
             **bearer(self.org),
         )
         self.assertEqual(r.status_code, 400)
+
+
+@override_settings(LOGIN_RATELIMIT=3, LOGIN_RATELIMIT_WINDOW=900)
+class LoginRateLimitTests(TestCase):
+    def setUp(self):
+        cache.clear()  # compteur partagé entre tests : repartir de zéro
+        self.client = Client()
+        User.objects.create_user(
+            username="org", email="o@x.ci", password="password@123", role="organisateur"
+        )
+
+    def tearDown(self):
+        cache.clear()
+
+    def test_blocage_apres_trop_d_echecs(self):
+        for _ in range(3):
+            r = jpost(self.client, "/api/auth/login", {"username": "org", "password": "faux"})
+            self.assertEqual(r.status_code, 401)
+        # Le 4e échec est bloqué avant même la vérification du mot de passe.
+        r = jpost(self.client, "/api/auth/login", {"username": "org", "password": "faux"})
+        self.assertEqual(r.status_code, 429)
+
+    def test_succes_reinitialise_le_compteur(self):
+        for _ in range(2):
+            jpost(self.client, "/api/auth/login", {"username": "org", "password": "faux"})
+        # Une connexion réussie remet le compteur à zéro…
+        ok = jpost(self.client, "/api/auth/login", {"username": "org", "password": "password@123"})
+        self.assertEqual(ok.status_code, 200)
+        # … donc de nouveaux échecs repartent de zéro (pas de 429 immédiat).
+        r = jpost(self.client, "/api/auth/login", {"username": "org", "password": "faux"})
+        self.assertEqual(r.status_code, 401)
 
 
 class UserManagementTests(TestCase):

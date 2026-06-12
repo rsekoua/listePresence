@@ -147,6 +147,11 @@ export function PublicFormPage() {
         setServerError(
           err.response.data?.detail ?? 'Un participant avec ce numéro de CNI existe déjà.',
         )
+      } else if (isAxiosError(err) && err.response?.status === 429) {
+        setServerError(
+          err.response.data?.detail ??
+            'Trop d’envois en peu de temps. Patientez un instant puis réessayez.',
+        )
       } else if (isAxiosError(err) && err.response?.status === 422) {
         const detail = err.response.data?.detail
         setServerError(

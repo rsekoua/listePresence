@@ -4,11 +4,14 @@
 from datetime import datetime
 from uuid import UUID
 
+from django.conf import settings
 from django.contrib.auth import authenticate
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
 from ninja import Query, Router, Schema
 from ninja.errors import HttpError
+
+from apps import throttle
 
 from .auth import (
     JWTAuth,
@@ -67,11 +70,18 @@ class ChangePasswordIn(Schema):
 
 @router.post("/login", response=TokenOut, auth=None)
 def login(request, data: LoginIn):
-    """Connexion organisateur : retourne un couple de tokens JWT."""
+    """Connexion organisateur : retourne un couple de tokens JWT.
+
+    Protégé contre le bruteforce : seuls les échecs sont comptés (par IP), et le
+    compteur est remis à zéro dès qu'une connexion réussit.
+    """
+    ip = throttle.guard(request, "login", settings.LOGIN_RATELIMIT)
     user = authenticate(request, username=data.username, password=data.password)
     if user is None or not user.is_active:
+        throttle.register(request, "login", settings.LOGIN_RATELIMIT_WINDOW, ident=ip)
         record(request, AuditLog.Action.LOGIN_FAILED, username=data.username)
         raise HttpError(401, "Identifiant ou mot de passe incorrect.")
+    throttle.reset(request, "login", ident=ip)
     record(request, AuditLog.Action.LOGIN, user=user)
     return TokenOut(
         access=create_access_token(user.id),

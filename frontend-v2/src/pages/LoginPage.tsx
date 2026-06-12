@@ -51,11 +51,14 @@ export function LoginPage() {
     },
   })
 
-  const errorMessage = mutation.isError
-    ? isAxiosError(mutation.error) && mutation.error.response?.status === 401
-      ? 'Identifiant ou mot de passe incorrect.'
-      : 'Une erreur est survenue. Réessayez.'
-    : null
+  const errorMessage = (() => {
+    if (!mutation.isError) return null
+    const status = isAxiosError(mutation.error) ? mutation.error.response?.status : undefined
+    if (status === 401) return 'Identifiant ou mot de passe incorrect.'
+    if (status === 429)
+      return 'Trop de tentatives de connexion. Réessayez dans quelques minutes.'
+    return 'Une erreur est survenue. Réessayez.'
+  })()
 
   // Éléments décoratifs (sans backend) : informent l'utilisateur au clic.
   const soon = (feature: string) => notify.info(`${feature} n'est pas disponible pour le moment.`)
