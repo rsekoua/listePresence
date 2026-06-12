@@ -6,6 +6,8 @@ from uuid import UUID
 
 from django.conf import settings
 from django.contrib.auth import authenticate
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
 from ninja import Query, Router, Schema
@@ -24,6 +26,20 @@ from .audit import record
 from .models import AuditLog, User
 
 router = Router(tags=["authentification"])
+
+
+def _check_password(password: str, user=None) -> None:
+    """Valide un mot de passe via les règles AUTH_PASSWORD_VALIDATORS (Django).
+
+    Centralise les contrôles (longueur minimale, mot de passe trop courant,
+    purement numérique, trop proche de l'identifiant/email) à la place des
+    vérifications « longueur >= 8 » éparses. Lève HttpError(422) avec les
+    messages francophones de Django si le mot de passe est refusé.
+    """
+    try:
+        validate_password(password, user=user)
+    except ValidationError as exc:
+        raise HttpError(422, " ".join(exc.messages))
 
 
 # --- Schémas ---------------------------------------------------------------
@@ -127,8 +143,7 @@ def change_password(request, data: ChangePasswordIn):
     user = request.auth
     if not user.check_password(data.ancien_mot_de_passe):
         raise HttpError(400, "Le mot de passe actuel est incorrect.")
-    if len(data.nouveau_mot_de_passe) < 8:
-        raise HttpError(422, "Le nouveau mot de passe doit faire au moins 8 caractères.")
+    _check_password(data.nouveau_mot_de_passe, user=user)
     user.set_password(data.nouveau_mot_de_passe)
     user.save(update_fields=["password"])
     record(request, AuditLog.Action.PASSWORD_CHANGE)
@@ -192,8 +207,10 @@ def create_user(request, data: UserCreateIn):
     _require_admin(request)
     if data.role not in User.Role.values:
         raise HttpError(422, "Rôle invalide.")
-    if len(data.password) < 8:
-        raise HttpError(422, "Le mot de passe doit faire au moins 8 caractères.")
+    _check_password(
+        data.password,
+        user=User(username=data.username.strip(), email=data.email.strip().lower()),
+    )
     if User.objects.filter(username__iexact=data.username).exists():
         raise HttpError(409, "Ce nom d'utilisateur est déjà pris.")
     if User.objects.filter(email__iexact=data.email).exists():
@@ -248,9 +265,8 @@ def update_user(request, user_id: UUID, data: UserUpdateIn):
 def reset_user_password(request, user_id: UUID, data: AdminResetPwdIn):
     """Réinitialise le mot de passe d'un utilisateur (admin uniquement)."""
     _require_admin(request)
-    if len(data.nouveau_mot_de_passe) < 8:
-        raise HttpError(422, "Le mot de passe doit faire au moins 8 caractères.")
     user = get_object_or_404(User, id=user_id)
+    _check_password(data.nouveau_mot_de_passe, user=user)
     user.set_password(data.nouveau_mot_de_passe)
     user.save(update_fields=["password"])
     record(request, AuditLog.Action.USER_RESET_PWD, objet=user.username)

@@ -57,6 +57,18 @@ class AuthTests(TestCase):
         )
         self.assertEqual(r.status_code, 400)
 
+    def test_change_password_trop_faible(self):
+        """Un nouveau mot de passe trop court/courant est rejeté (validators Django)."""
+        r = jpost(
+            self.client,
+            "/api/auth/change-password",
+            {"ancien_mot_de_passe": "password@123", "nouveau_mot_de_passe": "12345"},
+            **bearer(self.org),
+        )
+        self.assertEqual(r.status_code, 422)
+        self.org.refresh_from_db()
+        self.assertTrue(self.org.check_password("password@123"))  # inchangé
+
 
 @override_settings(LOGIN_RATELIMIT=3, LOGIN_RATELIMIT_WINDOW=900)
 class LoginRateLimitTests(TestCase):
@@ -108,6 +120,25 @@ class UserManagementTests(TestCase):
         )
         self.assertEqual(r.status_code, 201)
         self.assertTrue(User.objects.filter(username="new").exists())
+
+    def test_creation_mot_de_passe_faible_refuse(self):
+        r = jpost(
+            self.client,
+            "/api/auth/users",
+            {"username": "new", "email": "n@x.ci", "password": "1234", "role": "organisateur"},
+            **bearer(self.admin),
+        )
+        self.assertEqual(r.status_code, 422)
+        self.assertFalse(User.objects.filter(username="new").exists())
+
+    def test_reset_mot_de_passe_faible_refuse(self):
+        r = jpost(
+            self.client,
+            f"/api/auth/users/{self.org.id}/reset-password",
+            {"nouveau_mot_de_passe": "1234"},
+            **bearer(self.admin),
+        )
+        self.assertEqual(r.status_code, 422)
 
     def test_creation_doublon_username(self):
         r = jpost(
