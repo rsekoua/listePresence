@@ -31,6 +31,10 @@ router = Router(tags=["formulaire public"])
 # Dimensions cibles des photos CNI (ratio carte 85.6 x 54 mm à 300 dpi — IMG-02)
 CNI_SIZE = (1010, 638)
 MIN_SIZE = (400, 250)
+# Garde-fous d'upload : taille du fichier et résolution décodée (anti-bombe de
+# décompression). Une photo de CNI reste bien en-deçà de ces limites.
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 Mo
+MAX_PIXELS = 40_000_000  # ~40 Mpx
 
 
 # --- Schémas ---------------------------------------------------------------
@@ -111,14 +115,21 @@ def _process_cni_image(uploaded: UploadedFile) -> bytes:
     est peu fiable (absent ou générique selon le navigateur/mobile, ou une photo
     restaurée depuis le localStorage) et provoquait de faux rejets 422.
     """
+    if uploaded.size and uploaded.size > MAX_UPLOAD_BYTES:
+        raise HttpError(422, "Image trop volumineuse (maximum 10 Mo).")
     try:
         Image.open(uploaded).verify()
     except Exception:
         raise HttpError(422, "Le fichier fourni n'est pas une image valide.")
     uploaded.seek(0)
     img = Image.open(uploaded)
+    # Rejet avant tout décodage coûteux (les dimensions viennent de l'en-tête).
+    if img.width * img.height > MAX_PIXELS:
+        raise HttpError(422, "Image trop grande (résolution excessive).")
     if img.width < MIN_SIZE[0] or img.height < MIN_SIZE[1]:
         raise HttpError(422, "Image trop petite (minimum 400 x 250 pixels).")
+    # Corrige l'orientation d'après l'EXIF (photos mobiles souvent tournées).
+    img = ImageOps.exif_transpose(img)
     img = img.convert("RGB")
     img = ImageOps.fit(img, CNI_SIZE, Image.LANCZOS)  # recadre sans déformer
     buffer = io.BytesIO()

@@ -1,5 +1,6 @@
 """Tests du formulaire public de collecte (Sprint 6)."""
 
+import io
 import tempfile
 import uuid
 from datetime import timedelta
@@ -8,6 +9,7 @@ from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.utils import timezone
+from PIL import Image
 
 from apps.accounts.models import User
 from apps.activites.models import Activite
@@ -123,3 +125,41 @@ class PublicFormTests(TestCase):
             },
         )
         self.assertEqual(r.status_code, 422)
+
+    def test_image_trop_volumineuse_refusee(self):
+        """Un fichier au-delà de la taille maximale est rejeté (422)."""
+        gros = SimpleUploadedFile(
+            "r.jpg", b"\xff\xd8\xff" + b"0" * (10 * 1024 * 1024 + 1), "image/jpeg"
+        )
+        r = self.client.post(
+            f"/api/public/activite/{self.act.token_qr}/participer",
+            data={
+                "nom": "Kouassi", "prenom": "Awa", "structure": "ONG",
+                "fonction": "Coordinatrice", "telephone_wave": "0701020304",
+                "email": "awa@x.ci", "numero_cni": "CI777333",
+                "photo_cni_recto": gros,
+                "photo_cni_verso": SimpleUploadedFile("v.jpg", fake_image(), "image/jpeg"),
+            },
+        )
+        self.assertEqual(r.status_code, 422)
+
+    def test_image_avec_orientation_exif_acceptee(self):
+        """Une image porteuse d'un tag EXIF d'orientation est traitée sans erreur."""
+        buf = io.BytesIO()
+        im = Image.new("RGB", (600, 400), (150, 150, 150))
+        exif = im.getexif()
+        exif[274] = 6  # Orientation : rotation de 90°
+        im.save(buf, "JPEG", exif=exif)
+        data = buf.getvalue()
+        r = self.client.post(
+            f"/api/public/activite/{self.act.token_qr}/participer",
+            data={
+                "nom": "Kouassi", "prenom": "Awa", "structure": "ONG",
+                "fonction": "Coordinatrice", "telephone_wave": "0701020304",
+                "email": "awa@x.ci", "numero_cni": "CI777444",
+                "photo_cni_recto": SimpleUploadedFile("r.jpg", data, "image/jpeg"),
+                "photo_cni_verso": SimpleUploadedFile("v.jpg", data, "image/jpeg"),
+            },
+        )
+        self.assertEqual(r.status_code, 201, r.content)
+        self.assertTrue(r.json().get("id"))
