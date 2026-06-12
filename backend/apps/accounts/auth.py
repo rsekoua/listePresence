@@ -21,11 +21,12 @@ ACCESS = "access"
 REFRESH = "refresh"
 
 
-def _encode(user_id: str, token_type: str, lifetime: timedelta) -> str:
+def _encode(user_id: str, token_type: str, lifetime: timedelta, version: int) -> str:
     now = datetime.now(timezone.utc)
     payload = {
         "sub": str(user_id),
         "type": token_type,
+        "ver": version,
         "iat": now,
         "exp": now + lifetime,
         "jti": uuid.uuid4().hex,
@@ -33,15 +34,15 @@ def _encode(user_id: str, token_type: str, lifetime: timedelta) -> str:
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
 
-def create_access_token(user_id: str) -> str:
+def create_access_token(user_id: str, version: int = 0) -> str:
     return _encode(
-        user_id, ACCESS, timedelta(hours=settings.JWT_ACCESS_LIFETIME_HOURS)
+        user_id, ACCESS, timedelta(hours=settings.JWT_ACCESS_LIFETIME_HOURS), version
     )
 
 
-def create_refresh_token(user_id: str) -> str:
+def create_refresh_token(user_id: str, version: int = 0) -> str:
     return _encode(
-        user_id, REFRESH, timedelta(days=settings.JWT_REFRESH_LIFETIME_DAYS)
+        user_id, REFRESH, timedelta(days=settings.JWT_REFRESH_LIFETIME_DAYS), version
     )
 
 
@@ -56,15 +57,23 @@ def decode_token(token: str, expected_type: str | None = None) -> dict:
 
 
 def get_user_from_token(token: str, expected_type: str = ACCESS):
-    """Retourne l'utilisateur actif associé à un token, sinon None."""
+    """Retourne l'utilisateur actif associé à un token, sinon None.
+
+    Le token est rejeté si sa version (« ver ») ne correspond plus à celle de
+    l'utilisateur : c'est le cas après un changement/réinitialisation de mot de
+    passe, qui révoque ainsi tous les jetons émis auparavant.
+    """
     try:
         payload = decode_token(token, expected_type)
     except jwt.PyJWTError:
         return None
     try:
-        return User.objects.get(id=payload["sub"], is_active=True)
+        user = User.objects.get(id=payload["sub"], is_active=True)
     except (User.DoesNotExist, KeyError, ValueError):
         return None
+    if payload.get("ver") != user.token_version:
+        return None
+    return user
 
 
 class JWTAuth(HttpBearer):

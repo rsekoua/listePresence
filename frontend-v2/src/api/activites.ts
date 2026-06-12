@@ -23,11 +23,12 @@ export async function logoutRequest(): Promise<void> {
 export async function changePassword(
   ancien_mot_de_passe: string,
   nouveau_mot_de_passe: string,
-): Promise<void> {
-  await api.post('/auth/change-password', {
+): Promise<TokenPair> {
+  const { data } = await api.post<TokenPair>('/auth/change-password', {
     ancien_mot_de_passe,
     nouveau_mot_de_passe,
   })
+  return data
 }
 
 // --- Activités -------------------------------------------------------------

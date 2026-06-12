@@ -1,13 +1,21 @@
 """Helpers du journal d'audit."""
 
+from django.conf import settings
+
 from .models import AuditLog
 
 
 def client_ip(request) -> str | None:
-    """Adresse IP de l'appelant (gère un éventuel reverse proxy)."""
-    xff = request.META.get("HTTP_X_FORWARDED_FOR")
-    if xff:
-        return xff.split(",")[0].strip()
+    """Adresse IP de l'appelant.
+
+    N'exploite X-Forwarded-For que si TRUST_PROXY est activé (app derrière un
+    reverse proxy de confiance) ; sinon s'en tient à REMOTE_ADDR pour éviter
+    qu'un client n'usurpe son IP via cet en-tête.
+    """
+    if settings.TRUST_PROXY:
+        xff = request.META.get("HTTP_X_FORWARDED_FOR")
+        if xff:
+            return xff.split(",")[0].strip()
     return request.META.get("REMOTE_ADDR")
 
 

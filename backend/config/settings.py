@@ -216,6 +216,13 @@ JWT_REFRESH_LIFETIME_DAYS = int(os.getenv("JWT_REFRESH_LIFETIME_DAYS", "7"))
 PUBLIC_FORM_BASE_URL = os.getenv("PUBLIC_FORM_BASE_URL", "http://localhost:5174")
 
 
+# Confiance du proxy pour déterminer l'IP cliente (audit, anti-spam).
+# À n'activer (True) que derrière un reverse proxy de confiance (Nginx) qui
+# réécrit l'en-tête X-Forwarded-For. Si l'app est exposée directement, laisser
+# False : sinon un client pourrait usurper son IP via cet en-tête.
+TRUST_PROXY = env_bool("DJANGO_TRUST_PROXY", False)
+
+
 # Limitation de débit (anti-bruteforce / anti-spam) — cf. apps/throttle.py
 # Connexion : nombre d'échecs tolérés par IP avant blocage temporaire.
 LOGIN_RATELIMIT = int(os.getenv("LOGIN_RATELIMIT", "10"))

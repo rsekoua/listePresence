@@ -22,6 +22,7 @@ from PIL import Image, ImageOps
 from pydantic import Field, field_validator
 
 from apps import throttle
+from apps.accounts.audit import client_ip
 from apps.activites.models import Activite
 
 from .models import Participant
@@ -137,13 +138,6 @@ def _process_cni_image(uploaded: UploadedFile) -> bytes:
     return buffer.getvalue()
 
 
-def _client_ip(request) -> str | None:
-    xff = request.META.get("HTTP_X_FORWARDED_FOR")
-    if xff:
-        return xff.split(",")[0].strip()
-    return request.META.get("REMOTE_ADDR")
-
-
 # --- Endpoints -------------------------------------------------------------
 
 
@@ -198,7 +192,7 @@ def participer(
         telephone_wave=payload.telephone_wave,
         email=payload.email,
         numero_cni=payload.numero_cni,
-        ip_address=_client_ip(request),
+        ip_address=client_ip(request),
     )
     participant.photo_cni_recto.save("recto.jpg", ContentFile(recto_bytes), save=False)
     participant.photo_cni_verso.save("verso.jpg", ContentFile(verso_bytes), save=False)

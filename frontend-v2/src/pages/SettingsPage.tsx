@@ -15,11 +15,13 @@ import {
 } from '@mantine/core'
 import { IconLockCog } from '@tabler/icons-react'
 import { changePassword, fetchMe } from '../api/activites'
+import { useAuth } from '../auth/AuthContext'
 import { PageHeader } from '../components/PageHeader'
 import { errorMessage, notify } from '../lib/notify'
 
 export function SettingsPage() {
   const { data: me } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
+  const { login } = useAuth()
 
   const [ancien, setAncien] = useState('')
   const [nouveau, setNouveau] = useState('')
@@ -27,7 +29,10 @@ export function SettingsPage() {
 
   const mutation = useMutation({
     mutationFn: () => changePassword(ancien, nouveau),
-    onSuccess: () => {
+    onSuccess: (tokens) => {
+      // Le mot de passe a changé : l'ancien jeton est révoqué côté serveur.
+      // On enregistre le nouveau couple pour garder la session courante active.
+      login(tokens.access, tokens.refresh)
       notify.success('Mot de passe mis à jour.')
       setAncien('')
       setNouveau('')

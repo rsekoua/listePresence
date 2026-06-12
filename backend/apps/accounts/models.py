@@ -23,6 +23,9 @@ class User(AbstractUser):
         choices=Role.choices,
         default=Role.ORGANISATEUR,
     )
+    # Incrémenté à chaque changement/réinitialisation de mot de passe : invalide
+    # tous les jetons JWT émis avant (claim « ver » comparée à la valeur courante).
+    token_version = models.PositiveIntegerField("version de jeton", default=0)
     created_at = models.DateTimeField("date de création", auto_now_add=True)
 
     class Meta:

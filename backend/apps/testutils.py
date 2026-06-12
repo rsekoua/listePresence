@@ -9,7 +9,9 @@ from apps.accounts.auth import create_access_token
 
 def bearer(user) -> dict:
     """En-têtes d'authentification JWT pour le client de test."""
-    return {"HTTP_AUTHORIZATION": f"Bearer {create_access_token(user.id)}"}
+    return {
+        "HTTP_AUTHORIZATION": f"Bearer {create_access_token(user.id, user.token_version)}"
+    }
 
 
 def fake_image(size=(600, 400)) -> bytes:

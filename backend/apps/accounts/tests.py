@@ -57,6 +57,27 @@ class AuthTests(TestCase):
         )
         self.assertEqual(r.status_code, 400)
 
+    def test_change_password_revoque_ancien_token(self):
+        """Après changement, l'ancien jeton est révoqué et un nouveau est fourni."""
+        ancien = bearer(self.org)
+        r = jpost(
+            self.client,
+            "/api/auth/change-password",
+            {"ancien_mot_de_passe": "password@123", "nouveau_mot_de_passe": "Korhogo!2026xyz"},
+            **ancien,
+        )
+        self.assertEqual(r.status_code, 200)
+        nouveau_access = r.json()["access"]
+        # L'ancien jeton ne passe plus.
+        self.assertEqual(self.client.get("/api/auth/me", **ancien).status_code, 401)
+        # Le nouveau jeton renvoyé reste valide (session courante conservée).
+        self.assertEqual(
+            self.client.get(
+                "/api/auth/me", HTTP_AUTHORIZATION=f"Bearer {nouveau_access}"
+            ).status_code,
+            200,
+        )
+
     def test_change_password_trop_faible(self):
         """Un nouveau mot de passe trop court/courant est rejeté (validators Django)."""
         r = jpost(
@@ -139,6 +160,19 @@ class UserManagementTests(TestCase):
             **bearer(self.admin),
         )
         self.assertEqual(r.status_code, 422)
+
+    def test_reset_mot_de_passe_revoque_les_tokens(self):
+        """La réinitialisation admin invalide les jetons existants de l'utilisateur."""
+        token_org = bearer(self.org)
+        self.assertEqual(self.client.get("/api/auth/me", **token_org).status_code, 200)
+        r = jpost(
+            self.client,
+            f"/api/auth/users/{self.org.id}/reset-password",
+            {"nouveau_mot_de_passe": "Korhogo!2026xyz"},
+            **bearer(self.admin),
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(self.client.get("/api/auth/me", **token_org).status_code, 401)
 
     def test_creation_doublon_username(self):
         r = jpost(

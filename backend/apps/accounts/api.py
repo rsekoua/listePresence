@@ -100,8 +100,8 @@ def login(request, data: LoginIn):
     throttle.reset(request, "login", ident=ip)
     record(request, AuditLog.Action.LOGIN, user=user)
     return TokenOut(
-        access=create_access_token(user.id),
-        refresh=create_refresh_token(user.id),
+        access=create_access_token(user.id, user.token_version),
+        refresh=create_refresh_token(user.id, user.token_version),
     )
 
 
@@ -111,7 +111,7 @@ def refresh(request, data: RefreshIn):
     user = get_user_from_token(data.refresh, REFRESH)
     if user is None:
         raise HttpError(401, "Token de rafraîchissement invalide ou expiré.")
-    return AccessOut(access=create_access_token(user.id))
+    return AccessOut(access=create_access_token(user.id, user.token_version))
 
 
 @router.post("/logout", response=MessageOut, auth=JWTAuth())
@@ -137,17 +137,25 @@ def me(request):
     )
 
 
-@router.post("/change-password", response={200: MessageOut}, auth=JWTAuth())
+@router.post("/change-password", response={200: TokenOut}, auth=JWTAuth())
 def change_password(request, data: ChangePasswordIn):
-    """Change le mot de passe de l'organisateur connecté."""
+    """Change le mot de passe de l'organisateur connecté.
+
+    Incrémente la version des jetons (révoque les sessions ouvertes ailleurs) et
+    renvoie un nouveau couple de tokens pour que la session courante reste valide.
+    """
     user = request.auth
     if not user.check_password(data.ancien_mot_de_passe):
         raise HttpError(400, "Le mot de passe actuel est incorrect.")
     _check_password(data.nouveau_mot_de_passe, user=user)
     user.set_password(data.nouveau_mot_de_passe)
-    user.save(update_fields=["password"])
+    user.token_version += 1
+    user.save(update_fields=["password", "token_version"])
     record(request, AuditLog.Action.PASSWORD_CHANGE)
-    return 200, MessageOut(detail="Mot de passe mis à jour.")
+    return 200, TokenOut(
+        access=create_access_token(user.id, user.token_version),
+        refresh=create_refresh_token(user.id, user.token_version),
+    )
 
 
 # --- Gestion des utilisateurs (réservé à l'admin — AUTH-04) ----------------
@@ -268,7 +276,8 @@ def reset_user_password(request, user_id: UUID, data: AdminResetPwdIn):
     user = get_object_or_404(User, id=user_id)
     _check_password(data.nouveau_mot_de_passe, user=user)
     user.set_password(data.nouveau_mot_de_passe)
-    user.save(update_fields=["password"])
+    user.token_version += 1
+    user.save(update_fields=["password", "token_version"])
     record(request, AuditLog.Action.USER_RESET_PWD, objet=user.username)
     return 200, MessageOut(detail="Mot de passe réinitialisé.")
 
