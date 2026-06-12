@@ -19,9 +19,9 @@ import { DataTable, type DataTableSortStatus } from 'mantine-datatable'
 import {
   IconCalendarEvent,
   IconLock,
-  IconLockOpen,
   IconPlus,
   IconUser,
+  IconUsers,
   IconUsersGroup,
 } from '@tabler/icons-react'
 import { fetchActivites, fetchGlobalStats } from '../api/activites'
@@ -83,8 +83,10 @@ export function DashboardPage() {
 
   const activites = data ?? []
   const total = activites.length
-  const ouvertes = activites.filter((a) => a.statut === 'ouvert').length
   const fermees = activites.filter((a) => a.statut !== 'ouvert').length
+  const totalInscriptions = activites.reduce((s, a) => s + a.nb_participants, 0)
+  const moyenneParActivite =
+    total > 0 ? Math.round((totalInscriptions / total) * 10) / 10 : 0
   const participantsUniques = globalStats?.nb_participants_uniques ?? 0
 
   // Tri client de la liste complète, avant pagination.
@@ -156,9 +158,9 @@ export function DashboardPage() {
           color="indigo"
         />
         <StatCard
-          icon={<IconLockOpen size={26} />}
-          label="Collectes ouvertes"
-          value={ouvertes}
+          icon={<IconUsers size={26} />}
+          label="Moyenne / activité"
+          value={moyenneParActivite}
           color="teal"
         />
         <StatCard
