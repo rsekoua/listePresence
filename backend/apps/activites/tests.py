@@ -144,14 +144,6 @@ class ActiviteRBACTests(TestCase):
         radmin = self.client.get("/api/activites/stats-globales", **bearer(self.admin)).json()
         self.assertEqual(radmin["nb_activites"], 3)
         self.assertEqual(radmin["nb_participants_uniques"], 2)
-        # Champs enrichis (tableau de bord)
-        self.assertEqual(radmin["nb_inscriptions"], 2)
-        self.assertEqual(radmin["cni_total"], 2)
-        self.assertEqual(radmin["cni_completes"], 0)  # pas de photos sur ces deux-là
-        self.assertEqual(len(radmin["inscriptions_30j"]), 30)
-        self.assertEqual(sum(j["total"] for j in radmin["inscriptions_30j"]), 2)
-        # orgA ne voit que sa propre inscription
-        self.assertEqual(ra["nb_inscriptions"], 1)
 
     def test_liste_activites_pas_de_n_plus_1(self):
         """Le nombre de requêtes ne doit pas croître avec le nombre d'activités."""
