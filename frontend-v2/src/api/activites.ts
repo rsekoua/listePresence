@@ -38,9 +38,18 @@ export async function fetchActivites(): Promise<Activite[]> {
   return data
 }
 
+export interface DayCount {
+  jour: string
+  total: number
+}
+
 export interface GlobalStats {
   nb_activites: number
   nb_participants_uniques: number
+  nb_inscriptions: number
+  cni_completes: number
+  cni_total: number
+  inscriptions_30j: DayCount[]
 }
 
 /** Stats transverses du tableau de bord (participants uniques par CNI). */

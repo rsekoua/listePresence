@@ -10,14 +10,16 @@ Toutes les routes sont protégées par JWT. Règles RBAC :
 
 import io
 import re
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from uuid import UUID
 
 import qrcode
 from django.conf import settings
 from django.db.models import Count
+from django.db.models.functions import TruncDate
 from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from ninja import File, Form, Query, Router, Schema
 from ninja.errors import HttpError
 from ninja.files import UploadedFile
@@ -162,9 +164,18 @@ def list_activites(request):
     return [_with_perm(user, a) for a in activites]
 
 
+class DayCount(Schema):
+    jour: date
+    total: int
+
+
 class GlobalStatsOut(Schema):
     nb_activites: int
     nb_participants_uniques: int
+    nb_inscriptions: int
+    cni_completes: int
+    cni_total: int
+    inscriptions_30j: list[DayCount]
 
 
 @router.get("/stats-globales", response=GlobalStatsOut)
@@ -174,16 +185,45 @@ def stats_globales(request):
     Restreint au périmètre de l'utilisateur (comme la liste des activités) :
     un admin voit tout, un organisateur uniquement ses propres activités et
     leurs participants. `nb_participants_uniques` compte les personnes
-    distinctes par numéro de CNI, sans double comptage entre activités.
+    distinctes par numéro de CNI, sans double comptage entre activités ;
+    `nb_inscriptions` compte toutes les participations. `inscriptions_30j`
+    fournit le nombre d'inscriptions par jour sur les 30 derniers jours
+    (jours sans inscription inclus, à zéro).
     """
     activites = Activite.objects.all()
     participants = Participant.objects.all()
     if not request.auth.is_admin:
         activites = activites.filter(created_by=request.auth)
         participants = participants.filter(activite__created_by=request.auth)
+
+    cni_total = participants.count()
+    cni_completes = (
+        participants.exclude(photo_cni_recto="").exclude(photo_cni_verso="").count()
+    )
+
+    # Série journalière des 30 derniers jours, jours vides comblés à zéro.
+    debut = timezone.localdate() - timedelta(days=29)
+    par_jour = {
+        row["jour"]: row["total"]
+        for row in (
+            participants.filter(horodatage__date__gte=debut)
+            .annotate(jour=TruncDate("horodatage"))
+            .values("jour")
+            .annotate(total=Count("id"))
+        )
+    }
+    inscriptions_30j = [
+        DayCount(jour=(debut + timedelta(days=i)), total=par_jour.get(debut + timedelta(days=i), 0))
+        for i in range(30)
+    ]
+
     return GlobalStatsOut(
         nb_activites=activites.count(),
         nb_participants_uniques=participants.values("numero_cni").distinct().count(),
+        nb_inscriptions=cni_total,
+        cni_completes=cni_completes,
+        cni_total=cni_total,
+        inscriptions_30j=inscriptions_30j,
     )
 
 
