@@ -8,7 +8,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.utils import timezone
 
-from apps.accounts.models import User
+from apps.accounts.models import AuditLog, User
 from apps.activites.models import Activite
 from apps.participants.models import Participant
 from apps.testutils import bearer, fake_image
@@ -244,3 +244,13 @@ class AjoutManuelParticipantTests(TestCase):
         pid_b = self._add(numero_cni="CNIB").json()["id"]
         r = self._update(pid_b, numero_cni="CNIA")
         self.assertEqual(r.status_code, 409)
+
+    def test_ajout_et_modification_tracees(self):
+        pid = self._add().json()["id"]
+        self.assertTrue(
+            AuditLog.objects.filter(action="participant_create", username="org").exists()
+        )
+        self._update(pid, fonction="Directrice")
+        self.assertTrue(
+            AuditLog.objects.filter(action="participant_update", username="org").exists()
+        )

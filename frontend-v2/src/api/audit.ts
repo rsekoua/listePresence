@@ -25,6 +25,8 @@ export const AUDIT_ACTIONS: { value: string; label: string }[] = [
   { value: 'activite_statut', label: 'Changement de statut' },
   { value: 'activite_delete', label: "Suppression d'activité" },
   { value: 'activite_clone', label: "Clonage d'activité" },
+  { value: 'participant_create', label: "Ajout manuel d'un participant" },
+  { value: 'participant_update', label: "Modification d'un participant" },
   { value: 'export', label: 'Export' },
   { value: 'user_create', label: 'Création de compte' },
   { value: 'user_update', label: 'Modification de compte' },

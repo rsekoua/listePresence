@@ -594,6 +594,11 @@ def add_participant(
         verso_bytes = _process_cni_image(photo_cni_verso)
         participant.photo_cni_verso.save("verso.jpg", ContentFile(verso_bytes), save=False)
     participant.save()
+    record(
+        request,
+        AuditLog.Action.PARTICIPANT_CREATE,
+        objet=f"{participant.prenom} {participant.nom} — {activite.nom}",
+    )
     return 201, participant
 
 
@@ -650,6 +655,11 @@ def update_participant(
         verso_bytes = _process_cni_image(photo_cni_verso)
         participant.photo_cni_verso.save("verso.jpg", ContentFile(verso_bytes), save=False)
     participant.save()
+    record(
+        request,
+        AuditLog.Action.PARTICIPANT_UPDATE,
+        objet=f"{participant.prenom} {participant.nom} — {activite.nom}",
+    )
     return 200, participant
 
 

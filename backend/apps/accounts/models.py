@@ -51,6 +51,8 @@ class AuditLog(models.Model):
         ACTIVITE_STATUT = "activite_statut", "Changement de statut"
         ACTIVITE_DELETE = "activite_delete", "Suppression d'activité"
         ACTIVITE_CLONE = "activite_clone", "Clonage d'activité"
+        PARTICIPANT_CREATE = "participant_create", "Ajout manuel d'un participant"
+        PARTICIPANT_UPDATE = "participant_update", "Modification d'un participant"
         EXPORT = "export", "Export"
         USER_CREATE = "user_create", "Création de compte"
         USER_UPDATE = "user_update", "Modification de compte"
