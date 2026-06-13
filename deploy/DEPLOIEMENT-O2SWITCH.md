@@ -57,6 +57,14 @@ et déploiement depuis **GitHub via Git**.
 
 ## 2. Préparer le CODE (modifs dans le repo, à committer)
 
+> ✅ **Déjà fait dans le repo** : `pyproject.toml` (Python ≥ 3.12), pilote MySQL
+> (PyMySQL + shim dans `config/__init__.py`, `OPTIONS utf8mb4`), WhiteNoise +
+> route SPA attrape-tout (`settings.py`/`urls.py`), `backend/requirements.txt`,
+> `passenger_wsgi.py`, `.cpanel.yml`, et le build React dans
+> `backend/frontend_dist/`. Les sous-sections ci-dessous documentent ces choix ;
+> il te reste surtout à créer le `.env` (§6) et à adapter `.cpanel.yml`
+> (TONUSER + version Python).
+
 ### 2.1 Assouplir la version de Python
 `backend/pyproject.toml` : `requires-python = ">=3.14"` → **`">=3.12"`** (o2switch n'a pas 3.14).
 
@@ -201,6 +209,9 @@ pip install -r requirements.txt
 # 4) Base de données
 python manage.py migrate
 
+# 4 bis) Table de cache (rate-limiting partagé entre processus)
+python manage.py createcachetable
+
 # 5) Fichiers statiques (admin + WhiteNoise)
 python manage.py collectstatic --noinput
 
@@ -232,6 +243,21 @@ PUBLIC_FORM_BASE_URL=https://presence.tondomaine.fr
 JWT_SECRET=__autre_clé__
 JWT_ACCESS_LIFETIME_HOURS=8
 JWT_REFRESH_LIFETIME_DAYS=7
+
+# Proxy de confiance (LiteSpeed/Passenger) : nécessaire pour obtenir la VRAIE IP
+# cliente — utilisée par le journal d'audit ET par le rate-limiting par IP.
+# ⚠️ À VÉRIFIER après le 1er déploiement : connecte-toi, puis regarde l'IP dans
+# le journal d'audit (page Journal, ou table accounts_auditlog).
+#   - IP fausse / identique pour tous (ex. 127.0.0.1) → DJANGO_TRUST_PROXY=True
+#   - IP cliente déjà correcte                        → laisser False
+# (Si toutes les requêtes partagent une seule IP, le rate-limiting login/public
+#  se déclenche pour tout le monde à la fois → d'où l'importance de ce réglage.)
+DJANGO_TRUST_PROXY=True
+
+# Anti-spam du formulaire public : défaut 60 soumissions / 5 min PAR IP.
+# À augmenter pour un gros événement derrière un Wi-Fi/4G partagé (même IP).
+# PUBLIC_RATELIMIT=120
+# PUBLIC_RATELIMIT_WINDOW=300
 
 # Base MySQL o2switch (noms PRÉFIXÉS)
 DB_ENGINE=django.db.backends.mysql

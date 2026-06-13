@@ -99,6 +99,8 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # Sert les fichiers statiques (admin + build React) sans serveur web dédié.
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -135,15 +137,27 @@ WSGI_APPLICATION = "config.wsgi.application"
 # (PostgreSQL requiert le paquet psycopg : `uv add "psycopg[binary]"`.)
 
 if os.getenv("DB_NAME"):
-    DATABASES = {
+    DB_ENGINE = os.getenv("DB_ENGINE", "django.db.backends.postgresql")
+    _db = {
+        "ENGINE": DB_ENGINE,
+        "NAME": os.getenv("DB_NAME"),
+        "USER": os.getenv("DB_USER", ""),
+        "PASSWORD": os.getenv("DB_PASSWORD", ""),
+        "HOST": os.getenv("DB_HOST", "127.0.0.1"),
+        "PORT": os.getenv("DB_PORT", "5432"),
+        "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "60")),
+    }
+    # MySQL/MariaDB (o2switch) : utf8mb4 pour les accents et emojis.
+    if "mysql" in DB_ENGINE:
+        _db["OPTIONS"] = {"charset": "utf8mb4"}
+    DATABASES = {"default": _db}
+
+    # Cache partagé entre processus (rate-limiting fiable sous Passenger).
+    # Nécessite `python manage.py createcachetable` au déploiement.
+    CACHES = {
         "default": {
-            "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.postgresql"),
-            "NAME": os.getenv("DB_NAME"),
-            "USER": os.getenv("DB_USER", ""),
-            "PASSWORD": os.getenv("DB_PASSWORD", ""),
-            "HOST": os.getenv("DB_HOST", "127.0.0.1"),
-            "PORT": os.getenv("DB_PORT", "5432"),
-            "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "60")),
+            "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+            "LOCATION": "presence_cache",
         }
     }
 else:
@@ -153,6 +167,7 @@ else:
             "NAME": BASE_DIR / "db.sqlite3",
         }
     }
+    # Hors production (dev/tests) : cache mémoire local, suffisant.
 
 
 # Modèle utilisateur personnalisé (organisateur)
@@ -195,6 +210,22 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# Build du frontend React (déploiement mono-origine) : WhiteNoise sert ces
+# fichiers à la racine du site (/ , /assets/…). Une route attrape-tout (urls.py)
+# renvoie index.html pour les routes SPA rafraîchies.
+FRONTEND_DIST = BASE_DIR / "frontend_dist"
+WHITENOISE_ROOT = FRONTEND_DIST
+WHITENOISE_INDEX_FILE = True
+
+# En production, compression + cache-busting des statiques Django (admin).
+if not DEBUG:
+    STORAGES = {
+        "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"
+        },
+    }
 
 # Media files (photos CNI) — stockées hors de la racine web publique
 MEDIA_URL = "media/"

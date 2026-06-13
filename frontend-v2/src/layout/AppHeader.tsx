@@ -1,6 +1,5 @@
 import { useLocation } from 'react-router-dom'
-import { ActionIcon, Anchor, Box, Breadcrumbs, Group, Text, Tooltip } from '@mantine/core'
-import { IconBell } from '@tabler/icons-react'
+import { Anchor, Box, Breadcrumbs, Group, Text } from '@mantine/core'
 
 const LABELS: { match: (path: string) => boolean; crumb: string }[] = [
   { match: (p) => p.startsWith('/dashboard'), crumb: "Vue d'ensemble" },
