@@ -1,4 +1,4 @@
-import { useState, type ReactElement, type ReactNode } from 'react'
+import { memo, useMemo, useState, type ReactElement, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
@@ -38,7 +38,7 @@ const STATUT_LABEL: Record<
   archive: { label: 'Archivée', color: 'default', icon: <Inventory2RoundedIcon /> },
 }
 
-function StatCard({
+const StatCard = memo(function StatCard({
   icon,
   label,
   value,
@@ -98,7 +98,7 @@ function StatCard({
       </Stack>
     </Paper>
   )
-}
+})
 
 export function DashboardPage() {
   const navigate = useNavigate()
@@ -117,12 +117,23 @@ export function DashboardPage() {
   })
 
   const activites = data ?? []
-  const total = activites.length
-  const ouvertes = activites.filter((a) => a.statut === 'ouvert').length
-  const fermees = activites.filter((a) => a.statut !== 'ouvert').length
+  const { total, ouvertes, fermees } = useMemo(() => ({
+    total: activites.length,
+    ouvertes: activites.filter((a) => a.statut === 'ouvert').length,
+    fermees: activites.filter((a) => a.statut !== 'ouvert').length,
+  }), [activites])
   const participantsUniques = globalStats?.nb_participants_uniques ?? 0
 
- const columns: GridColDef<Activite>[] = [
+  const avatarSx = useMemo(() => ({
+    width: 34,
+    height: 34,
+    bgcolor: alpha(theme.palette.primary.main, 0.1),
+    color: theme.palette.primary.dark,
+    fontSize: 14,
+    fontWeight: 700,
+  }), [theme.palette.primary.main, theme.palette.primary.dark])
+
+  const columns: GridColDef<Activite>[] = useMemo(() => [
     {
       field: 'nom',
       headerName: 'Libellé  de l\'Activité',
@@ -131,17 +142,7 @@ export function DashboardPage() {
       minWidth: 220,
       renderCell: (params) => (
         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', height: '100%' }}>
-          <Avatar
-            sx={{
-              width: 34,
-              height: 34,
-              // Utilisation du Cyan très doux du thème pour le fond
-              bgcolor: alpha(theme.palette.primary.main, 0.1),
-              color: theme.palette.primary.dark,
-              fontSize: 14,
-              fontWeight: 700,
-            }}
-          >
+          <Avatar sx={avatarSx}>
             {params.row.nom.charAt(0).toUpperCase()}
           </Avatar>
           <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }} noWrap>
@@ -259,7 +260,8 @@ export function DashboardPage() {
         </Stack>
       ),
     },
-  ]
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [avatarSx, theme])
 
   return (
     <Box>

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -83,8 +83,25 @@ export function AppLayout() {
 
   const { data: me } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
 
-  const isActive = (path?: string) =>
-    Boolean(path && location.pathname.startsWith(path))
+  const isActive = useCallback(
+    (path?: string) => Boolean(path && location.pathname.startsWith(path)),
+    [location.pathname],
+  )
+
+  const filteredMainNav = useMemo(
+    () => MAIN_NAV.filter((item) => !item.adminOnly || me?.role === 'admin'),
+    [me?.role],
+  )
+
+  const handleNavClick = useCallback(
+    (path?: string) => {
+      if (path) {
+        navigate(path)
+        setMobileOpen(false)
+      }
+    },
+    [navigate],
+  )
 
   const drawerContent = (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -131,17 +148,12 @@ export function AppLayout() {
 
       {/* Navigation principale */}
       <List sx={{ px: 1.5, py: 1.5, flexGrow: 1 }}>
-        {MAIN_NAV.filter((item) => !item.adminOnly || me?.role === 'admin').map((item) => (
+        {filteredMainNav.map((item) => (
           <ListItemButton
             key={item.label}
             selected={isActive(item.path)}
             disabled={item.soon}
-            onClick={() => {
-              if (item.path) {
-                navigate(item.path)
-                setMobileOpen(false)
-              }
-            }}
+            onClick={() => handleNavClick(item.path)}
             sx={{ mb: 0.5 }}
           >
             <ListItemIcon sx={{ minWidth: 38 }}>{item.icon}</ListItemIcon>
@@ -161,12 +173,7 @@ export function AppLayout() {
             key={item.label}
             selected={isActive(item.path)}
             disabled={item.soon}
-            onClick={() => {
-              if (item.path) {
-                navigate(item.path)
-                setMobileOpen(false)
-              }
-            }}
+            onClick={() => handleNavClick(item.path)}
             sx={{ mb: 0.5 }}
           >
             <ListItemIcon sx={{ minWidth: 38 }}>{item.icon}</ListItemIcon>

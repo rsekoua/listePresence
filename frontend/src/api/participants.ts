@@ -131,6 +131,24 @@ export async function createParticipant(
   return data
 }
 
+export async function updateParticipant(
+  activiteId: string,
+  participantId: string,
+  input: ParticipantInput,
+  photos?: { recto?: File | null; verso?: File | null },
+): Promise<Participant> {
+  const fd = new FormData()
+  Object.entries(input).forEach(([key, value]) => fd.append(key, value))
+  if (photos?.recto) fd.append('photo_cni_recto', photos.recto)
+  if (photos?.verso) fd.append('photo_cni_verso', photos.verso)
+  const { data } = await api.post<Participant>(
+    `/activites/${activiteId}/participants/${participantId}`,
+    fd,
+    { headers: { 'Content-Type': false } },
+  )
+  return data
+}
+
 export async function fetchStats(activiteId: string): Promise<Stats> {
   const { data } = await api.get<Stats>(`/activites/${activiteId}/stats`)
   return data

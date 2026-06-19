@@ -16,16 +16,19 @@ import {
 } from '@mui/material'
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
 import PictureAsPdfRoundedIcon from '@mui/icons-material/PictureAsPdfRounded'
+import EditRoundedIcon from '@mui/icons-material/EditRounded'
 import { useQueryClient } from '@tanstack/react-query'
 import { useSnackbar } from 'notistack'
 import { fetchParticipantPhoto, type Participant } from '../api/participants'
 import { exportParticipantPdf } from '../api/exports'
+import { EditParticipantDialog } from './EditParticipantDialog'
 
 interface Props {
   activiteId: string
   participant: Participant | null
   open: boolean
   onClose: () => void
+  canEdit?: boolean
 }
 
 export function ParticipantDetailDialog({
@@ -33,11 +36,13 @@ export function ParticipantDetailDialog({
   participant,
   open,
   onClose,
+  canEdit = false,
 }: Props) {
   const [recto, setRecto] = useState<string | null>(null)
   const [verso, setVerso] = useState<string | null>(null)
   const [zoom, setZoom] = useState<string | null>(null)
   const [downloading, setDownloading] = useState(false)
+  const [editOpen, setEditOpen] = useState(false)
   const { enqueueSnackbar } = useSnackbar()
   const queryClient = useQueryClient()
 
@@ -132,6 +137,15 @@ export function ParticipantDetailDialog({
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
+          {canEdit && (
+            <Button
+              variant="outlined"
+              startIcon={<EditRoundedIcon />}
+              onClick={() => setEditOpen(true)}
+            >
+              Modifier
+            </Button>
+          )}
           <Button
             variant="contained"
             startIcon={
@@ -148,6 +162,14 @@ export function ParticipantDetailDialog({
           </Button>
         </DialogActions>
       </Dialog>
+
+      <EditParticipantDialog
+        activiteId={activiteId}
+        participant={participant}
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        onUpdated={onClose}
+      />
 
       {/* Zoom plein écran */}
       <Dialog open={Boolean(zoom)} onClose={() => setZoom(null)} maxWidth="lg">

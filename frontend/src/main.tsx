@@ -12,7 +12,15 @@ import { theme } from './theme/theme'
 import { AuthProvider } from './auth/AuthContext'
 import App from './App.tsx'
 
-const queryClient = new QueryClient()
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 2,
+      gcTime: 1000 * 60 * 10,
+      refetchOnWindowFocus: false,
+    },
+  },
+})
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import {
@@ -39,7 +39,7 @@ export function AuditPage() {
     enabled: me?.role === 'admin',
   })
 
-  const rows = (data ?? []).map((e, i) => ({ id: i, ...e }))
+  const rows = useMemo(() => (data ?? []).map((e, i) => ({ id: i, ...e })), [data])
 
   if (me && me.role !== 'admin') {
     return (
@@ -54,7 +54,7 @@ export function AuditPage() {
     )
   }
 
-  const columns: GridColDef<AuditEntry & { id: number }>[] = [
+  const columns: GridColDef<AuditEntry & { id: number }>[] = useMemo(() => [
     {
       field: 'created_at',
       headerName: 'Date',
@@ -84,7 +84,7 @@ export function AuditPage() {
     },
     { field: 'objet', headerName: 'Détails', flex: 1, minWidth: 200 },
     { field: 'ip_address', headerName: 'IP', width: 130 },
-  ]
+  ], [])
 
   return (
     <Box>

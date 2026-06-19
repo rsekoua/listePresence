@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useCallback, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useSnackbar } from 'notistack'
 import dayjs from 'dayjs'
@@ -34,6 +34,27 @@ import { AddParticipantDialog } from './AddParticipantDialog'
 
 const REFRESH_MS = 30_000
 
+const DATAGRID_SX = {
+  border: 0,
+  cursor: 'pointer',
+  fontSize: 13,
+  '--DataGrid-rowBorderColor': '#eef0f4',
+  '& .MuiDataGrid-columnHeader': { bgcolor: '#f8fafc' },
+  '& .MuiDataGrid-columnHeaders': { bgcolor: '#f8fafc' },
+  '& .MuiDataGrid-columnHeaderTitle': {
+    fontWeight: 700,
+    color: 'text.secondary',
+    textTransform: 'uppercase',
+    fontSize: 11,
+    letterSpacing: 0.4,
+  },
+  '& .MuiDataGrid-cell': { borderColor: '#eef0f4' },
+  '& .MuiDataGrid-cell .MuiTypography-root': { fontSize: 13 },
+  '& .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within': { outline: 'none' },
+  '& .MuiDataGrid-row:hover': { bgcolor: 'action.hover' },
+  '& .MuiDataGrid-footerContainer': { borderColor: '#eef0f4' },
+} as const
+
 export function ParticipantsPanel({
   activiteId,
   canAdd,
@@ -49,7 +70,7 @@ export function ParticipantsPanel({
   const [addOpen, setAddOpen] = useState(false)
   const [exporting, setExporting] = useState(false)
 
-  const runExport = async (fn: (id: string) => Promise<void>) => {
+  const runExport = useCallback(async (fn: (id: string) => Promise<void>) => {
     setExporting(true)
     try {
       await fn(activiteId)
@@ -59,17 +80,27 @@ export function ParticipantsPanel({
     } finally {
       setExporting(false)
     }
-  }
+  }, [activiteId, queryClient, enqueueSnackbar])
 
   const { data: page, isLoading } = useQuery({
     queryKey: ['participants', activiteId],
     queryFn: () => fetchParticipants(activiteId),
     refetchInterval: REFRESH_MS,
+    refetchIntervalInBackground: false,
   })
 
   const participants = page?.items ?? []
 
-  const columns: GridColDef<Participant>[] = [
+  const avatarSx = useMemo(() => ({
+    width: 32,
+    height: 32,
+    bgcolor: alpha(theme.palette.primary.main, 0.1),
+    color: theme.palette.primary.dark,
+    fontSize: 13,
+    fontWeight: 700,
+  }), [theme.palette.primary.main, theme.palette.primary.dark])
+
+  const columns: GridColDef<Participant>[] = useMemo(() => [
     {
       field: 'nom',
       headerName: 'Participant',
@@ -77,16 +108,7 @@ export function ParticipantsPanel({
       minWidth: 200,
       renderCell: (params) => (
         <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', height: '100%' }}>
-          <Avatar
-            sx={{
-              width: 32,
-              height: 32,
-              bgcolor: alpha(theme.palette.primary.main, 0.1),
-              color: theme.palette.primary.dark,
-              fontSize: 13,
-              fontWeight: 700,
-            }}
-          >
+          <Avatar sx={avatarSx}>
             {params.row.prenom.charAt(0).toUpperCase()}
           </Avatar>
           <Typography variant="body2" sx={{ fontWeight: 600, color: 'text.primary' }} noWrap>
@@ -155,7 +177,8 @@ export function ParticipantsPanel({
       width: 150,
       valueFormatter: (value) => dayjs(value as string).format('DD/MM/YYYY HH:mm'),
     },
-  ]
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [avatarSx])
 
   return (
     <Box>
@@ -243,28 +266,7 @@ export function ParticipantsPanel({
             autoHeight
             initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
             pageSizeOptions={[10, 25, 50]}
-            sx={{
-              border: 0,
-              cursor: 'pointer',
-              fontSize: 13,
-              '--DataGrid-rowBorderColor': '#eef0f4',
-              '& .MuiDataGrid-columnHeader': { bgcolor: '#f8fafc' },
-              '& .MuiDataGrid-columnHeaders': { bgcolor: '#f8fafc' },
-              '& .MuiDataGrid-columnHeaderTitle': {
-                fontWeight: 700,
-                color: 'text.secondary',
-                textTransform: 'uppercase',
-                fontSize: 11,
-                letterSpacing: 0.4,
-              },
-              '& .MuiDataGrid-cell': { borderColor: '#eef0f4' },
-              '& .MuiDataGrid-cell .MuiTypography-root': { fontSize: 13 },
-              '& .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within': {
-                outline: 'none',
-              },
-              '& .MuiDataGrid-row:hover': { bgcolor: 'action.hover' },
-              '& .MuiDataGrid-footerContainer': { borderColor: '#eef0f4' },
-            }}
+            sx={DATAGRID_SX}
             localeText={{
               ...frFR.components.MuiDataGrid.defaultProps.localeText,
               noRowsLabel: 'Aucun participant',
@@ -278,6 +280,7 @@ export function ParticipantsPanel({
         participant={selected}
         open={Boolean(selected)}
         onClose={() => setSelected(null)}
+        canEdit={canAdd}
       />
       <AddParticipantDialog
         activiteId={activiteId}
@@ -288,7 +291,7 @@ export function ParticipantsPanel({
   )
 }
 
-function ParticipantCards({
+const ParticipantCards = memo(function ParticipantCards({
   participants,
   isLoading,
   onSelect,
@@ -349,4 +352,4 @@ function ParticipantCards({
       ))}
     </Stack>
   )
-}
+})
