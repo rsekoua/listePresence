@@ -92,23 +92,27 @@ export function ParticipantsPanel({
   const participants = page?.items ?? []
 
   // Détecte les nouveaux inscrits entre deux cycles de polling.
-  // prevCountRef est initialisé à null pour ignorer la toute première réponse
-  // (chargement initial) et ne notifier qu'à partir du second fetch.
-  const prevCountRef = useRef<number | null>(null)
+  // On persiste le dernier count dans sessionStorage (clé par activiteId) pour
+  // survivre aux démontages/remontages du composant (navigation puis retour).
+  const storageKey = `presence_participant_count_${activiteId}`
+  const storedCount = sessionStorage.getItem(storageKey)
+  const prevCountRef = useRef<number | null>(storedCount !== null ? Number(storedCount) : null)
   useEffect(() => {
     const count = page?.count ?? null
     if (count === null) return
-    if (prevCountRef.current !== null && count > prevCountRef.current) {
-      const diff = count - prevCountRef.current
+    const prev = prevCountRef.current
+    if (prev !== null && count > prev) {
+      const diff = count - prev
       enqueueSnackbar(
         diff === 1
-          ? '1 nouveau participant vient de s\'inscrire via le QR code.'
+          ? "1 nouveau participant vient de s'inscrire via le QR code."
           : `${diff} nouveaux participants viennent de s'inscrire via le QR code.`,
         { variant: 'info' },
       )
     }
     prevCountRef.current = count
-  }, [page?.count, enqueueSnackbar])
+    sessionStorage.setItem(storageKey, String(count))
+  }, [page?.count, enqueueSnackbar, storageKey])
 
   const avatarSx = useMemo(() => ({
     width: 32,
