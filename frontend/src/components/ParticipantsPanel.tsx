@@ -32,7 +32,7 @@ import { exportCniZip, exportExcel, exportPresenceList } from '../api/exports'
 import { ParticipantDetailDialog } from './ParticipantDetailDialog'
 import { AddParticipantDialog } from './AddParticipantDialog'
 
-const REFRESH_MS = 30_000
+const REFRESH_MS = 5_000
 
 const DATAGRID_SX = {
   border: 0,
