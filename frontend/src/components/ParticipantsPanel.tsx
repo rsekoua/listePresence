@@ -85,6 +85,7 @@ export function ParticipantsPanel({
   const { data: page, isLoading } = useQuery({
     queryKey: ['participants', activiteId],
     queryFn: () => fetchParticipants(activiteId),
+    staleTime: 0,
     refetchInterval: REFRESH_MS,
     refetchIntervalInBackground: false,
   })
@@ -220,7 +221,7 @@ export function ParticipantsPanel({
             color="text.secondary"
             sx={{ display: { xs: 'none', md: 'block' } }}
           >
-            Actualisé toutes les 30 s
+            Actualisé toutes les 5 s
           </Typography>
         </Stack>
         <Stack
