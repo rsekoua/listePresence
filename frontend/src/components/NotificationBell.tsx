@@ -40,7 +40,7 @@ export function NotificationBell({ sx }: { sx?: object }) {
         <IconButton ref={anchorRef} onClick={handleOpen} sx={sx}>
           <Badge
             badgeContent={unreadCount}
-            color="primary"
+            color="error"
             max={99}
             invisible={unreadCount === 0}
           >
@@ -141,7 +141,7 @@ function NotificationItem({ n }: { n: AppNotification }) {
             </Typography>
             {!n.read && (
               <Box
-                sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: 'primary.main', flexShrink: 0 }}
+                sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: 'error.main', flexShrink: 0 }}
               />
             )}
           </Stack>
