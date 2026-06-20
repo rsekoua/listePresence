@@ -29,6 +29,7 @@ import PictureAsPdfRoundedIcon from '@mui/icons-material/PictureAsPdfRounded'
 import FolderZipRoundedIcon from '@mui/icons-material/FolderZipRounded'
 import { fetchParticipants, type Participant } from '../api/participants'
 import { exportCniZip, exportExcel, exportPresenceList } from '../api/exports'
+import { useNotifications } from '../context/NotificationContext'
 import { ParticipantDetailDialog } from './ParticipantDetailDialog'
 import { AddParticipantDialog } from './AddParticipantDialog'
 
@@ -57,14 +58,17 @@ const DATAGRID_SX = {
 
 export function ParticipantsPanel({
   activiteId,
+  activiteNom,
   canAdd,
 }: {
   activiteId: string
+  activiteNom: string
   canAdd: boolean
 }) {
   const theme = useTheme()
   const isDesktop = useMediaQuery(theme.breakpoints.up('md'))
   const { enqueueSnackbar } = useSnackbar()
+  const { addNotification } = useNotifications()
   const queryClient = useQueryClient()
   const [selected, setSelected] = useState<Participant | null>(null)
   const [addOpen, setAddOpen] = useState(false)
@@ -103,17 +107,11 @@ export function ParticipantsPanel({
     if (count === null) return
     const prev = prevCountRef.current
     if (prev !== null && count > prev) {
-      const diff = count - prev
-      enqueueSnackbar(
-        diff === 1
-          ? "1 nouveau participant vient de s'inscrire via le QR code."
-          : `${diff} nouveaux participants viennent de s'inscrire via le QR code.`,
-        { variant: 'info' },
-      )
+      addNotification({ count: count - prev, activiteId, activiteNom })
     }
     prevCountRef.current = count
     sessionStorage.setItem(storageKey, String(count))
-  }, [page?.count, enqueueSnackbar, storageKey])
+  }, [page?.count, addNotification, activiteId, activiteNom, storageKey])
 
   const avatarSx = useMemo(() => ({
     width: 32,

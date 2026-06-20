@@ -2,13 +2,11 @@ import { useLocation } from 'react-router-dom'
 import {
   Box,
   Breadcrumbs,
-  IconButton,
   Stack,
-  Tooltip,
   Typography,
 } from '@mui/material'
 import NavigateNextRoundedIcon from '@mui/icons-material/NavigateNextRounded'
-import NotificationsRoundedIcon from '@mui/icons-material/NotificationsRounded'
+import { NotificationBell } from '../components/NotificationBell'
 
 const LABELS: { match: (path: string) => boolean; crumb: string }[] = [
   { match: (p) => p.startsWith('/dashboard'), crumb: "Vue d'ensemble" },
@@ -75,13 +73,7 @@ export function AppHeader() {
             {dayjs().format('DD MMM YYYY')}
           </Typography>
         </Box> */}
-        <Tooltip title="Notifications">
-          <IconButton
-            sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }}
-          >
-            <NotificationsRoundedIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
+        <NotificationBell sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2 }} />
       </Stack>
     </Box>
   )

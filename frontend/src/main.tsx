@@ -10,6 +10,7 @@ import '@fontsource-variable/inter'
 import 'dayjs/locale/fr'
 import { theme } from './theme/theme'
 import { AuthProvider } from './auth/AuthContext'
+import { NotificationProvider } from './context/NotificationContext'
 import App from './App.tsx'
 
 const queryClient = new QueryClient({
@@ -33,11 +34,13 @@ createRoot(document.getElementById('root')!).render(
             autoHideDuration={3500}
             anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
           >
-            <AuthProvider>
-              <BrowserRouter>
-                <App />
-              </BrowserRouter>
-            </AuthProvider>
+            <NotificationProvider>
+              <AuthProvider>
+                <BrowserRouter>
+                  <App />
+                </BrowserRouter>
+              </AuthProvider>
+            </NotificationProvider>
           </SnackbarProvider>
         </LocalizationProvider>
       </ThemeProvider>

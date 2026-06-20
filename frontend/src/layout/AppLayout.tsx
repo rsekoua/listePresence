@@ -33,10 +33,10 @@ import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded'
 import InfoRoundedIcon from '@mui/icons-material/InfoRounded'
 import HelpOutlineRoundedIcon from '@mui/icons-material/HelpOutlineRounded'
 import LogoutRoundedIcon from '@mui/icons-material/LogoutRounded'
-import NotificationsRoundedIcon from '@mui/icons-material/NotificationsRounded'
 import { fetchMe } from '../api/activites'
 import { useAuth } from '../auth/AuthContext'
 import { AppHeader } from './AppHeader'
+import { NotificationBell } from '../components/NotificationBell'
 
 const DRAWER_WIDTH = 252
 
@@ -243,9 +243,7 @@ export function AppLayout() {
               <QrCode2RoundedIcon fontSize="small" />
             </Box>
             <Typography sx={{ fontWeight: 700, flexGrow: 1 }}>Présence</Typography>
-            <IconButton>
-              <NotificationsRoundedIcon fontSize="small" />
-            </IconButton>
+            <NotificationBell />
           </Toolbar>
         </AppBar>
       )}

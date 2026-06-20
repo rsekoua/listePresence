@@ -403,6 +403,7 @@ export function ActiviteDetailPage() {
       <Box sx={{ mt: 4 }}>
         <ParticipantsPanel
           activiteId={activite.id}
+          activiteNom={activite.nom}
           canAdd={activite.can_edit && activite.statut === 'ouvert'}
         />
       </Box>
