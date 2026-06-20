@@ -9,7 +9,9 @@ import {
   Box,
   Chip,
   IconButton,
+  MenuItem,
   Popover,
+  Select,
   Stack,
   Tooltip,
   Typography,
@@ -36,6 +38,7 @@ export function NotificationBell({ sx }: { sx?: object }) {
   const { notifications, unreadCount, markAllRead, clearAll } = useNotifications()
   const [open, setOpen] = useState(false)
   const [shaking, setShaking] = useState(false)
+  const [filterActiviteId, setFilterActiviteId] = useState('')
   const anchorRef = useRef<HTMLButtonElement>(null)
   const prevUnread = useRef(unreadCount)
   const navigate = useNavigate()
@@ -55,6 +58,7 @@ export function NotificationBell({ sx }: { sx?: object }) {
 
   function handleClose() {
     setOpen(false)
+    setFilterActiviteId('')
     if (unreadCount > 0) markAllRead()
   }
 
@@ -86,30 +90,52 @@ export function NotificationBell({ sx }: { sx?: object }) {
         slotProps={{ paper: { sx: { width: 320, mt: 1, overflow: 'hidden' } } }}
       >
         <Stack
-          direction="row"
           sx={{
-            alignItems: 'center',
-            justifyContent: 'space-between',
             px: 2,
             py: 1.5,
             borderBottom: '1px solid',
             borderColor: 'divider',
+            gap: 1,
           }}
         >
-          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-            Notifications
-          </Typography>
-          {notifications.length > 0 && (
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ cursor: 'pointer', '&:hover': { color: 'text.primary' } }}
-              onClick={clearAll}
-            >
-              Effacer tout
+          <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+              Notifications
             </Typography>
-          )}
+            {notifications.length > 0 && (
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ cursor: 'pointer', '&:hover': { color: 'text.primary' } }}
+                onClick={clearAll}
+              >
+                Effacer tout
+              </Typography>
+            )}
+          </Stack>
+          {(() => {
+            const activites = Array.from(
+              new Map(notifications.map((n) => [n.activiteId, n.activiteNom])).entries(),
+            )
+            if (activites.length < 2) return null
+            return (
+              <Select
+                size="small"
+                value={filterActiviteId}
+                onChange={(e) => setFilterActiviteId(e.target.value)}
+                displayEmpty
+                sx={{ fontSize: 12, height: 28 }}
+              >
+                <MenuItem value=""><em>Toutes les activités</em></MenuItem>
+                {activites.map(([id, nom]) => (
+                  <MenuItem key={id} value={id} sx={{ fontSize: 12 }}>{nom}</MenuItem>
+                ))}
+              </Select>
+            )
+          })()}
         </Stack>
+
+        <DailySummary notifications={notifications} />
 
         {notifications.length === 0 ? (
           <Box sx={{ py: 5, textAlign: 'center' }}>
@@ -119,14 +145,49 @@ export function NotificationBell({ sx }: { sx?: object }) {
             </Typography>
           </Box>
         ) : (
-          <Box sx={{ maxHeight: 440, overflowY: 'auto' }}>
-            {notifications.map((n) => (
-              <NotificationItem key={n.id} n={n} onNavigate={handleNavigate} />
-            ))}
+          <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
+            {notifications
+              .filter((n) => !filterActiviteId || n.activiteId === filterActiviteId)
+              .map((n) => (
+                <NotificationItem key={n.id} n={n} onNavigate={handleNavigate} />
+              ))}
           </Box>
         )}
       </Popover>
     </>
+  )
+}
+
+function DailySummary({ notifications }: { notifications: AppNotification[] }) {
+  const today = dayjs().startOf('day')
+  const todayNotifs = notifications.filter((n) => dayjs(n.timestamp).isAfter(today))
+  if (todayNotifs.length === 0) return null
+
+  const totalInscrits = todayNotifs.reduce((acc, n) => acc + n.participants.length, 0)
+  const activites = new Set(todayNotifs.map((n) => n.activiteId)).size
+
+  return (
+    <Box
+      sx={{
+        px: 2,
+        py: 1,
+        bgcolor: (t) => t.palette.primary.main + '14',
+        borderBottom: '1px solid',
+        borderColor: 'divider',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1,
+      }}
+    >
+      <PersonAddRoundedIcon sx={{ fontSize: 15, color: 'primary.main' }} />
+      <Typography variant="caption" sx={{ color: 'primary.dark', fontWeight: 600 }}>
+        Aujourd'hui :
+      </Typography>
+      <Typography variant="caption" color="text.secondary">
+        {totalInscrits} inscrit{totalInscrits > 1 ? 's' : ''} sur{' '}
+        {activites} activité{activites > 1 ? 's' : ''}
+      </Typography>
+    </Box>
   )
 }
 
