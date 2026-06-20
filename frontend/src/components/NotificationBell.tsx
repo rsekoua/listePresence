@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/fr'
@@ -20,10 +21,33 @@ import { useNotifications, type AppNotification } from '../context/NotificationC
 dayjs.extend(relativeTime)
 dayjs.locale('fr')
 
+const shakeKeyframes = `
+@keyframes bell-shake {
+  0%,100% { transform: rotate(0deg); }
+  15%      { transform: rotate(18deg); }
+  30%      { transform: rotate(-16deg); }
+  45%      { transform: rotate(12deg); }
+  60%      { transform: rotate(-8deg); }
+  75%      { transform: rotate(4deg); }
+}
+`
+
 export function NotificationBell({ sx }: { sx?: object }) {
   const { notifications, unreadCount, markAllRead, clearAll } = useNotifications()
   const [open, setOpen] = useState(false)
+  const [shaking, setShaking] = useState(false)
   const anchorRef = useRef<HTMLButtonElement>(null)
+  const prevUnread = useRef(unreadCount)
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (unreadCount > prevUnread.current) {
+      setShaking(true)
+      const t = setTimeout(() => setShaking(false), 700)
+      return () => clearTimeout(t)
+    }
+    prevUnread.current = unreadCount
+  }, [unreadCount])
 
   function handleOpen() {
     setOpen(true)
@@ -34,17 +58,21 @@ export function NotificationBell({ sx }: { sx?: object }) {
     if (unreadCount > 0) markAllRead()
   }
 
+  function handleNavigate(activiteId: string) {
+    handleClose()
+    navigate(`/activites/${activiteId}`)
+  }
+
   return (
     <>
+      <style>{shakeKeyframes}</style>
       <Tooltip title="Notifications">
         <IconButton ref={anchorRef} onClick={handleOpen} sx={sx}>
-          <Badge
-            badgeContent={unreadCount}
-            color="error"
-            max={99}
-            invisible={unreadCount === 0}
-          >
-            <NotificationsRoundedIcon fontSize="small" />
+          <Badge badgeContent={unreadCount} color="error" max={99} invisible={unreadCount === 0}>
+            <NotificationsRoundedIcon
+              fontSize="small"
+              sx={shaking ? { animation: 'bell-shake 0.7s ease' } : undefined}
+            />
           </Badge>
         </IconButton>
       </Tooltip>
@@ -57,7 +85,6 @@ export function NotificationBell({ sx }: { sx?: object }) {
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
         slotProps={{ paper: { sx: { width: 320, mt: 1, overflow: 'hidden' } } }}
       >
-        {/* En-tête */}
         <Stack
           direction="row"
           sx={{
@@ -84,7 +111,6 @@ export function NotificationBell({ sx }: { sx?: object }) {
           )}
         </Stack>
 
-        {/* Liste */}
         {notifications.length === 0 ? (
           <Box sx={{ py: 5, textAlign: 'center' }}>
             <NotificationsRoundedIcon sx={{ fontSize: 36, color: 'text.disabled', mb: 1 }} />
@@ -95,7 +121,7 @@ export function NotificationBell({ sx }: { sx?: object }) {
         ) : (
           <Box sx={{ maxHeight: 440, overflowY: 'auto' }}>
             {notifications.map((n) => (
-              <NotificationItem key={n.id} n={n} />
+              <NotificationItem key={n.id} n={n} onNavigate={handleNavigate} />
             ))}
           </Box>
         )}
@@ -104,31 +130,35 @@ export function NotificationBell({ sx }: { sx?: object }) {
   )
 }
 
-function NotificationItem({ n }: { n: AppNotification }) {
+function NotificationItem({
+  n,
+  onNavigate,
+}: {
+  n: AppNotification
+  onNavigate: (activiteId: string) => void
+}) {
   const MAX_SHOWN = 2
   const shown = n.participants.slice(0, MAX_SHOWN)
   const rest = n.participants.length - MAX_SHOWN
 
   return (
     <Box
+      onClick={() => onNavigate(n.activiteId)}
       sx={{
         px: 2,
         py: 1.5,
+        cursor: 'pointer',
         bgcolor: n.read ? 'transparent' : 'action.hover',
         borderBottom: '1px solid',
         borderColor: 'divider',
+        transition: 'background-color 0.15s',
+        '&:hover': { bgcolor: 'action.selected' },
         '&:last-child': { borderBottom: 0 },
       }}
     >
       <Stack direction="row" spacing={1.5}>
         <Avatar
-          sx={{
-            width: 34,
-            height: 34,
-            bgcolor: 'primary.light',
-            color: 'primary.dark',
-            flexShrink: 0,
-          }}
+          sx={{ width: 34, height: 34, bgcolor: 'primary.light', color: 'primary.dark', flexShrink: 0 }}
         >
           <PersonAddRoundedIcon sx={{ fontSize: 18 }} />
         </Avatar>
@@ -149,7 +179,6 @@ function NotificationItem({ n }: { n: AppNotification }) {
             {n.activiteNom}
           </Typography>
 
-          {/* Participants détail */}
           <Stack spacing={0.5}>
             {shown.map((p) => (
               <Stack key={p.id} direction="row" spacing={1} sx={{ alignItems: 'center' }}>
@@ -174,9 +203,11 @@ function NotificationItem({ n }: { n: AppNotification }) {
             )}
           </Stack>
 
-          <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 0.5 }}>
-            {dayjs(n.timestamp).fromNow()}
-          </Typography>
+          <Tooltip title={dayjs(n.timestamp).format('DD/MM/YYYY HH:mm:ss')} placement="bottom-start">
+            <Typography variant="caption" color="text.disabled" sx={{ display: 'inline-block', mt: 0.5 }}>
+              {dayjs(n.timestamp).fromNow()}
+            </Typography>
+          </Tooltip>
         </Box>
       </Stack>
     </Box>
