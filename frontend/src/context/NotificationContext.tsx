@@ -17,6 +17,26 @@ export interface AppNotification {
   read: boolean
 }
 
+const STORAGE_KEY = 'presence_notifications'
+const MAX_NOTIFS = 50
+
+function load(): AppNotification[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return []
+    return (JSON.parse(raw) as AppNotification[]).map((n) => ({
+      ...n,
+      timestamp: new Date(n.timestamp),
+    }))
+  } catch {
+    return []
+  }
+}
+
+function save(notifications: AppNotification[]) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(notifications.slice(0, MAX_NOTIFS)))
+}
+
 interface NotificationContextType {
   notifications: AppNotification[]
   unreadCount: number
@@ -28,28 +48,39 @@ interface NotificationContextType {
 const NotificationContext = createContext<NotificationContextType | null>(null)
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
-  const [notifications, setNotifications] = useState<AppNotification[]>([])
+  const [notifications, setNotifications] = useState<AppNotification[]>(load)
 
   const addNotification = useCallback(
     (payload: Pick<AppNotification, 'activiteId' | 'activiteNom' | 'participants'>) => {
-      setNotifications((prev) => [
-        {
-          id: `${Date.now()}-${Math.random()}`,
-          ...payload,
-          timestamp: new Date(),
-          read: false,
-        },
-        ...prev,
-      ])
+      setNotifications((prev) => {
+        const next = [
+          {
+            id: `${Date.now()}-${Math.random()}`,
+            ...payload,
+            timestamp: new Date(),
+            read: false,
+          },
+          ...prev,
+        ]
+        save(next)
+        return next
+      })
     },
     [],
   )
 
   const markAllRead = useCallback(() => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+    setNotifications((prev) => {
+      const next = prev.map((n) => ({ ...n, read: true }))
+      save(next)
+      return next
+    })
   }, [])
 
-  const clearAll = useCallback(() => setNotifications([]), [])
+  const clearAll = useCallback(() => {
+    localStorage.removeItem(STORAGE_KEY)
+    setNotifications([])
+  }, [])
 
   const unreadCount = notifications.filter((n) => !n.read).length
 

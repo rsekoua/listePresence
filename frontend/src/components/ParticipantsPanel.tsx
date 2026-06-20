@@ -97,10 +97,10 @@ export function ParticipantsPanel({
   const participants = page?.items ?? []
 
   // Détecte les nouveaux inscrits entre deux cycles de polling en comparant
-  // les IDs. On persiste les IDs connus dans sessionStorage pour survivre
+  // les IDs. On persiste les IDs connus dans localStorage pour survivre
   // aux démontages/remontages du composant (navigation puis retour).
   const storageKey = `presence_participant_ids_${activiteId}`
-  const storedIds = sessionStorage.getItem(storageKey)
+  const storedIds = localStorage.getItem(storageKey)
   const prevIdsRef = useRef<Set<string> | null>(
     storedIds ? new Set<string>(JSON.parse(storedIds)) : null,
   )
@@ -125,7 +125,7 @@ export function ParticipantsPanel({
       }
     }
     prevIdsRef.current = currentIds
-    sessionStorage.setItem(storageKey, JSON.stringify([...currentIds]))
+    localStorage.setItem(storageKey, JSON.stringify([...currentIds]))
   }, [page, addNotification, activiteId, activiteNom, storageKey])
 
   const avatarSx = useMemo(() => ({
