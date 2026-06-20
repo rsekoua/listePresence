@@ -96,22 +96,37 @@ export function ParticipantsPanel({
 
   const participants = page?.items ?? []
 
-  // Détecte les nouveaux inscrits entre deux cycles de polling.
-  // On persiste le dernier count dans sessionStorage (clé par activiteId) pour
-  // survivre aux démontages/remontages du composant (navigation puis retour).
-  const storageKey = `presence_participant_count_${activiteId}`
-  const storedCount = sessionStorage.getItem(storageKey)
-  const prevCountRef = useRef<number | null>(storedCount !== null ? Number(storedCount) : null)
+  // Détecte les nouveaux inscrits entre deux cycles de polling en comparant
+  // les IDs. On persiste les IDs connus dans sessionStorage pour survivre
+  // aux démontages/remontages du composant (navigation puis retour).
+  const storageKey = `presence_participant_ids_${activiteId}`
+  const storedIds = sessionStorage.getItem(storageKey)
+  const prevIdsRef = useRef<Set<string> | null>(
+    storedIds ? new Set<string>(JSON.parse(storedIds)) : null,
+  )
   useEffect(() => {
-    const count = page?.count ?? null
-    if (count === null) return
-    const prev = prevCountRef.current
-    if (prev !== null && count > prev) {
-      addNotification({ count: count - prev, activiteId, activiteNom })
+    if (!page?.items) return
+    const currentIds = new Set(page.items.map((p) => p.id))
+    const prev = prevIdsRef.current
+    if (prev !== null) {
+      const newParticipants = page.items.filter((p) => !prev.has(p.id))
+      if (newParticipants.length > 0) {
+        addNotification({
+          activiteId,
+          activiteNom,
+          participants: newParticipants.map((p) => ({
+            id: p.id,
+            nom: p.nom,
+            prenom: p.prenom,
+            structure: p.structure,
+            fonction: p.fonction,
+          })),
+        })
+      }
     }
-    prevCountRef.current = count
-    sessionStorage.setItem(storageKey, String(count))
-  }, [page?.count, addNotification, activiteId, activiteNom, storageKey])
+    prevIdsRef.current = currentIds
+    sessionStorage.setItem(storageKey, JSON.stringify([...currentIds]))
+  }, [page, addNotification, activiteId, activiteNom, storageKey])
 
   const avatarSx = useMemo(() => ({
     width: 32,

@@ -1,10 +1,18 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react'
 
+export interface NotifParticipant {
+  id: string
+  nom: string
+  prenom: string
+  structure: string
+  fonction: string
+}
+
 export interface AppNotification {
   id: string
-  count: number
   activiteId: string
   activiteNom: string
+  participants: NotifParticipant[]
   timestamp: Date
   read: boolean
 }
@@ -12,7 +20,7 @@ export interface AppNotification {
 interface NotificationContextType {
   notifications: AppNotification[]
   unreadCount: number
-  addNotification: (payload: Pick<AppNotification, 'count' | 'activiteId' | 'activiteNom'>) => void
+  addNotification: (payload: Pick<AppNotification, 'activiteId' | 'activiteNom' | 'participants'>) => void
   markAllRead: () => void
   clearAll: () => void
 }
@@ -23,7 +31,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<AppNotification[]>([])
 
   const addNotification = useCallback(
-    (payload: Pick<AppNotification, 'count' | 'activiteId' | 'activiteNom'>) => {
+    (payload: Pick<AppNotification, 'activiteId' | 'activiteNom' | 'participants'>) => {
       setNotifications((prev) => [
         {
           id: `${Date.now()}-${Math.random()}`,
