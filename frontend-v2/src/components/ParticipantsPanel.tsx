@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useDisclosure, useMediaQuery } from '@mantine/hooks'
 import dayjs from 'dayjs'
@@ -31,22 +31,26 @@ import {
 } from '@tabler/icons-react'
 import { fetchParticipants, type Participant } from '../api/participants'
 import { exportCniZip, exportExcel, exportPresenceList } from '../api/exports'
+import { useNotifications } from '../context/NotificationContext'
 import { ParticipantDetailDialog } from './ParticipantDetailDialog'
 import { AddParticipantDialog } from './AddParticipantDialog'
 import { notify } from '../lib/notify'
 
-const REFRESH_MS = 30_000
+const REFRESH_MS = 5_000
 const PAGE_SIZES = [10, 25, 50]
 
 export function ParticipantsPanel({
   activiteId,
+  activiteNom,
   canAdd,
 }: {
   activiteId: string
+  activiteNom: string
   canAdd: boolean
 }) {
   const isDesktop = useMediaQuery('(min-width: 62em)')
   const queryClient = useQueryClient()
+  const { addNotification } = useNotifications()
   const [selected, setSelected] = useState<Participant | null>(null)
   const [addOpen, { open: openAdd, close: closeAdd }] = useDisclosure(false)
   const [exporting, setExporting] = useState(false)
@@ -68,10 +72,41 @@ export function ParticipantsPanel({
   const { data: pageData, isLoading } = useQuery({
     queryKey: ['participants', activiteId],
     queryFn: () => fetchParticipants(activiteId),
+    staleTime: 0,
     refetchInterval: REFRESH_MS,
+    refetchIntervalInBackground: false,
   })
 
   const participants = pageData?.items ?? []
+
+  const storageKey = `presence_participant_ids_${activiteId}`
+  const storedIds = localStorage.getItem(storageKey)
+  const prevIdsRef = useRef<Set<string> | null>(
+    storedIds ? new Set<string>(JSON.parse(storedIds)) : null,
+  )
+  useEffect(() => {
+    if (!pageData?.items) return
+    const currentIds = new Set(pageData.items.map((p) => p.id))
+    const prev = prevIdsRef.current
+    if (prev !== null) {
+      const newParticipants = pageData.items.filter((p) => !prev.has(p.id))
+      if (newParticipants.length > 0) {
+        addNotification({
+          activiteId,
+          activiteNom,
+          participants: newParticipants.map((p) => ({
+            id: p.id,
+            nom: p.nom,
+            prenom: p.prenom,
+            structure: p.structure,
+            fonction: p.fonction,
+          })),
+        })
+      }
+    }
+    prevIdsRef.current = currentIds
+    localStorage.setItem(storageKey, JSON.stringify([...currentIds]))
+  }, [pageData, addNotification, activiteId, activiteNom, storageKey])
   const paginated = useMemo(() => {
     const from = (page - 1) * pageSize
     return participants.slice(from, from + pageSize)
@@ -90,7 +125,7 @@ export function ParticipantsPanel({
           </Text>
           <Badge color="brand">{participants.length}</Badge>
           <Text size="xs" c="dimmed" visibleFrom="md">
-            Actualisé toutes les 30 s
+            Actualisé toutes les 5 s
           </Text>
         </Group>
         <Group gap="sm" wrap="wrap">

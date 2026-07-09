@@ -306,6 +306,7 @@ export function ActiviteDetailPage() {
       <Box mt="xl">
         <ParticipantsPanel
           activiteId={activite.id}
+          activiteNom={activite.nom}
           canAdd={activite.can_edit && activite.statut === 'ouvert'}
         />
       </Box>

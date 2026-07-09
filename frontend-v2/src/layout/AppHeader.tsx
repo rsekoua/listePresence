@@ -1,5 +1,6 @@
 import { useLocation } from 'react-router-dom'
 import { Anchor, Box, Breadcrumbs, Group, Text } from '@mantine/core'
+import { NotificationBell } from '../components/NotificationBell'
 
 const LABELS: { match: (path: string) => boolean; crumb: string }[] = [
   { match: (p) => p.startsWith('/dashboard'), crumb: "Vue d'ensemble" },
@@ -12,10 +13,6 @@ const LABELS: { match: (path: string) => boolean; crumb: string }[] = [
   { match: (p) => p.startsWith('/aide'), crumb: 'Aide' },
 ]
 
-/**
- * Bandeau de contenu (flat) : fil d'Ariane à gauche, notifications à droite,
- * séparé du contenu par un trait fin. Masqué sous md (l'en-tête mobile prend le relais).
- */
 export function AppHeader() {
   const { pathname } = useLocation()
   const current = LABELS.find((l) => l.match(pathname))?.crumb ?? 'Accueil'
@@ -37,11 +34,7 @@ export function AppHeader() {
           </Text>
         </Breadcrumbs>
 
-        {/* <Tooltip label="Notifications">
-          <ActionIcon variant="default" size="md" aria-label="Notifications">
-            <IconBell size={16} stroke={1.7} />
-          </ActionIcon>
-        </Tooltip> */}
+        <NotificationBell />
       </Group>
     </Box>
   )

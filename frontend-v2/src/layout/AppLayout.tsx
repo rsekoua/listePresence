@@ -32,6 +32,7 @@ import type { Icon } from '@tabler/icons-react'
 import { fetchMe } from '../api/activites'
 import { useAuth } from '../auth/AuthContext'
 import { AppHeader } from './AppHeader'
+import { NotificationBell } from '../components/NotificationBell'
 
 interface NavItem {
   label: string
@@ -115,9 +116,10 @@ export function AppLayout() {
           <ThemeIcon color="brand" radius="sm" size={28}>
             <IconQrcode size={17} />
           </ThemeIcon>
-          <Text fw={700} size="sm">
+          <Text fw={700} size="sm" style={{ flexGrow: 1 }}>
             Présence
           </Text>
+          <NotificationBell />
         </Group>
       </AppShell.Header>
 
