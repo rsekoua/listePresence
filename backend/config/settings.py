@@ -94,6 +94,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.activites",
     "apps.participants",
+    "apps.justificatifs",
     "apps.exports",
 ]
 

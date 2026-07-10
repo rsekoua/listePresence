@@ -47,7 +47,7 @@ export function ParticipantsGlobalPage() {
   return (
     <Box>
       <PageHeader
-        title="Participants"
+        title="Gestion des listes de personnes"
         subtitle={`Annuaire des personnes distinctes (${personnes.length}) — regroupées par CNI`}
       />
 

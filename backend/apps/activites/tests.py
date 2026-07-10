@@ -3,6 +3,7 @@
 import json
 import tempfile
 from datetime import timedelta
+from decimal import Decimal
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
@@ -105,6 +106,73 @@ class ActiviteRBACTests(TestCase):
         self.assertEqual(r.status_code, 201)
         self.assertEqual(r.json()["statut"], "ouvert")
         self.assertIn("copie", r.json()["nom"])
+
+    def test_creation_activite_terrain_budget(self):
+        now = timezone.now()
+        r = self.client.post(
+            "/api/activites/",
+            json.dumps(
+                {
+                    "nom": "Mission",
+                    "ville": "Korhogo",
+                    "lieu": "Terrain",
+                    "date_debut": now.isoformat(),
+                    "date_fin": (now + timedelta(hours=6)).isoformat(),
+                    "type_mission": "terrain",
+                    "budget_alloue": "150000",
+                }
+            ),
+            content_type="application/json",
+            **bearer(self.orgA),
+        )
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(r.json()["type_mission"], "terrain")
+        self.assertEqual(Decimal(r.json()["budget_alloue"]), Decimal("150000"))
+
+    def test_import_liste_dedoublonne_par_cni(self):
+        source = make_activite(self.orgA, "ouvert", "Source")
+        for i, cni in enumerate(["CNI-1", "CNI-2"]):
+            Participant.objects.create(
+                activite=source,
+                nom=f"Nom{i}",
+                prenom="P",
+                structure="S",
+                fonction="F",
+                telephone_wave="+2250700000000",
+                email=f"p{i}@x.ci",
+                numero_cni=cni,
+            )
+        # Un doublon déjà présent dans la cible (CNI-1) doit être ignoré.
+        Participant.objects.create(
+            activite=self.a_open,
+            nom="Existant",
+            prenom="P",
+            structure="S",
+            fonction="F",
+            telephone_wave="+2250700000000",
+            email="e@x.ci",
+            numero_cni="CNI-1",
+        )
+        r = self.client.post(
+            f"/api/activites/{self.a_open.id}/importer-participants",
+            json.dumps({"source_activite_id": str(source.id)}),
+            content_type="application/json",
+            **bearer(self.orgA),
+        )
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r.json(), {"imported": 1, "skipped": 1})
+        self.assertEqual(
+            Participant.objects.filter(activite=self.a_open).count(), 2
+        )
+
+    def test_import_liste_refuse_meme_activite(self):
+        r = self.client.post(
+            f"/api/activites/{self.a_open.id}/importer-participants",
+            json.dumps({"source_activite_id": str(self.a_open.id)}),
+            content_type="application/json",
+            **bearer(self.orgA),
+        )
+        self.assertEqual(r.status_code, 422)
 
     def test_annuaire_scope_par_organisateur(self):
         Participant.objects.create(

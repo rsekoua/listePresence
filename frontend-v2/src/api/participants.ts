@@ -157,6 +157,23 @@ export async function updateParticipant(
   return data
 }
 
+export interface ImportListeResult {
+  imported: number
+  skipped: number
+}
+
+/** Rattache une liste existante : importe les participants d'une autre activité. */
+export async function importListe(
+  activiteId: string,
+  sourceActiviteId: string,
+): Promise<ImportListeResult> {
+  const { data } = await api.post<ImportListeResult>(
+    `/activites/${activiteId}/importer-participants`,
+    { source_activite_id: sourceActiviteId },
+  )
+  return data
+}
+
 export async function fetchStats(activiteId: string): Promise<Stats> {
   const { data } = await api.get<Stats>(`/activites/${activiteId}/stats`)
   return data

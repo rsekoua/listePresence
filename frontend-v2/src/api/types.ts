@@ -1,4 +1,5 @@
 export type StatutActivite = 'ouvert' | 'ferme' | 'archive'
+export type TypeMission = 'atelier' | 'terrain'
 export type Role = 'admin' | 'organisateur'
 
 export interface CreatedBy {
@@ -16,6 +17,8 @@ export interface Activite {
   lieu: string
   token_qr: string
   statut: StatutActivite
+  type_mission: TypeMission
+  budget_alloue: string | null
   form_url: string
   created_by: CreatedBy
   can_edit: boolean
@@ -31,6 +34,8 @@ export interface ActiviteInput {
   date_fin: string
   ville: string
   lieu: string
+  type_mission?: TypeMission
+  budget_alloue?: string | number | null
 }
 
 export interface TokenPair {

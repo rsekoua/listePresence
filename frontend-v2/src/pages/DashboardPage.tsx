@@ -107,6 +107,8 @@ export function DashboardPage() {
           return a.ville.toLowerCase()
         case 'statut':
           return a.statut
+        case 'type_mission':
+          return a.type_mission
         default:
           return ''
       }
@@ -133,7 +135,7 @@ export function DashboardPage() {
       {/* En-tête de page */}
       <Group justify="space-between" align="center" wrap="wrap" gap="md" mb="lg">
         <Box>
-          <Title order={2}>Vue d'ensemble</Title>
+          <Title order={2}>Gestion des activités</Title>
           <Text size="sm" c="dimmed">
             Gérez la liste des participants aux activités
           </Text>
@@ -247,6 +249,22 @@ export function DashboardPage() {
                       {a.lieu}
                     </Text>
                   </Box>
+                ),
+              },
+              {
+                accessor: 'type_mission',
+                title: 'Type',
+                width: 110,
+                textAlign: 'center',
+                sortable: true,
+                render: (a) => (
+                  <Badge
+                    variant="light"
+                    color={a.type_mission === 'terrain' ? 'orange' : 'blue'}
+                    style={{ textTransform: 'none' }}
+                  >
+                    {a.type_mission === 'terrain' ? 'Terrain' : 'Salle'}
+                  </Badge>
                 ),
               },
               {

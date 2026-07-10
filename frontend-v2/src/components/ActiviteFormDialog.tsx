@@ -2,11 +2,24 @@ import { useEffect } from 'react'
 import { useForm } from '@mantine/form'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import dayjs from 'dayjs'
-import { Alert, Button, Group, Modal, Stack, Textarea, TextInput } from '@mantine/core'
+import {
+  Alert,
+  Box,
+  Button,
+  Group,
+  Modal,
+  NumberInput,
+  Radio,
+  SimpleGrid,
+  Stack,
+  Text,
+  Textarea,
+  TextInput,
+} from '@mantine/core'
 import { DateTimePicker } from '@mantine/dates'
 import { IconAlertCircle } from '@tabler/icons-react'
 import { createActivite, updateActivite } from '../api/activites'
-import type { Activite } from '../api/types'
+import type { Activite, TypeMission } from '../api/types'
 import { notify } from '../lib/notify'
 
 interface FormValues {
@@ -16,6 +29,8 @@ interface FormValues {
   description: string
   date_debut: string
   date_fin: string
+  type_mission: TypeMission
+  budget_alloue: number | string
 }
 
 interface Props {
@@ -34,6 +49,8 @@ const emptyValues = (): FormValues => ({
   description: '',
   date_debut: dayjs().add(1, 'day').hour(9).minute(0).second(0).format(DT),
   date_fin: dayjs().add(1, 'day').hour(17).minute(0).second(0).format(DT),
+  type_mission: 'atelier',
+  budget_alloue: '',
 })
 
 /** Dialog de création ou d'édition d'une activité. */
@@ -69,6 +86,8 @@ export function ActiviteFormDialog({ opened, onClose, activite }: Props) {
         description: activite.description,
         date_debut: dayjs(activite.date_debut).format(DT),
         date_fin: dayjs(activite.date_fin).format(DT),
+        type_mission: activite.type_mission,
+        budget_alloue: activite.budget_alloue ?? '',
       })
     } else {
       form.setValues(emptyValues())
@@ -86,6 +105,11 @@ export function ActiviteFormDialog({ opened, onClose, activite }: Props) {
         description: values.description ?? '',
         date_debut: dayjs(values.date_debut).toISOString(),
         date_fin: dayjs(values.date_fin).toISOString(),
+        type_mission: values.type_mission,
+        budget_alloue:
+          values.type_mission === 'terrain' && values.budget_alloue !== ''
+            ? Number(values.budget_alloue)
+            : null,
       }
       return activite ? updateActivite(activite.id, payload) : createActivite(payload)
     },
@@ -130,6 +154,52 @@ export function ActiviteFormDialog({ opened, onClose, activite }: Props) {
             {...form.getInputProps('nom')}
             key={form.key('nom')}
           />
+          <Radio.Group
+            label="Type d'activité"
+            {...form.getInputProps('type_mission')}
+            key={form.key('type_mission')}
+          >
+            <SimpleGrid cols={{ base: 1, xs: 2 }} spacing="sm" mt={6}>
+              <Radio.Card value="terrain" p="sm" radius="md">
+                <Group gap="sm" wrap="nowrap" align="flex-start">
+                  <Radio.Indicator />
+                  <Box>
+                    <Text size="sm" fw={600}>
+                      Mission terrain
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      Équipes, dépenses &amp; justificatifs
+                    </Text>
+                  </Box>
+                </Group>
+              </Radio.Card>
+              <Radio.Card value="atelier" p="sm" radius="md">
+                <Group gap="sm" wrap="nowrap" align="flex-start">
+                  <Radio.Indicator />
+                  <Box>
+                    <Text size="sm" fw={600}>
+                      Atelier (en salle)
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                      Collecte des participants en salle
+                    </Text>
+                  </Box>
+                </Group>
+              </Radio.Card>
+            </SimpleGrid>
+          </Radio.Group>
+          {form.values.type_mission === 'terrain' && (
+            <NumberInput
+              label="Budget alloué (FCFA)"
+              description="Optionnel — base du taux de conciliation des justificatifs"
+              placeholder="Laisser vide si non défini"
+              min={0}
+              thousandSeparator=" "
+              hideControls
+              {...form.getInputProps('budget_alloue')}
+              key={form.key('budget_alloue')}
+            />
+          )}
           <Group grow align="flex-start">
             <TextInput label="Ville" {...form.getInputProps('ville')} key={form.key('ville')} />
             <TextInput

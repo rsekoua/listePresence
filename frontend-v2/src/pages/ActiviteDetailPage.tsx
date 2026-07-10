@@ -36,6 +36,7 @@ import { cloneActivite, fetchActivite, fetchQrCode, updateActivite } from '../ap
 import type { StatutActivite } from '../api/types'
 import { ActiviteFormDialog } from '../components/ActiviteFormDialog'
 import { ParticipantsPanel } from '../components/ParticipantsPanel'
+import { JustificatifsPanel } from '../components/JustificatifsPanel'
 import { ExportHistoryPanel } from '../components/ExportHistoryPanel'
 import { STATUT_META } from '../lib/activiteStatut'
 import { notify } from '../lib/notify'
@@ -163,6 +164,13 @@ export function ActiviteDetailPage() {
               style={{ textTransform: 'none' }}
             >
               {statut.label}
+            </Badge>
+            <Badge
+              variant="light"
+              color={activite.type_mission === 'terrain' ? 'orange' : 'blue'}
+              style={{ textTransform: 'none' }}
+            >
+              {activite.type_mission === 'terrain' ? 'Mission terrain' : 'Atelier'}
             </Badge>
           </Group>
           <Group gap="md" mt={6} c="dimmed" wrap="wrap">
@@ -301,6 +309,11 @@ export function ActiviteDetailPage() {
           </Text>
         </Group>
       </Paper>
+
+      {/* Dépenses & justificatifs (missions terrain uniquement) */}
+      {activite.type_mission === 'terrain' && (
+        <JustificatifsPanel activiteId={activite.id} canEdit={activite.can_edit} />
+      )}
 
       {/* Participants */}
       <Box mt="xl">

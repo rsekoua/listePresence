@@ -15,6 +15,10 @@ class Activite(models.Model):
         FERME = "ferme", "Fermée"
         ARCHIVE = "archive", "Archivée"
 
+    class TypeMission(models.TextChoices):
+        ATELIER = "atelier", "Atelier (en salle)"
+        TERRAIN = "terrain", "Mission terrain"
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     nom = models.CharField("nom", max_length=255)
     description = models.TextField("description", blank=True, default="")
@@ -27,6 +31,23 @@ class Activite(models.Model):
     )
     statut = models.CharField(
         "statut", max_length=10, choices=Statut.choices, default=Statut.OUVERT
+    )
+    type_mission = models.CharField(
+        "type de mission",
+        max_length=10,
+        choices=TypeMission.choices,
+        default=TypeMission.ATELIER,
+    )
+    budget_alloue = models.DecimalField(
+        "budget alloué",
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text=(
+            "Montant total remis pour une mission terrain, base du taux de "
+            "conciliation (montants justifiés ÷ budget alloué)."
+        ),
     )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

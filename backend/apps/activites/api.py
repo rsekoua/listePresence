@@ -11,6 +11,7 @@ Toutes les routes sont protégées par JWT. Règles RBAC :
 import io
 import re
 from datetime import date, datetime
+from decimal import Decimal
 from uuid import UUID
 
 import qrcode
@@ -44,6 +45,8 @@ class ActiviteIn(Schema):
     date_fin: datetime
     ville: str
     lieu: str
+    type_mission: str = Activite.TypeMission.ATELIER
+    budget_alloue: Decimal | None = None
 
 
 class ActiviteUpdate(Schema):
@@ -54,6 +57,8 @@ class ActiviteUpdate(Schema):
     ville: str | None = None
     lieu: str | None = None
     statut: str | None = None
+    type_mission: str | None = None
+    budget_alloue: Decimal | None = None
 
 
 class CreatedByOut(Schema):
@@ -71,6 +76,8 @@ class ActiviteOut(Schema):
     lieu: str
     token_qr: UUID
     statut: str
+    type_mission: str
+    budget_alloue: Decimal | None
     form_url: str
     created_by: CreatedByOut
     can_edit: bool
@@ -144,6 +151,11 @@ def _require_edit(user, activite: Activite) -> None:
 def _validate_dates(date_debut, date_fin):
     if date_debut and date_fin and date_fin <= date_debut:
         raise HttpError(422, "La date de fin doit être postérieure à la date de début.")
+
+
+def _validate_type_mission(type_mission) -> None:
+    if type_mission is not None and type_mission not in Activite.TypeMission.values:
+        raise HttpError(422, "Type de mission invalide.")
 
 
 # --- Endpoints CRUD --------------------------------------------------------
@@ -333,6 +345,7 @@ def historique_personne(request, numero_cni: str = Query(...)):
 def create_activite(request, data: ActiviteIn):
     """Crée une activité (token QR généré automatiquement)."""
     _validate_dates(data.date_debut, data.date_fin)
+    _validate_type_mission(data.type_mission)
     activite = Activite.objects.create(created_by=request.auth, **data.dict())
     record(request, AuditLog.Action.ACTIVITE_CREATE, objet=activite.nom)
     return 201, _with_perm(request.auth, activite)
@@ -353,6 +366,9 @@ def update_activite(request, activite_id: UUID, data: ActiviteUpdate):
 
     if "statut" in payload and payload["statut"] not in Activite.Statut.values:
         raise HttpError(422, "Statut invalide.")
+
+    if "type_mission" in payload:
+        _validate_type_mission(payload["type_mission"])
 
     new_debut = payload.get("date_debut", activite.date_debut)
     new_fin = payload.get("date_fin", activite.date_fin)
@@ -397,6 +413,7 @@ def clone_activite(request, activite_id: UUID):
         date_fin=source.date_fin,
         ville=source.ville,
         lieu=source.lieu,
+        type_mission=source.type_mission,
         statut=Activite.Statut.OUVERT,
         created_by=request.auth,
     )
@@ -666,6 +683,80 @@ def update_participant(
         objet=f"{participant.prenom} {participant.nom} — {activite.nom}",
     )
     return 200, participant
+
+
+class ImportListeIn(Schema):
+    source_activite_id: UUID
+
+
+class ImportListeOut(Schema):
+    imported: int
+    skipped: int
+
+
+@router.post(
+    "/{activite_id}/importer-participants",
+    response={200: ImportListeOut},
+)
+def importer_participants(request, activite_id: UUID, data: ImportListeIn):
+    """Rattache une liste de personnes existante à l'activité (peu importe le type).
+
+    Copie les participants d'une activité source vers l'activité courante, en
+    ignorant les CNI déjà présents (dédoublonnage). Les photos CNI existantes
+    sont dupliquées. Réservé au créateur ou à un admin, activité ouverte.
+    """
+    from django.core.files.base import ContentFile
+
+    activite = _get_activite(request.auth, activite_id)
+    _require_edit(request.auth, activite)
+    if activite.statut != Activite.Statut.OUVERT:
+        raise HttpError(
+            403, "La collecte est fermée : impossible de rattacher une liste."
+        )
+    if data.source_activite_id == activite_id:
+        raise HttpError(422, "Choisissez une autre activité que celle-ci.")
+
+    source = _get_activite(request.auth, data.source_activite_id)
+    existing = set(
+        Participant.objects.filter(activite=activite).values_list(
+            "numero_cni", flat=True
+        )
+    )
+    imported = 0
+    skipped = 0
+    for p in source.participants.all():
+        if p.numero_cni in existing:
+            skipped += 1
+            continue
+        nouveau = Participant(
+            activite=activite,
+            nom=p.nom,
+            prenom=p.prenom,
+            structure=p.structure,
+            fonction=p.fonction,
+            telephone_wave=p.telephone_wave,
+            email=p.email,
+            numero_cni=p.numero_cni,
+        )
+        for champ in ("photo_cni_recto", "photo_cni_verso"):
+            source_file = getattr(p, champ)
+            if source_file:
+                with source_file.open("rb") as f:
+                    getattr(nouveau, champ).save(
+                        f"{champ.split('_')[-1]}.jpg",
+                        ContentFile(f.read()),
+                        save=False,
+                    )
+        nouveau.save()
+        existing.add(p.numero_cni)
+        imported += 1
+
+    record(
+        request,
+        AuditLog.Action.PARTICIPANT_CREATE,
+        objet=f"Import de {imported} personne(s) : {source.nom} → {activite.nom}",
+    )
+    return 200, ImportListeOut(imported=imported, skipped=skipped)
 
 
 @router.get("/{activite_id}/stats", response=StatsOut)

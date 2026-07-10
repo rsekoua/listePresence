@@ -42,10 +42,13 @@ interface NavItem {
 }
 
 const MAIN_NAV: NavItem[] = [
-  { label: "Vue d'ensemble", icon: IconLayoutDashboard, path: '/dashboard' },
-  { label: 'Participants', icon: IconUsersGroup, path: '/participants' },
+  { label: 'Gestion des activités', icon: IconLayoutDashboard, path: '/dashboard' },
+  {
+    label: 'Gestion des listes de personnes',
+    icon: IconUsersGroup,
+    path: '/participants',
+  },
   { label: 'Utilisateurs', icon: IconUserCog, path: '/utilisateurs', adminOnly: true },
-  
 ]
 
 const SECONDARY_NAV: NavItem[] = [

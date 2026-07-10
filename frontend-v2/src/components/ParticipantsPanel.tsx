@@ -28,12 +28,14 @@ import {
   IconPaperclip,
   IconUserPlus,
   IconUsersGroup,
+  IconUsersPlus,
 } from '@tabler/icons-react'
 import { fetchParticipants, type Participant } from '../api/participants'
 import { exportCniZip, exportExcel, exportPresenceList } from '../api/exports'
 import { useNotifications } from '../context/NotificationContext'
 import { ParticipantDetailDialog } from './ParticipantDetailDialog'
 import { AddParticipantDialog } from './AddParticipantDialog'
+import { ImportListeDialog } from './ImportListeDialog'
 import { notify } from '../lib/notify'
 
 const REFRESH_MS = 5_000
@@ -53,6 +55,7 @@ export function ParticipantsPanel({
   const { addNotification } = useNotifications()
   const [selected, setSelected] = useState<Participant | null>(null)
   const [addOpen, { open: openAdd, close: closeAdd }] = useDisclosure(false)
+  const [importOpen, { open: openImport, close: closeImport }] = useDisclosure(false)
   const [exporting, setExporting] = useState(false)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(PAGE_SIZES[0])
@@ -156,6 +159,16 @@ export function ParticipantsPanel({
           >
             Fiches CNI (ZIP)
           </Button>
+          {canAdd && (
+            <Button
+              variant="default"
+              size="xs"
+              leftSection={<IconUsersPlus size={16} />}
+              onClick={openImport}
+            >
+              Rattacher une liste existante
+            </Button>
+          )}
           {canAdd && (
             <Button leftSection={<IconUserPlus size={18} />} onClick={openAdd}>
               Nouveau participant
@@ -277,6 +290,11 @@ export function ParticipantsPanel({
         canEdit={canAdd}
       />
       <AddParticipantDialog activiteId={activiteId} opened={addOpen} onClose={closeAdd} />
+      <ImportListeDialog
+        activiteId={activiteId}
+        opened={importOpen}
+        onClose={closeImport}
+      />
     </Box>
   )
 }
