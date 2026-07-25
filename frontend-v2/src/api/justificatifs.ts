@@ -67,6 +67,44 @@ export interface Conciliation {
   par_categorie: CategorieConciliation[]
 }
 
+/** Poste enrichi de son activité (vue globale « Justifs »). */
+export interface JustificatifGlobal extends Justificatif {
+  activite_id: string
+  activite_nom: string
+  activite_type: 'terrain' | 'atelier'
+  activite_can_edit: boolean
+}
+
+/** Tous les justificatifs, toutes activités confondues (filtrables). */
+export async function fetchAllJustificatifs(filters?: {
+  activite_id?: string
+  categorie?: CategorieJustif
+}): Promise<JustificatifGlobal[]> {
+  const { data } = await api.get<JustificatifGlobal[]>('/justifs/', {
+    params: filters,
+  })
+  return data
+}
+
+/** Taux de conciliation agrégé par activité (vue « Justifs »). */
+export interface ActiviteConciliation {
+  activite_id: string
+  activite_nom: string
+  activite_type: 'terrain' | 'atelier'
+  activite_can_edit: boolean
+  budget_alloue: string | null
+  montant_justifie: string
+  reste_a_justifier: string | null
+  taux: number | null
+  nb_postes: number
+}
+
+/** Conciliation de toutes les activités ayant des justificatifs (par activité). */
+export async function fetchJustifsConciliation(): Promise<ActiviteConciliation[]> {
+  const { data } = await api.get<ActiviteConciliation[]>('/justifs/conciliation')
+  return data
+}
+
 export async function fetchJustificatifs(
   activiteId: string,
 ): Promise<Justificatif[]> {

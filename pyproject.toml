@@ -1,0 +1,25 @@
+[project]
+name = "listepresence"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "ipykernel>=7.3.0",
+    "openpyxl>=3.1.5",
+    "pandas==3.0.5",
+    "pytesseract>=0.3.13",
+    "requests>=2.34.2",
+]
+
+[project.optional-dependencies]
+# Stack pour l'import assisté par OCR (notebook import_participants.ipynb).
+# Installe avec :  uv sync --extra import
+# ⚠️ Nécessite aussi le binaire Tesseract installé séparément (pack langue 'fra').
+import = [
+    "openpyxl>=3.1",              # lecture des .xlsx par pandas
+    "pytesseract>=0.3.13",        # OCR (recto : champ n° ; verso : lignes MRZ)
+    "Pillow>=10",                 # ouverture / prétraitement des images
+    "ipykernel>=6.29",            # noyau Jupyter pour exécuter le notebook (VS Code / Jupyter)
+]
+# Note : la MRZ du verso est lue directement par Tesseract puis parsée en pur Python,
+# afin d'éviter passporteye (qui dépend de scipy/scikit-learn, bloqués par la
+# politique de sécurité Windows « Smart App Control / WDAC » sur cette machine).

@@ -24,6 +24,7 @@ import {
   IconLayoutDashboard,
   IconLogout,
   IconQrcode,
+  IconReceipt,
   IconSettings,
   IconUserCog,
   IconUsersGroup,
@@ -48,6 +49,7 @@ const MAIN_NAV: NavItem[] = [
     icon: IconUsersGroup,
     path: '/participants',
   },
+  { label: 'Justifs', icon: IconReceipt, path: '/justifs' },
   { label: 'Utilisateurs', icon: IconUserCog, path: '/utilisateurs', adminOnly: true },
 ]
 

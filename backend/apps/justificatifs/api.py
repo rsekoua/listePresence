@@ -20,19 +20,22 @@ from uuid import UUID
 from django.db.models import Prefetch
 from django.http import FileResponse, HttpResponse
 from django.shortcuts import get_object_or_404
-from ninja import File, Form, Router, Schema
+from ninja import File, Form, Query, Router, Schema
 from ninja.errors import HttpError
 from ninja.files import UploadedFile
 
 from apps.accounts.audit import record
 from apps.accounts.auth import JWTAuth
 from apps.accounts.models import AuditLog
-from apps.activites.api import _get_activite, _require_edit
+from apps.activites.api import _can_edit, _get_activite, _require_edit
 from apps.activites.models import Activite
 
 from .models import Justificatif, PieceJointe
 
 router = Router(tags=["justificatifs"], auth=JWTAuth())
+
+# Routeur global : gestion transverse des justificatifs de toutes les activités.
+global_router = Router(tags=["justificatifs"], auth=JWTAuth())
 
 # Garde-fous d'upload — un reçu scanné reste bien en-deçà.
 MAX_UPLOAD_BYTES = 15 * 1024 * 1024  # 15 Mo
@@ -425,3 +428,119 @@ def download_collation_cni(
     response = HttpResponse(data, content_type="application/zip")
     response["Content-Disposition"] = 'attachment; filename="cni_collation.zip"'
     return response
+
+
+# --- Vue globale (gestion transverse « Justifs ») --------------------------
+
+
+class JustificatifGlobalOut(JustificatifOut):
+    """Poste enrichi de son activité, pour la gestion transverse."""
+
+    activite_id: UUID
+    activite_nom: str
+    activite_type: str
+    activite_can_edit: bool
+
+    @staticmethod
+    def resolve_activite_nom(obj: Justificatif) -> str:
+        return obj.activite.nom
+
+    @staticmethod
+    def resolve_activite_type(obj: Justificatif) -> str:
+        return obj.activite.type_mission
+
+    @staticmethod
+    def resolve_activite_can_edit(obj: Justificatif) -> bool:
+        return getattr(obj, "activite_can_edit", False)
+
+
+@global_router.get("/", response=list[JustificatifGlobalOut])
+def list_all_justificatifs(
+    request,
+    activite_id: UUID | None = Query(None),
+    categorie: str | None = Query(None),
+):
+    """Liste tous les justificatifs, toutes activités confondues (RBAC).
+
+    Un admin voit tout ; un organisateur uniquement les justificatifs de ses
+    propres activités. Filtrable par activité et par catégorie.
+    """
+    user = request.auth
+    qs = (
+        Justificatif.objects.select_related("activite", "activite_collation")
+        .prefetch_related("pieces")
+        .order_by("activite__nom", "categorie", "-created_at")
+    )
+    if not user.is_admin:
+        qs = qs.filter(activite__created_by=user)
+    if activite_id:
+        qs = qs.filter(activite_id=activite_id)
+    if categorie:
+        qs = qs.filter(categorie=categorie)
+
+    result = list(qs)
+    for j in result:
+        j.activite_can_edit = _can_edit(user, j.activite)
+    return result
+
+
+class ActiviteConciliationOut(Schema):
+    """Taux de conciliation agrégé d'une activité (vue « Justifs »)."""
+
+    activite_id: UUID
+    activite_nom: str
+    activite_type: str
+    activite_can_edit: bool
+    budget_alloue: Decimal | None
+    montant_justifie: Decimal
+    reste_a_justifier: Decimal | None
+    taux: float | None  # pourcentage 0–100, None si pas de budget saisi
+    nb_postes: int
+
+
+@global_router.get("/conciliation", response=list[ActiviteConciliationOut])
+def justifs_conciliation(request):
+    """Taux de conciliation par activité, sur toutes les activités (RBAC).
+
+    Regroupe les justificatifs par activité et calcule, pour chacune, le montant
+    justifié, le reste à justifier et le taux (= justifié ÷ budget alloué).
+    """
+    user = request.auth
+    qs = Justificatif.objects.select_related("activite").prefetch_related("pieces")
+    if not user.is_admin:
+        qs = qs.filter(activite__created_by=user)
+
+    agg: dict[UUID, dict] = {}
+    for j in qs:
+        info = agg.setdefault(
+            j.activite_id,
+            {"activite": j.activite, "montant": Decimal("0"), "nb": 0},
+        )
+        info["montant"] += j.montant_justifie
+        info["nb"] += 1
+
+    result = []
+    for info in agg.values():
+        act = info["activite"]
+        montant = info["montant"]
+        budget = act.budget_alloue
+        taux: float | None = None
+        reste: Decimal | None = None
+        if budget and budget > 0:
+            taux = float(round((montant / budget) * 100, 2))
+            reste = budget - montant
+        result.append(
+            ActiviteConciliationOut(
+                activite_id=act.id,
+                activite_nom=act.nom,
+                activite_type=act.type_mission,
+                activite_can_edit=_can_edit(user, act),
+                budget_alloue=budget,
+                montant_justifie=montant,
+                reste_a_justifier=reste,
+                taux=taux,
+                nb_postes=info["nb"],
+            )
+        )
+    result.sort(key=lambda r: r.activite_nom)
+    return result

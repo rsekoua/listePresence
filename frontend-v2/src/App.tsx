@@ -3,6 +3,7 @@ import { ProtectedRoute } from './auth/ProtectedRoute'
 import { AppLayout } from './layout/AppLayout'
 import { LoginPage } from './pages/LoginPage'
 import { DashboardPage } from './pages/DashboardPage'
+import { JustifsPage } from './pages/JustifsPage'
 import { ActiviteDetailPage } from './pages/ActiviteDetailPage'
 import { ParticipantsGlobalPage } from './pages/ParticipantsGlobalPage'
 import { SettingsPage } from './pages/SettingsPage'
@@ -24,6 +25,7 @@ function App() {
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/participants" element={<ParticipantsGlobalPage />} />
+          <Route path="/justifs" element={<JustifsPage />} />
           <Route path="/utilisateurs" element={<UsersPage />} />
           <Route path="/journal" element={<AuditPage />} />
           <Route path="/activites/:id" element={<ActiviteDetailPage />} />
