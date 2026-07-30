@@ -1,8 +1,9 @@
 """Endpoints publics du formulaire de collecte (Module 3 & 4).
 
 Accessibles sans authentification, sécurisés par le token UUID opaque de
-l'activité. Gèrent la vérification du token, la soumission du formulaire,
-l'anti-doublon par CNI et le traitement des photos (Pillow).
+l'activité. Gèrent la vérification du token, le pré-remplissage par numéro de
+CNI, la soumission du formulaire, l'anti-doublon par CNI et le traitement des
+photos (Pillow).
 """
 
 from __future__ import annotations
@@ -105,6 +106,15 @@ class MessageOut(Schema):
     detail: str
 
 
+class PersonnePrefillOut(Schema):
+    nom: str
+    prenom: str
+    structure: str
+    fonction: str
+    telephone_wave: str
+    email: str
+
+
 # --- Helpers ---------------------------------------------------------------
 
 
@@ -145,6 +155,49 @@ def _process_cni_image(uploaded: UploadedFile) -> bytes:
 def get_activite_publique(request, token: UUID):
     """Vérifie le token et retourne les infos publiques de l'activité (FORM-01)."""
     return get_object_or_404(Activite, token_qr=token)
+
+
+@router.get(
+    "/activite/{token}/personne/{numero_cni}",
+    response={200: PersonnePrefillOut, 404: MessageOut},
+    auth=None,
+)
+def get_personne_prefill(request, token: UUID, numero_cni: str):
+    """Pré-remplissage : dernière saisie connue pour ce numéro de CNI, toutes
+    activités confondues, pour éviter à un participant déjà connu de tout
+    ressaisir. Ne renvoie jamais les photos (reprises à chaque activité) ni le
+    numéro de CNI lui-même (déjà saisi par l'appelant).
+
+    Limité en débit comme la soumission (anti-énumération d'un numéro à
+    l'autre) ; nécessite un token d'activité ouverte valide.
+    """
+    throttle.hit(
+        request,
+        "prefill",
+        settings.PUBLIC_RATELIMIT,
+        settings.PUBLIC_RATELIMIT_WINDOW,
+    )
+    activite = get_object_or_404(Activite, token_qr=token)
+    if activite.statut != Activite.Statut.OUVERT:
+        raise HttpError(403, "La collecte de cette activité est fermée.")
+
+    numero = numero_cni.strip()
+    if len(numero) < 4:
+        return 404, MessageOut(detail="Aucune information existante pour ce numéro.")
+
+    participant = (
+        Participant.objects.filter(numero_cni=numero).order_by("-horodatage").first()
+    )
+    if not participant:
+        return 404, MessageOut(detail="Aucune information existante pour ce numéro.")
+    return 200, PersonnePrefillOut(
+        nom=participant.nom,
+        prenom=participant.prenom,
+        structure=participant.structure,
+        fonction=participant.fonction,
+        telephone_wave=participant.telephone_wave,
+        email=participant.email,
+    )
 
 
 @router.post(

@@ -1,11 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useForm } from '@mantine/form'
 import { zod4Resolver } from 'mantine-form-zod-resolver'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { isAxiosError } from 'axios'
-import { Alert, Button, Divider, Group, Modal, Stack, Text, TextInput } from '@mantine/core'
-import { IconAlertCircle } from '@tabler/icons-react'
-import { createParticipant } from '../api/participants'
+import { Alert, Button, Divider, Group, Loader, Modal, Stack, Text, TextInput } from '@mantine/core'
+import { IconAlertCircle, IconCircleCheck } from '@tabler/icons-react'
+import {
+  createParticipant,
+  fetchParticipantPhoto,
+  fetchPersonneHistorique,
+  type PersonneHistorique,
+} from '../api/participants'
 import { notify } from '../lib/notify'
 import { PhotoUpload } from './PhotoUpload'
 import {
@@ -13,6 +18,7 @@ import {
   formatPhone,
   normalizePhoneDigits,
   participantSchema,
+  toLocalPhoneDigits,
   type ParticipantFormValues as FormValues,
 } from '../lib/participantSchema'
 
@@ -27,6 +33,9 @@ export function AddParticipantDialog({ activiteId, opened, onClose }: Props) {
   const [phoneFocused, setPhoneFocused] = useState(false)
   const [recto, setRecto] = useState<File | null>(null)
   const [verso, setVerso] = useState<File | null>(null)
+  const [prefillStatus, setPrefillStatus] = useState<'idle' | 'loading' | 'found'>('idle')
+  const [photosReprises, setPhotosReprises] = useState(false)
+  const lastPrefillCni = useRef('')
   const form = useForm<FormValues>({
     mode: 'controlled',
     initialValues: EMPTY_PARTICIPANT,
@@ -36,7 +45,12 @@ export function AddParticipantDialog({ activiteId, opened, onClose }: Props) {
   })
 
   useEffect(() => {
-    if (opened) form.reset()
+    if (opened) {
+      form.reset()
+      setPrefillStatus('idle')
+      setPhotosReprises(false)
+      lastPrefillCni.current = ''
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened])
 
@@ -46,6 +60,59 @@ export function AddParticipantDialog({ activiteId, opened, onClose }: Props) {
     setRecto(null)
     setVerso(null)
     onClose()
+  }
+
+  // Pré-remplissage — même principe que le formulaire public (QR Code) : dès
+  // que le numéro de CNI est saisi (≥ 4 caractères) et perd le focus, on
+  // cherche cette personne dans l'historique (ses activités à elle, ou toutes
+  // pour un admin) pour compléter le reste du formulaire. Si une de ses
+  // participations passées dispose d'une CNI complète, on en reprend aussi
+  // les photos recto/verso (facultatives ici, contrairement au formulaire
+  // public) plutôt que de forcer l'organisateur à les reprendre en photo.
+  const handleCniBlur = async () => {
+    const cni = form.getValues().numero_cni?.trim() ?? ''
+    if (cni.length < 4 || cni === lastPrefillCni.current) return
+    lastPrefillCni.current = cni
+    setPrefillStatus('loading')
+    setPhotosReprises(false)
+
+    let found: PersonneHistorique
+    try {
+      found = await fetchPersonneHistorique(cni)
+    } catch {
+      // 404 (personne inconnue) ou toute autre erreur : cas nominal, silencieux.
+      setPrefillStatus('idle')
+      return
+    }
+
+    const current = form.getValues()
+    form.setValues({
+      nom: current.nom || found.nom,
+      prenom: current.prenom || found.prenom,
+      structure: current.structure || found.structure,
+      fonction: current.fonction || found.fonction,
+      telephone_wave: current.telephone_wave || toLocalPhoneDigits(found.telephone_wave),
+      email: current.email || found.email,
+    })
+    setPrefillStatus('found')
+
+    const source = found.participations.find((p) => p.cni_complete)
+    if (source) {
+      try {
+        if (!recto) {
+          const blob = await fetchParticipantPhoto(source.activite_id, source.participant_id, 'recto')
+          setRecto(new File([blob], 'recto.jpg', { type: blob.type || 'image/jpeg' }))
+        }
+        if (!verso) {
+          const blob = await fetchParticipantPhoto(source.activite_id, source.participant_id, 'verso')
+          setVerso(new File([blob], 'verso.jpg', { type: blob.type || 'image/jpeg' }))
+        }
+        setPhotosReprises(true)
+      } catch {
+        // Les informations textuelles restent pré-remplies même si les photos
+        // échouent à charger ; l'organisateur peut toujours les ajouter à la main.
+      }
+    }
   }
 
   const mutation = useMutation({
@@ -81,6 +148,37 @@ export function AddParticipantDialog({ activiteId, opened, onClose }: Props) {
           * Champ obligatoire
         </Text>
         <Stack gap="md">
+          {/* Numéro de CNI en premier (comme le formulaire public) : permet
+              de retrouver et pré-remplir le reste, photos incluses. */}
+          <TextInput
+            label="Numéro de CNI"
+            description="Déjà connu(e) ? Ses informations et ses photos de CNI seront reprises automatiquement."
+            required
+            rightSection={
+              prefillStatus === 'loading' ? (
+                <Loader size="xs" />
+              ) : prefillStatus === 'found' ? (
+                <IconCircleCheck size={18} color="var(--mantine-color-teal-6)" />
+              ) : null
+            }
+            {...form.getInputProps('numero_cni')}
+            onBlur={(e) => {
+              form.getInputProps('numero_cni').onBlur?.(e)
+              handleCniBlur()
+            }}
+            key={form.key('numero_cni')}
+          />
+          {prefillStatus === 'found' && (
+            <Text size="xs" c="teal.7" mt={-8}>
+              Informations retrouvées et complétées ci-dessous
+              {photosReprises ? ' (photos de CNI reprises aussi)' : ''} — vérifiez-les.
+            </Text>
+          )}
+
+          <Divider label="Photos de la CNI (facultatif)" labelPosition="center" />
+          <PhotoUpload label="Photo du recto de votre CNI" value={recto} onChange={setRecto} />
+          <PhotoUpload label="Photo du verso de votre CNI" value={verso} onChange={setVerso} />
+
           <Group grow align="flex-start">
             <TextInput
               label="Nom"
@@ -131,16 +229,6 @@ export function AddParticipantDialog({ activiteId, opened, onClose }: Props) {
             {...form.getInputProps('email')}
             key={form.key('email')}
           />
-          <TextInput
-            label="Numéro de CNI"
-            required
-            {...form.getInputProps('numero_cni')}
-            key={form.key('numero_cni')}
-          />
-
-          <Divider label="Photos de la CNI (facultatif)" labelPosition="center" />
-          <PhotoUpload label="Photo du recto de votre CNI" value={recto} onChange={setRecto} />
-          <PhotoUpload label="Photo du verso de votre CNI" value={verso} onChange={setVerso} />
 
           {mutation.isError && !form.errors.numero_cni && (
             <Alert color="red" icon={<IconAlertCircle size={18} />} variant="light">

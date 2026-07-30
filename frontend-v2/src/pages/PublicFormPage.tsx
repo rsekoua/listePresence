@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
 import { useForm } from '@mantine/form'
 import { zod4Resolver } from 'mantine-form-zod-resolver'
@@ -12,6 +12,7 @@ import {
   Center,
   Container,
   Group,
+  Loader,
   Paper,
   Progress,
   Stack,
@@ -32,6 +33,7 @@ import {
 } from '@tabler/icons-react'
 import {
   fetchActivitePublique,
+  fetchPersonnePrefill,
   submitParticipant,
   type ParticipantConfirmation,
 } from '../api/public'
@@ -41,6 +43,7 @@ import {
   formatPhone,
   normalizePhoneDigits,
   participantSchema,
+  toLocalPhoneDigits,
   type ParticipantFormValues as FormValues,
 } from '../lib/participantSchema'
 
@@ -98,6 +101,39 @@ export function PublicFormPage() {
   const [progress, setProgress] = useState(0)
   const [serverError, setServerError] = useState<string | null>(null)
   const [confirmation, setConfirmation] = useState<ParticipantConfirmation | null>(null)
+  const [prefillStatus, setPrefillStatus] = useState<'idle' | 'loading' | 'found'>('idle')
+  const lastPrefillCni = useRef('')
+
+  // Pré-remplissage : dès que le numéro de CNI est saisi (≥ 4 caractères) et
+  // perd le focus, on cherche un participant déjà connu (autre activité) pour
+  // compléter automatiquement le reste du formulaire — seuls les champs
+  // encore vides sont remplacés, rien n'écrase une saisie déjà faite.
+  const handleCniBlur = async () => {
+    const cni = form.getValues().numero_cni?.trim() ?? ''
+    if (cni.length < 4 || cni === lastPrefillCni.current) return
+    lastPrefillCni.current = cni
+    setPrefillStatus('loading')
+    try {
+      const found = await fetchPersonnePrefill(token, cni)
+      if (!found) {
+        setPrefillStatus('idle')
+        return
+      }
+      const current = form.getValues()
+      form.setValues({
+        nom: current.nom || found.nom,
+        prenom: current.prenom || found.prenom,
+        structure: current.structure || found.structure,
+        fonction: current.fonction || found.fonction,
+        telephone_wave: current.telephone_wave || toLocalPhoneDigits(found.telephone_wave),
+        email: current.email || found.email,
+      })
+      setPrefillStatus('found')
+    } catch {
+      // Échec silencieux (réseau, quota…) : ne bloque jamais la saisie manuelle.
+      setPrefillStatus('idle')
+    }
+  }
 
   // Restauration des photos après un éventuel rechargement de page (mémoire mobile).
   useEffect(() => {
@@ -230,6 +266,7 @@ export function PublicFormPage() {
   // --- Formulaire ----------------------------------------------------------
 
   const phoneDigits = normalizePhoneDigits(form.getValues().telephone_wave ?? '')
+  const cniInputProps = form.getInputProps('numero_cni')
 
   return (
     <Box mih="100vh" bg="#f0f4f8" py={{ base: 'sm', sm: 'xl' }}>
@@ -272,7 +309,51 @@ export function PublicFormPage() {
               </Alert>
             )}
 
-            {/* Section 1 — Identité */}
+            {/* Section 1 — Pièce d'identité (en premier : le numéro de CNI
+                permet de retrouver et pré-remplir le reste du formulaire) */}
+            <SectionCard icon={<IconId size={20} />} title="Pièce d'identité (CNI)">
+              <TextInput
+                size="md"
+                label="Numéro de CNI"
+                description="Déjà venu(e) à une activité ? Vos informations seront retrouvées automatiquement."
+                required
+                autoCapitalize="characters"
+                rightSection={
+                  prefillStatus === 'loading' ? (
+                    <Loader size="xs" />
+                  ) : prefillStatus === 'found' ? (
+                    <IconCircleCheck size={18} color="var(--mantine-color-teal-6)" />
+                  ) : null
+                }
+                {...cniInputProps}
+                onBlur={(e) => {
+                  cniInputProps.onBlur?.(e)
+                  handleCniBlur()
+                }}
+                key={form.key('numero_cni')}
+              />
+              {prefillStatus === 'found' && (
+                <Text size="xs" c="teal.7">
+                  Vos informations ont été retrouvées et complétées ci-dessous — vérifiez-les.
+                </Text>
+              )}
+              <PhotoUpload
+                label="Photo du recto de votre CNI *"
+                value={recto}
+                onChange={setRecto}
+                error={photoError.recto}
+                persistKey={`${token}_recto`}
+              />
+              <PhotoUpload
+                label="Photo du verso de votre CNI *"
+                value={verso}
+                onChange={setVerso}
+                error={photoError.verso}
+                persistKey={`${token}_verso`}
+              />
+            </SectionCard>
+
+            {/* Section 2 — Identité */}
             <SectionCard icon={<IconUser size={20} />} title="Identité">
               <TextInput
                 size="md"
@@ -294,7 +375,7 @@ export function PublicFormPage() {
               />
             </SectionCard>
 
-            {/* Section 2 — Coordonnées */}
+            {/* Section 3 — Coordonnées */}
             <SectionCard icon={<IconAddressBook size={20} />} title="Coordonnées">
               <TextInput
                 size="md"
@@ -338,32 +419,6 @@ export function PublicFormPage() {
                 autoCapitalize="none"
                 {...form.getInputProps('email')}
                 key={form.key('email')}
-              />
-            </SectionCard>
-
-            {/* Section 3 — Pièce d'identité */}
-            <SectionCard icon={<IconId size={20} />} title="Pièce d'identité (CNI)">
-              <TextInput
-                size="md"
-                label="Numéro de CNI"
-                required
-                autoCapitalize="characters"
-                {...form.getInputProps('numero_cni')}
-                key={form.key('numero_cni')}
-              />
-              <PhotoUpload
-                label="Photo du recto de votre CNI *"
-                value={recto}
-                onChange={setRecto}
-                error={photoError.recto}
-                persistKey={`${token}_recto`}
-              />
-              <PhotoUpload
-                label="Photo du verso de votre CNI *"
-                value={verso}
-                onChange={setVerso}
-                error={photoError.verso}
-                persistKey={`${token}_verso`}
               />
             </SectionCard>
 

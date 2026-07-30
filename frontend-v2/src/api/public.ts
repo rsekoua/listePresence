@@ -1,4 +1,4 @@
-import axios from 'axios'
+import axios, { isAxiosError } from 'axios'
 
 /** Client Axios public (formulaire participant) — sans token ni redirection. */
 const publicApi = axios.create({ baseURL: '/api' })
@@ -35,6 +35,15 @@ export interface ParticipantFields {
   numero_cni: string
 }
 
+export interface PersonnePrefill {
+  nom: string
+  prenom: string
+  structure: string
+  fonction: string
+  telephone_wave: string
+  email: string
+}
+
 export async function fetchActivitePublique(
   token: string,
 ): Promise<ActivitePublique> {
@@ -42,6 +51,26 @@ export async function fetchActivitePublique(
     `/public/activite/${token}`,
   )
   return data
+}
+
+/**
+ * Pré-remplissage : cherche un participant déjà connu par son numéro de CNI
+ * (toutes activités confondues). Renvoie `null` si aucune correspondance
+ * (404) — pas d'erreur, c'est le cas nominal pour un nouveau participant.
+ */
+export async function fetchPersonnePrefill(
+  token: string,
+  numeroCni: string,
+): Promise<PersonnePrefill | null> {
+  try {
+    const { data } = await publicApi.get<PersonnePrefill>(
+      `/public/activite/${token}/personne/${encodeURIComponent(numeroCni)}`,
+    )
+    return data
+  } catch (err) {
+    if (isAxiosError(err) && err.response?.status === 404) return null
+    throw err
+  }
 }
 
 export async function submitParticipant(

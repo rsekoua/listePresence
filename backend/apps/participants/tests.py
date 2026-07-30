@@ -36,6 +36,10 @@ class PublicFormTests(TestCase):
             nom="C", ville="Abidjan", lieu="H", date_debut=now,
             date_fin=now + timedelta(hours=2), statut="ferme", created_by=org,
         )
+        self.act2 = Activite.objects.create(
+            nom="B", ville="Bouaké", lieu="H", date_debut=now,
+            date_fin=now + timedelta(hours=2), statut="ouvert", created_by=org,
+        )
 
     def _submit(self, token, cni="CI123456", tel="0701020304"):
         return self.client.post(
@@ -142,6 +146,45 @@ class PublicFormTests(TestCase):
             },
         )
         self.assertEqual(r.status_code, 422)
+
+    def test_prefill_retrouve_participant_dune_autre_activite(self):
+        """Un participant déjà connu (autre activité) peut être pré-rempli
+        pour une nouvelle activité, à partir de son seul numéro de CNI."""
+        self._submit(self.act.token_qr, cni="CI555000")
+        r = self.client.get(
+            f"/api/public/activite/{self.act2.token_qr}/personne/CI555000"
+        )
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertEqual(body["nom"], "Kouassi")
+        self.assertEqual(body["prenom"], "Awa")
+        self.assertEqual(body["telephone_wave"], "+2250701020304")
+        # Ni les photos ni le numéro de CNI (déjà saisi par l'appelant) ne sont renvoyés.
+        self.assertNotIn("numero_cni", body)
+        self.assertNotIn("photo_cni_recto", body)
+
+    def test_prefill_numero_inconnu_404(self):
+        r = self.client.get(
+            f"/api/public/activite/{self.act.token_qr}/personne/CI000000"
+        )
+        self.assertEqual(r.status_code, 404)
+
+    def test_prefill_collecte_fermee_refuse(self):
+        self._submit(self.act.token_qr, cni="CI555001")
+        r = self.client.get(
+            f"/api/public/activite/{self.closed.token_qr}/personne/CI555001"
+        )
+        self.assertEqual(r.status_code, 403)
+
+    @override_settings(PUBLIC_RATELIMIT=2, PUBLIC_RATELIMIT_WINDOW=300)
+    def test_prefill_anti_spam_limite_les_requetes(self):
+        """Le pré-remplissage est limité en débit comme la soumission
+        (anti-énumération des numéros de CNI)."""
+        self._submit(self.act.token_qr, cni="CI555002")
+        url = f"/api/public/activite/{self.act.token_qr}/personne/CI555002"
+        self.assertEqual(self.client.get(url).status_code, 200)
+        self.assertEqual(self.client.get(url).status_code, 200)
+        self.assertEqual(self.client.get(url).status_code, 429)
 
     def test_image_avec_orientation_exif_acceptee(self):
         """Une image porteuse d'un tag EXIF d'orientation est traitée sans erreur."""
