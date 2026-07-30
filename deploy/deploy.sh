@@ -17,9 +17,9 @@ uv sync --no-dev
 .venv/bin/python manage.py collectstatic --noinput
 
 echo "==> Frontend : build"
-cd "$ROOT/frontend"
+cd "$ROOT/frontend-v2"
 npm ci
-npm run build
+npm run build   # sort directement dans backend/frontend_dist (cf. vite.config.ts)
 
 echo "==> Redémarrage des services"
 sudo systemctl restart presence      # Gunicorn

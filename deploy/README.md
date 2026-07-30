@@ -1,54 +1,69 @@
 # Déploiement — Gestion de Présence
 
-Pile : **Django (Gunicorn) + React (build statique) + Nginx**, sur Ubuntu 22.04.
+Pile : **Django (Gunicorn) + WhiteNoise + React (frontend-v2, build Vite) + Nginx**,
+sur Ubuntu 22.04/24.04, en **mono-origine** : Gunicorn sert tout (API, admin, build
+React) ; Nginx n'est qu'un reverse proxy + terminaison TLS (cf. `nginx.conf`).
 
 Ce dossier fournit des modèles à adapter :
 
 | Fichier | Rôle |
 |---|---|
-| `nginx.conf` | Reverse proxy : sert le front statique + proxie `/api`, `/admin`, `/static` |
+| `nginx.conf` | Reverse proxy vers Gunicorn (127.0.0.1:8000), tout le trafic |
 | `gunicorn.service` | Service systemd lançant Gunicorn (WSGI Django) |
 | `deploy.sh` | Script de mise à jour (git pull → migrate → collectstatic → build front → restart) |
 | `.env.prod.example` | Variables d'environnement de production (à copier en `backend/.env`) |
 | `backup.sh` | Sauvegarde quotidienne (dump base + archive médias, rétention 30 j) |
 
+## 0. DNS (Cloudflare)
+Dans le dashboard Cloudflare du domaine `rsekoua.org` → **DNS** → Add record :
+`A` · `justif-lhspla` · `<IP publique du VPS>` · Proxy status **DNS only (nuage gris)**.
+Le mode proxy Cloudflare est désactivé pour l'instant, le temps que Certbot (étape 6)
+puisse valider le domaine directement contre le VPS.
+
 ## 1. Pré-requis serveur
 ```bash
-sudo apt update && sudo apt install -y nginx python3 python3-venv nodejs npm
-# uv (gestionnaire de paquets Python) — voir https://docs.astral.sh/uv/
+sudo apt update && sudo apt install -y nginx git nodejs npm
+curl -LsSf https://astral.sh/uv/install.sh | sh   # gestionnaire de paquets Python
 ```
 
 ## 2. Récupération + configuration
+Dépôt **privé** : génère une clé de déploiement dédiée sur le VPS et ajoute-la
+en lecture seule sur GitHub (Settings → Deploy keys) avant de cloner.
 ```bash
+ssh-keygen -t ed25519 -C "vps-presence" -f ~/.ssh/id_ed25519_presence -N ""
+cat ~/.ssh/id_ed25519_presence.pub   # à coller dans GitHub → Deploy keys (lecture seule)
+
+cat >> ~/.ssh/config <<'EOF'
+Host github-presence
+    HostName github.com
+    User git
+    IdentityFile ~/.ssh/id_ed25519_presence
+EOF
+
 sudo mkdir -p /var/www/presence && sudo chown $USER /var/www/presence
-git clone <repo> /var/www/presence
-cd /var/www/presence/backend
-cp ../deploy/.env.prod.example .env   # puis éditer les secrets
-uv sync --no-dev
-uv add gunicorn                       # serveur WSGI de production
+git clone git@github-presence:rsekoua/listePresence.git /var/www/presence
+cd /var/www/presence
+git checkout justif                   # branche à déployer
+
+cd backend
+cp ../deploy/.env.prod.example .env   # puis éditer les secrets (clés, domaine)
+uv sync --no-dev                      # gunicorn est déjà une dépendance du projet
 ```
 
-## 3. Base de données (PostgreSQL)
-La base est **pilotée par l'environnement** (aucun changement de code) : sans variable,
-l'app utilise SQLite (dev) ; **dès que `DB_NAME` est défini** (cf. `.env.prod.example`),
-elle bascule sur **PostgreSQL**.
-```bash
-sudo apt install -y postgresql
-sudo -u postgres createdb presence
-sudo -u postgres createuser presence --pwprompt   # renseigner DB_PASSWORD du .env
-cd /var/www/presence/backend && uv add "psycopg[binary]"
-```
-Renseigne ensuite `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT` dans
-`backend/.env`, puis lance les migrations (étape 4).
+## 3. Base de données
+**SQLite par défaut** (déjà configuré, rien à installer) — largement suffisant pour
+cet usage. La base est pilotée par l'environnement : elle ne bascule sur PostgreSQL
+que si `DB_NAME` est défini dans `.env` (voir les lignes commentées de
+`.env.prod.example` si besoin un jour de PostgreSQL).
 
 ## 4. Premier déploiement
 ```bash
 cd /var/www/presence/backend
-.venv/bin/python manage.py migrate
-.venv/bin/python manage.py createsuperuser   # compte admin initial
-.venv/bin/python manage.py collectstatic --noinput
+uv run python manage.py migrate
+uv run python manage.py createsuperuser   # compte admin initial
+uv run python manage.py collectstatic --noinput
 
-cd ../frontend && npm ci && npm run build
+cd ../frontend-v2 && npm ci && npm run build   # sort dans backend/frontend_dist
 ```
 
 ## 5. Services
@@ -64,10 +79,15 @@ sudo nginx -t && sudo systemctl reload nginx
 ## 6. HTTPS (Let's Encrypt)
 ```bash
 sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d domaine.com
+sudo certbot --nginx -d justif-lhspla.rsekoua.org
 ```
 
-## 7. Mises à jour suivantes
+## 7. Vérification
+- `https://justif-lhspla.rsekoua.org/admin/` → page de connexion Django (compte créé à l'étape 4).
+- `https://justif-lhspla.rsekoua.org/` → application React.
+- `sudo systemctl status presence` et `journalctl -u presence -f` en cas de souci.
+
+## 8. Mises à jour suivantes
 ```bash
 bash deploy/deploy.sh
 ```
