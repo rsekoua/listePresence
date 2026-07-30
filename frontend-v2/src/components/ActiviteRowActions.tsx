@@ -12,18 +12,24 @@ import {
   IconPencil,
   IconTrash,
 } from '@tabler/icons-react'
-import { cloneActivite, deleteActivite, updateActivite } from '../api/activites'
+import { deleteActivite, updateActivite } from '../api/activites'
 import type { Activite } from '../api/types'
 import { ActiviteFormDialog } from './ActiviteFormDialog'
+import { CloneActiviteDialog } from './CloneActiviteDialog'
 import { notify } from '../lib/notify'
 
 export function ActiviteRowActions({ activite }: { activite: Activite }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [editOpen, setEditOpen] = useState(false)
+  const [cloneOpen, setCloneOpen] = useState(false)
 
   const canEdit = activite.can_edit
   const isOpen = activite.statut === 'ouvert'
+  // La réouverture (ferme → ouvert) reste possible au créateur même verrouillé
+  // (cf. can_reopen côté API) ; une activité archivée reste, elle, verrouillée.
+  const canToggle =
+    activite.statut !== 'archive' && (isOpen ? activite.can_edit : activite.can_reopen)
 
   const toggle = useMutation({
     mutationFn: () =>
@@ -33,15 +39,6 @@ export function ActiviteRowActions({ activite }: { activite: Activite }) {
       notify.success(updated.statut === 'ouvert' ? 'Collecte ouverte.' : 'Collecte fermée.')
     },
     onError: () => notify.error('Impossible de modifier le statut.'),
-  })
-
-  const clone = useMutation({
-    mutationFn: () => cloneActivite(activite.id),
-    onSuccess: (copie) => {
-      queryClient.invalidateQueries({ queryKey: ['activites'] })
-      notify.success(`Activité clonée : « ${copie.nom} ».`)
-    },
-    onError: () => notify.error('Clonage impossible.'),
   })
 
   const remove = useMutation({
@@ -103,14 +100,13 @@ export function ActiviteRowActions({ activite }: { activite: Activite }) {
           </Menu.Item>
           <Menu.Item
             leftSection={<IconCopy size={16} />}
-            disabled={clone.isPending}
-            onClick={() => clone.mutate()}
+            onClick={() => setCloneOpen(true)}
           >
             Cloner
           </Menu.Item>
           <Menu.Item
             leftSection={isOpen ? <IconLock size={16} /> : <IconLockOpen size={16} />}
-            disabled={!canEdit || activite.statut === 'archive' || toggle.isPending}
+            disabled={!canToggle || toggle.isPending}
             onClick={() => toggle.mutate()}
           >
             {isOpen ? 'Fermer la collecte' : 'Ouvrir la collecte'}
@@ -130,6 +126,11 @@ export function ActiviteRowActions({ activite }: { activite: Activite }) {
       <ActiviteFormDialog
         opened={editOpen}
         onClose={() => setEditOpen(false)}
+        activite={activite}
+      />
+      <CloneActiviteDialog
+        opened={cloneOpen}
+        onClose={() => setCloneOpen(false)}
         activite={activite}
       />
     </Group>

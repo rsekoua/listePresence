@@ -74,6 +74,7 @@ class ActiviteOut(Schema):
     form_url: str
     created_by: CreatedByOut
     can_edit: bool
+    can_reopen: bool
     nb_participants: int
     created_at: datetime
     updated_at: datetime
@@ -85,6 +86,10 @@ class ActiviteOut(Schema):
 
 class MessageOut(Schema):
     detail: str
+
+
+class CloneIn(Schema):
+    nom: str = ""
 
 
 # --- Helpers ---------------------------------------------------------------
@@ -110,9 +115,20 @@ def _can_edit(user, activite: Activite) -> bool:
     )
 
 
+def _can_reopen(user, activite: Activite) -> bool:
+    """Réouverture (ferme → ouvert) : créateur ou admin, même hors édition.
+
+    Contrairement à `_can_edit`, ne dépend pas du statut courant : c'est une
+    exception ciblée au verrou RG-06, qui ne s'applique qu'à cette transition
+    précise (une activité archivée reste, elle, verrouillée pour l'organisateur).
+    """
+    return user.is_admin or activite.created_by_id == user.id
+
+
 def _with_perm(user, activite: Activite) -> Activite:
-    """Annote l'activité avec can_edit + nb_participants pour la sérialisation."""
+    """Annote l'activité avec can_edit/can_reopen + nb_participants pour la sérialisation."""
     activite.can_edit = _can_edit(user, activite)
+    activite.can_reopen = _can_reopen(user, activite)
     if not hasattr(activite, "nb_participants"):
         activite.nb_participants = activite.participants.count()
     return activite
@@ -344,12 +360,32 @@ def get_activite(request, activite_id: UUID):
     return _with_perm(request.auth, _get_activite(request.auth, activite_id))
 
 
+def _is_reouverture(activite: Activite, payload: dict) -> bool:
+    """Vrai si `payload` ne fait que rouvrir une activité fermée (rien d'autre)."""
+    return (
+        activite.statut == Activite.Statut.FERME
+        and set(payload) == {"statut"}
+        and payload["statut"] == Activite.Statut.OUVERT
+    )
+
+
 @router.put("/{activite_id}", response=ActiviteOut)
 def update_activite(request, activite_id: UUID, data: ActiviteUpdate):
-    """Modifie une activité (créateur ou admin ; token QR inchangé — ACT-04)."""
+    """Modifie une activité (créateur ou admin ; token QR inchangé — ACT-04).
+
+    Exception : rouvrir une collecte fermée (uniquement `statut: "ouvert"`,
+    aucun autre champ) est permis au créateur même si l'activité est par
+    ailleurs verrouillée — cf. `_can_reopen`. Toute activité archivée reste
+    verrouillée pour l'organisateur.
+    """
     activite = _get_activite(request.auth, activite_id)
-    _require_edit(request.auth, activite)
     payload = data.dict(exclude_unset=True)
+
+    if _is_reouverture(activite, payload):
+        if not _can_reopen(request.auth, activite):
+            raise HttpError(403, "Vous ne pouvez modifier que vos propres activités.")
+    else:
+        _require_edit(request.auth, activite)
 
     if "statut" in payload and payload["statut"] not in Activite.Statut.values:
         raise HttpError(422, "Statut invalide.")
@@ -387,11 +423,15 @@ def delete_activite(request, activite_id: UUID):
 
 
 @router.post("/{activite_id}/clone", response={201: ActiviteOut})
-def clone_activite(request, activite_id: UUID):
-    """Clone une activité visible. La copie appartient à l'utilisateur courant."""
+def clone_activite(request, activite_id: UUID, data: CloneIn):
+    """Clone une activité visible. La copie appartient à l'utilisateur courant.
+
+    Le nom de la copie est personnalisable (`data.nom`) ; à défaut (champ vide),
+    on reprend le nom de la source suffixé de « (copie) »."""
     source = _get_activite(request.auth, activite_id)
+    nom = data.nom.strip() or f"{source.nom} (copie)"
     copie = Activite.objects.create(
-        nom=f"{source.nom} (copie)",
+        nom=nom,
         description=source.description,
         date_debut=source.date_debut,
         date_fin=source.date_fin,
@@ -429,11 +469,19 @@ class StatutIn(Schema):
 
 @router.patch("/{activite_id}/statut", response=ActiviteOut)
 def set_statut(request, activite_id: UUID, data: StatutIn):
-    """Ouvre / ferme / archive la collecte (créateur ou admin — ACT-05)."""
+    """Ouvre / ferme / archive la collecte (créateur ou admin — ACT-05).
+
+    Exception : rouvrir une collecte fermée est permis au créateur même hors
+    édition (cf. `_can_reopen` / `update_activite`).
+    """
     activite = _get_activite(request.auth, activite_id)
-    _require_edit(request.auth, activite)
     if data.statut not in Activite.Statut.values:
         raise HttpError(422, "Statut invalide.")
+    if _is_reouverture(activite, {"statut": data.statut}):
+        if not _can_reopen(request.auth, activite):
+            raise HttpError(403, "Vous ne pouvez modifier que vos propres activités.")
+    else:
+        _require_edit(request.auth, activite)
     activite.statut = data.statut
     activite.save(update_fields=["statut", "updated_at"])
     record(

@@ -60,10 +60,54 @@ class ActiviteRBACTests(TestCase):
         r = self.client.get(f"/api/activites/{self.a_closed.id}", **bearer(self.orgA))
         self.assertFalse(r.json()["can_edit"])
 
-    def test_organisateur_ne_modifie_pas_activite_fermee(self):
+    def test_organisateur_reouvre_sa_propre_activite_fermee(self):
+        """Exception au verrou RG-06 : la réouverture (ferme → ouvert) est
+        permise au créateur même si l'activité est par ailleurs verrouillée."""
         r = self.client.patch(
             f"/api/activites/{self.a_closed.id}/statut",
             json.dumps({"statut": "ouvert"}),
+            content_type="application/json",
+            **bearer(self.orgA),
+        )
+        self.assertEqual(r.status_code, 200)
+        self.a_closed.refresh_from_db()
+        self.assertEqual(self.a_closed.statut, "ouvert")
+
+    def test_organisateur_ne_reouvre_pas_activite_autrui(self):
+        r = self.client.patch(
+            f"/api/activites/{self.b_open.id}/statut",
+            json.dumps({"statut": "ferme"}),
+            content_type="application/json",
+            **bearer(self.orgA),
+        )
+        self.assertEqual(r.status_code, 404)
+
+    def test_organisateur_ne_reouvre_pas_activite_archivee(self):
+        archivee = make_activite(self.orgA, "archive", "A archivée")
+        r = self.client.patch(
+            f"/api/activites/{archivee.id}/statut",
+            json.dumps({"statut": "ouvert"}),
+            content_type="application/json",
+            **bearer(self.orgA),
+        )
+        self.assertEqual(r.status_code, 403)
+
+    def test_organisateur_reouvre_via_put_update(self):
+        r = self.client.put(
+            f"/api/activites/{self.a_closed.id}",
+            json.dumps({"statut": "ouvert"}),
+            content_type="application/json",
+            **bearer(self.orgA),
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.json()["can_reopen"])
+
+    def test_organisateur_ne_combine_pas_reouverture_et_autre_champ(self):
+        """La réouverture n'autorise que le seul champ `statut` ; toute
+        modification combinée reste soumise au verrou normal (403)."""
+        r = self.client.put(
+            f"/api/activites/{self.a_closed.id}",
+            json.dumps({"statut": "ouvert", "nom": "Renommée en douce"}),
             content_type="application/json",
             **bearer(self.orgA),
         )
@@ -101,10 +145,35 @@ class ActiviteRBACTests(TestCase):
         self.assertEqual(r.json()["ville"], "Bouaké")
 
     def test_clone_appartient_au_cloneur(self):
-        r = self.client.post(f"/api/activites/{self.a_open.id}/clone", **bearer(self.orgA))
+        r = self.client.post(
+            f"/api/activites/{self.a_open.id}/clone",
+            json.dumps({}),
+            content_type="application/json",
+            **bearer(self.orgA),
+        )
         self.assertEqual(r.status_code, 201)
         self.assertEqual(r.json()["statut"], "ouvert")
         self.assertIn("copie", r.json()["nom"])
+
+    def test_clone_avec_nom_personnalise(self):
+        r = self.client.post(
+            f"/api/activites/{self.a_open.id}/clone",
+            json.dumps({"nom": "Session Bouaké 2"}),
+            content_type="application/json",
+            **bearer(self.orgA),
+        )
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(r.json()["nom"], "Session Bouaké 2")
+
+    def test_clone_nom_vide_retombe_sur_le_nom_par_defaut(self):
+        r = self.client.post(
+            f"/api/activites/{self.a_open.id}/clone",
+            json.dumps({"nom": "   "}),
+            content_type="application/json",
+            **bearer(self.orgA),
+        )
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(r.json()["nom"], f"{self.a_open.nom} (copie)")
 
     def test_annuaire_scope_par_organisateur(self):
         Participant.objects.create(

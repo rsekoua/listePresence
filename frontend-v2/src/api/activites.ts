@@ -71,8 +71,8 @@ export async function deleteActivite(id: string): Promise<void> {
   await api.delete(`/activites/${id}`)
 }
 
-export async function cloneActivite(id: string): Promise<Activite> {
-  const { data } = await api.post<Activite>(`/activites/${id}/clone`)
+export async function cloneActivite(id: string, nom?: string): Promise<Activite> {
+  const { data } = await api.post<Activite>(`/activites/${id}/clone`, { nom: nom ?? '' })
   return data
 }
 

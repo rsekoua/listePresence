@@ -32,9 +32,10 @@ import {
   IconClock,
 } from '@tabler/icons-react'
 import { exportQrPdf } from '../api/exports'
-import { cloneActivite, fetchActivite, fetchQrCode, updateActivite } from '../api/activites'
+import { fetchActivite, fetchQrCode, updateActivite } from '../api/activites'
 import type { StatutActivite } from '../api/types'
 import { ActiviteFormDialog } from '../components/ActiviteFormDialog'
+import { CloneActiviteDialog } from '../components/CloneActiviteDialog'
 import { ParticipantsPanel } from '../components/ParticipantsPanel'
 import { ExportHistoryPanel } from '../components/ExportHistoryPanel'
 import { STATUT_META } from '../lib/activiteStatut'
@@ -46,6 +47,7 @@ export function ActiviteDetailPage() {
   const queryClient = useQueryClient()
   const [qrUrl, setQrUrl] = useState<string | null>(null)
   const [editOpen, setEditOpen] = useState(false)
+  const [cloneOpen, setCloneOpen] = useState(false)
   const [qrPdfLoading, setQrPdfLoading] = useState(false)
 
   const { data: activite, isLoading, isError } = useQuery({
@@ -77,16 +79,6 @@ export function ActiviteDetailPage() {
       notify.success(updated.statut === 'ouvert' ? 'Collecte ouverte.' : 'Collecte fermée.')
     },
     onError: () => notify.error('Impossible de modifier le statut.'),
-  })
-
-  const clone = useMutation({
-    mutationFn: () => cloneActivite(id),
-    onSuccess: (copie) => {
-      queryClient.invalidateQueries({ queryKey: ['activites'] })
-      notify.success(`Activité clonée : « ${copie.nom} ».`)
-      navigate(`/activites/${copie.id}`)
-    },
-    onError: () => notify.error('Clonage impossible.'),
   })
 
   const downloadQrPdf = async () => {
@@ -191,8 +183,7 @@ export function ActiviteDetailPage() {
           <Button
             variant="default"
             leftSection={<IconCopy size={18} />}
-            loading={clone.isPending}
-            onClick={() => clone.mutate()}
+            onClick={() => setCloneOpen(true)}
           >
             Cloner
           </Button>
@@ -282,22 +273,31 @@ export function ActiviteDetailPage() {
 
         <Divider my="lg" />
 
-        {/* Action ouvrir / fermer */}
+        {/* Action ouvrir / fermer — la réouverture (ferme → ouvert) reste possible
+            au créateur même une fois la collecte fermée (cf. can_reopen) ; une
+            activité archivée, elle, reste verrouillée. */}
         <Group align="center" wrap="wrap" gap="md">
           <Button
             color={isOpen ? 'orange' : 'teal'}
-            disabled={!activite.can_edit || activite.statut === 'archive'}
+            disabled={
+              activite.statut === 'archive' ||
+              (isOpen ? !activite.can_edit : !activite.can_reopen)
+            }
             loading={toggleStatut.isPending}
             onClick={() => toggleStatut.mutate(isOpen ? 'ferme' : 'ouvert')}
           >
             {isOpen ? 'Fermer la collecte' : 'Ouvrir la collecte'}
           </Button>
           <Text size="sm" c="dimmed">
-            {!activite.can_edit
-              ? "Réservé au créateur de l'activité."
+            {activite.statut === 'archive'
+              ? 'Activité archivée : non modifiable.'
               : isOpen
-                ? "Les participants peuvent s'enregistrer."
-                : 'Le formulaire public est désactivé.'}
+                ? activite.can_edit
+                  ? "Les participants peuvent s'enregistrer."
+                  : "Réservé au créateur de l'activité."
+                : activite.can_reopen
+                  ? 'Le formulaire public est désactivé.'
+                  : "Réservé au créateur de l'activité."}
           </Text>
         </Group>
       </Paper>
@@ -318,6 +318,12 @@ export function ActiviteDetailPage() {
         opened={editOpen}
         onClose={() => setEditOpen(false)}
         activite={activite}
+      />
+      <CloneActiviteDialog
+        opened={cloneOpen}
+        onClose={() => setCloneOpen(false)}
+        activite={activite}
+        onCloned={(copie) => navigate(`/activites/${copie.id}`)}
       />
     </Box>
   )
