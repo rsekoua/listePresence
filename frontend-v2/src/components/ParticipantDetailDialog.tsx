@@ -57,11 +57,11 @@ export function ParticipantDetailDialog({
     <Modal opened={opened} onClose={onClose} size="lg" centered title={null}>
       <Group gap="md" align="center" wrap="nowrap" mb="md">
         <Avatar color="brand" radius="md">
-          {participant.prenom.charAt(0).toUpperCase()}{participant.nom.charAt(0).toUpperCase()}
+          {participant.nom.charAt(0).toUpperCase()}{participant.prenom.charAt(0).toUpperCase()}
         </Avatar>
         <Box style={{ flexGrow: 1, minWidth: 0 }}>
           <Text fw={700} size="lg" truncate>
-            {participant.prenom.toUpperCase()} {participant.nom.toUpperCase()}
+             {participant.nom.toUpperCase()} {participant.prenom.toUpperCase()}
           </Text>
           <Text size="xs" c="dimmed" truncate>
             {participant.structure}

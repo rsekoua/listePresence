@@ -212,10 +212,10 @@ export function ParticipantsPanel({
                 render: (p) => (
                   <Group gap="sm" wrap="nowrap">
                     <Avatar radius="xl" size={32} color="brand" variant="light">
-                      {p.prenom.charAt(0).toUpperCase()}{p.nom.charAt(0).toUpperCase()}
+                      {p.nom.charAt(0).toUpperCase()}{p.prenom.charAt(0).toUpperCase()}
                     </Avatar>
                     <Text size="sm" fw={600} truncate>
-                      {p.prenom} {p.nom}
+                      {p.nom.toUpperCase()}  {p.prenom.toUpperCase()}
                     </Text>
                   </Group>
                 ),
