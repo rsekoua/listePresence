@@ -13,3 +13,19 @@ dist/
 __pycache__/
 *.py[oc]
 .venv/
+
+# Cahiers des charges (documents de travail, jamais committés)
+CAHIER_DES_CHARGES*.md
+cahier_des_charges*.txt
+
+# ── Données personnelles (CNI, listes de participants) — NE JAMAIS committer ──
+# Photos de cartes d'identité, listes nominatives, CSV de contrôle, PDF générés.
+photos_*/
+Photos_*/
+PDFs_*/
+*.xlsx
+controle_cni*.csv
+liste_*.csv
+
+# Notebook scratch vide
+/test.ipynb
