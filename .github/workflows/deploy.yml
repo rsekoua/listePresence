@@ -16,6 +16,10 @@ jobs:
 
       - name: Tests backend
         working-directory: backend
+        env:
+          # Sans ça, DEBUG=False par defaut et Django refuse de demarrer
+          # (garde-fou anti-cle-de-dev-en-prod, cf. settings.py).
+          DJANGO_DEBUG: "True"
         run: |
           uv sync
           uv run python manage.py test
