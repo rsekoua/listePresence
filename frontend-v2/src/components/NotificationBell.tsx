@@ -53,14 +53,18 @@ export function NotificationBell() {
     prevUnread.current = unreadCount
   }, [unreadCount])
 
-  function handleOpen() {
-    setOpened(true)
-  }
-
   function handleClose() {
     setOpened(false)
     setFilterActiviteId(null)
     if (unreadCount > 0) markAllRead()
+  }
+
+  function handleToggle() {
+    if (opened) {
+      handleClose()
+    } else {
+      setOpened(true)
+    }
   }
 
   function handleNavigate(activiteId: string) {
@@ -105,7 +109,7 @@ export function NotificationBell() {
               variant="default"
               size="md"
               aria-label="Notifications"
-              onClick={handleOpen}
+              onClick={handleToggle}
             >
               <IconBell
                 size={16}
