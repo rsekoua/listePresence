@@ -1,8 +1,13 @@
 # Déploiement — Gestion de Présence
 
-Pile : **Django (Gunicorn) + WhiteNoise + React (frontend-v2, build Vite) + Nginx + MySQL**,
-sur Ubuntu 22.04/24.04, en **mono-origine** : Gunicorn sert tout (API, admin, build
-React) ; Nginx n'est qu'un reverse proxy + terminaison TLS (cf. `nginx.conf`).
+Pile : **Django (Gunicorn) + WhiteNoise + React (frontend-v2, build Vite) + MySQL**,
+sur VPS Ubuntu géré par **CloudPanel**, en **mono-origine** : Gunicorn sert tout
+(API, admin, build React). CloudPanel gère Nginx (reverse proxy) et le certificat
+TLS lui-même (site type "Reverse Proxy" → `127.0.0.1:8000`) — voir `nginx.conf`
+pour un déploiement alternatif sans CloudPanel.
+
+Site : `liste.rsekoua.org`, utilisateur système CloudPanel `liste`,
+racine `/home/liste/htdocs/liste.rsekoua.org`.
 
 **Déploiement continu** : chaque push sur `main` déclenche `.github/workflows/deploy.yml`
 (GitHub Actions), qui lance les tests puis, s'ils passent, se connecte en SSH au VPS
@@ -10,7 +15,7 @@ et exécute `deploy/deploy.sh`. Ce dossier fournit les modèles utilisés :
 
 | Fichier | Rôle |
 |---|---|
-| `nginx.conf` | Reverse proxy vers Gunicorn (127.0.0.1:8000), tout le trafic |
+| `nginx.conf` | Référence/fallback si déployé sans CloudPanel (non utilisé ici) |
 | `gunicorn.service` | Service systemd lançant Gunicorn (WSGI Django) |
 | `deploy.sh` | Script de mise à jour (git pull → migrate → collectstatic → build front → restart → health-check). Appelé automatiquement par GitHub Actions, ou à la main. |
 | `.env.prod.example` | Variables d'environnement de production (à copier en `backend/.env`) |
@@ -18,13 +23,24 @@ et exécute `deploy/deploy.sh`. Ce dossier fournit les modèles utilisés :
 
 ## 0. DNS (Cloudflare)
 Dans le dashboard Cloudflare du domaine `rsekoua.org` → **DNS** → Add record :
-`A` · `justif-lhspla` · `<IP publique du VPS>` · Proxy status **DNS only (nuage gris)**.
-Le mode proxy Cloudflare est désactivé pour l'instant, le temps que Certbot (étape 6)
-puisse valider le domaine directement contre le VPS.
+`A` · `liste` · `<IP publique du VPS>` · Proxy status **DNS only (nuage gris)**.
+Le mode proxy Cloudflare est désactivé pour l'instant, le temps que CloudPanel/
+Let's Encrypt (étape 6) puisse valider le domaine directement contre le VPS.
 
-## 1. Pré-requis serveur
+## 1. Site CloudPanel
+Dans CloudPanel : **Sites → Add Site → Reverse Proxy**.
+- Domain Name : `liste.rsekoua.org`
+- Reverse Proxy URL : `http://127.0.0.1:8000`
+
+CloudPanel crée l'utilisateur système du site (`liste`), le dossier
+`/home/liste/htdocs/liste.rsekoua.org`, le vhost Nginx et gère le renouvellement
+TLS. Sur l'onglet **SSH/SFTP** de la fiche du site, ajoutez la clé publique de
+déploiement (étape 3a) pour pouvoir vous connecter en tant que `liste`.
+
+Paquets encore nécessaires côté OS (git, node, uv — Nginx est déjà géré par
+CloudPanel) :
 ```bash
-sudo apt update && sudo apt install -y nginx git nodejs npm
+sudo apt update && sudo apt install -y git nodejs npm
 curl -LsSf https://astral.sh/uv/install.sh | sh   # gestionnaire de paquets Python
 ```
 MySQL est supposé déjà installé sur le VPS.
@@ -63,10 +79,11 @@ cat ~/.ssh/id_ed25519_gh_actions        # clé PRIVÉE → secret GitHub SSH_PRI
 ```
 
 ## 4. Récupération + configuration
+Connectez-vous en SSH **en tant qu'utilisateur `liste`** (clé ajoutée à l'étape 1) :
 ```bash
-sudo mkdir -p /var/www/presence && sudo chown $USER /var/www/presence
-git clone git@github-presence:rsekoua/listePresence.git /var/www/presence
-cd /var/www/presence
+cd /home/liste/htdocs/liste.rsekoua.org
+# Le dossier existe déjà (créé par CloudPanel) mais est vide : cloner dedans.
+git clone git@github-presence:rsekoua/listePresence.git .
 git checkout main
 
 cd backend
@@ -76,7 +93,7 @@ uv sync --no-dev                      # gunicorn est déjà une dépendance du p
 
 ## 5. Premier déploiement (manuel, avant d'activer le CD)
 ```bash
-cd /var/www/presence/backend
+cd /home/liste/htdocs/liste.rsekoua.org/backend
 uv run python manage.py migrate
 uv run python manage.py createsuperuser   # compte admin initial
 uv run python manage.py collectstatic --noinput
@@ -84,31 +101,29 @@ uv run python manage.py collectstatic --noinput
 cd ../frontend-v2 && npm ci && npm run build   # sort dans backend/frontend_dist
 ```
 
-## 6. Services
+## 6. Service Gunicorn
+CloudPanel a déjà créé le vhost Nginx (reverse proxy vers `127.0.0.1:8000`) à
+l'étape 1 — il ne reste que le service systemd qui fait tourner Gunicorn :
 ```bash
 sudo cp deploy/gunicorn.service /etc/systemd/system/presence.service
 sudo systemctl daemon-reload && sudo systemctl enable --now presence
-
-sudo cp deploy/nginx.conf /etc/nginx/sites-available/presence
-sudo ln -s /etc/nginx/sites-available/presence /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
 ```
 
-## 7. HTTPS (Let's Encrypt)
-```bash
-sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d justif-lhspla.rsekoua.org
-```
+## 7. HTTPS (Let's Encrypt via CloudPanel)
+Sur la fiche du site dans CloudPanel : onglet **SSL/TLS → New Let's Encrypt
+Certificate** → sélectionner `liste.rsekoua.org` → Create and Install.
+Renouvellement automatique géré par CloudPanel, pas de `certbot` manuel.
 
 ## 8. Sudo sans mot de passe pour le déploiement automatique
-`deploy.sh` redémarre les services via `sudo`. Pour que GitHub Actions (connecté
-avec la clé d'action de l'étape 3b) puisse déployer sans prompt interactif,
-autoriser **uniquement ces deux commandes** sans mot de passe pour l'utilisateur
-de déploiement (`sudo visudo`) :
+`deploy.sh` redémarre Gunicorn via `sudo`. Pour que GitHub Actions (connecté
+avec la clé d'action de l'étape 3b, en tant qu'utilisateur `liste`) puisse
+déployer sans prompt interactif, autoriser **uniquement cette commande** sans
+mot de passe (`sudo visudo`) :
 ```
-<user> ALL=(root) NOPASSWD: /usr/bin/systemctl restart presence, /usr/bin/systemctl reload nginx
+liste ALL=(root) NOPASSWD: /usr/bin/systemctl restart presence
 ```
-(Ne pas donner `NOPASSWD: ALL` — inutile et risqué.)
+(Ne pas donner `NOPASSWD: ALL` — inutile et risqué. Le reload Nginx n'est pas
+nécessaire ici : CloudPanel gère sa config indépendamment des déploiements.)
 
 ## 9. Activer le déploiement continu (GitHub Actions)
 Dans GitHub → Settings du repo → **Secrets and variables → Actions**, créer :
@@ -124,9 +139,9 @@ tests backend/frontend à chaque push sur `main`, puis déploiement automatique 
 si les tests passent.
 
 ## 10. Vérification
-- `https://justif-lhspla.rsekoua.org/admin/` → page de connexion Django (compte créé à l'étape 5).
-- `https://justif-lhspla.rsekoua.org/` → application React.
-- `https://justif-lhspla.rsekoua.org/api/health` → `{"status": "ok"}`.
+- `https://liste.rsekoua.org/admin/` → page de connexion Django (compte créé à l'étape 5).
+- `https://liste.rsekoua.org/` → application React.
+- `https://liste.rsekoua.org/api/health` → `{"status": "ok"}`.
 - `sudo systemctl status presence` et `journalctl -u presence -f` en cas de souci.
 - Onglet **Actions** du repo GitHub : suivre les jobs `test` et `deploy` à chaque push.
 

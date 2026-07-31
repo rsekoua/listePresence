@@ -44,4 +44,4 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
-          script: bash /var/www/presence/deploy/deploy.sh
+          script: bash /home/liste/htdocs/liste.rsekoua.org/deploy/deploy.sh

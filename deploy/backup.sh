@@ -10,7 +10,7 @@
 set -euo pipefail
 
 # --- Configuration (adapter ou exporter via l'environnement) ---------------
-APP_DIR="${APP_DIR:-/var/www/presence}"
+APP_DIR="${APP_DIR:-/home/liste/htdocs/liste.rsekoua.org}"
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/presence}"
 RETENTION_DAYS="${RETENTION_DAYS:-30}"
 

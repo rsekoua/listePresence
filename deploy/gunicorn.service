@@ -3,18 +3,20 @@
 #   sudo cp deploy/gunicorn.service /etc/systemd/system/presence.service
 #   sudo systemctl daemon-reload
 #   sudo systemctl enable --now presence
-# (adapter User, chemins et le nombre de workers)
+#
+# User/chemins ci-dessous correspondent au site CloudPanel "liste.rsekoua.org"
+# (utilisateur système "liste", racine /home/liste/htdocs/liste.rsekoua.org).
 
 [Unit]
 Description=Gunicorn - Gestion de Présence
 After=network.target
 
 [Service]
-User=www-data
-Group=www-data
-WorkingDirectory=/var/www/presence/backend
-EnvironmentFile=/var/www/presence/backend/.env
-ExecStart=/var/www/presence/backend/.venv/bin/gunicorn \
+User=liste
+Group=liste
+WorkingDirectory=/home/liste/htdocs/liste.rsekoua.org/backend
+EnvironmentFile=/home/liste/htdocs/liste.rsekoua.org/backend/.env
+ExecStart=/home/liste/htdocs/liste.rsekoua.org/backend/.venv/bin/gunicorn \
     config.wsgi:application \
     --bind 127.0.0.1:8000 \
     --workers 3 \

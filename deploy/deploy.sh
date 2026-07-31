@@ -23,9 +23,8 @@ cd "$ROOT/frontend-v2"
 npm ci
 npm run build   # sort directement dans backend/frontend_dist (cf. vite.config.ts)
 
-echo "==> Redémarrage des services"
-sudo systemctl restart presence      # Gunicorn
-sudo systemctl reload nginx
+echo "==> Redémarrage du service"
+sudo systemctl restart presence      # Gunicorn (Nginx est géré par CloudPanel, pas de reload ici)
 
 echo "==> Vérification de santé"
 sleep 2
