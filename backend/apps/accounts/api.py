@@ -4,6 +4,7 @@
 from datetime import datetime
 from uuid import UUID
 
+import jwt
 from django.conf import settings
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
@@ -18,8 +19,11 @@ from apps import throttle
 from .auth import (
     JWTAuth,
     REFRESH,
+    RESET,
     create_access_token,
     create_refresh_token,
+    create_reset_token,
+    decode_token,
     get_user_from_token,
 )
 from .audit import record
@@ -81,6 +85,11 @@ class ChangePasswordIn(Schema):
     nouveau_mot_de_passe: str
 
 
+class ResetConfirmIn(Schema):
+    token: str
+    nouveau_mot_de_passe: str
+
+
 # --- Endpoints -------------------------------------------------------------
 
 
@@ -103,6 +112,31 @@ def login(request, data: LoginIn):
         access=create_access_token(user.id, user.token_version),
         refresh=create_refresh_token(user.id, user.token_version),
     )
+
+
+@router.post("/reset-password-confirm", response={200: MessageOut}, auth=None)
+def reset_password_confirm(request, data: ResetConfirmIn):
+    """Confirme une réinitialisation via un lien à usage unique généré par un
+    admin (cf. `generate_reset_link`). Aucune authentification requise : la
+    validité repose entièrement sur le token (signé, courte durée de vie,
+    auto-invalidé après usage — cf. `create_reset_token`).
+    """
+    try:
+        payload = decode_token(data.token, expected_type=RESET)
+    except jwt.PyJWTError:
+        raise HttpError(400, "Lien invalide ou expiré.")
+    try:
+        user = User.objects.get(id=payload["sub"], is_active=True)
+    except (User.DoesNotExist, KeyError, ValueError):
+        raise HttpError(400, "Lien invalide ou expiré.")
+    if payload.get("ver") != user.token_version:
+        raise HttpError(400, "Ce lien a déjà été utilisé ou n'est plus valide.")
+    _check_password(data.nouveau_mot_de_passe, user=user)
+    user.set_password(data.nouveau_mot_de_passe)
+    user.token_version += 1
+    user.save(update_fields=["password", "token_version"])
+    record(request, AuditLog.Action.USER_RESET_PWD, objet=user.username, user=user)
+    return 200, MessageOut(detail="Mot de passe réinitialisé. Vous pouvez vous connecter.")
 
 
 @router.post("/refresh", response=AccessOut, auth=None)
@@ -280,6 +314,25 @@ def reset_user_password(request, user_id: UUID, data: AdminResetPwdIn):
     user.save(update_fields=["password", "token_version"])
     record(request, AuditLog.Action.USER_RESET_PWD, objet=user.username)
     return 200, MessageOut(detail="Mot de passe réinitialisé.")
+
+
+class ResetLinkOut(Schema):
+    reset_url: str
+
+
+@router.post("/users/{user_id}/reset-link", response=ResetLinkOut, auth=JWTAuth())
+def generate_reset_link(request, user_id: UUID):
+    """Génère un lien de réinitialisation à usage unique pour un utilisateur
+    (admin uniquement), à transmettre manuellement (pas d'email en place).
+    L'admin ne voit jamais le mot de passe choisi par l'utilisateur.
+    """
+    _require_admin(request)
+    user = get_object_or_404(User, id=user_id)
+    token = create_reset_token(str(user.id), user.token_version)
+    record(request, AuditLog.Action.USER_RESET_LINK_GENERATE, objet=user.username)
+    return ResetLinkOut(
+        reset_url=f"{settings.PUBLIC_FORM_BASE_URL}/reinitialiser/{token}"
+    )
 
 
 @router.delete("/users/{user_id}", response={200: MessageOut}, auth=JWTAuth())

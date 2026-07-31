@@ -61,6 +61,10 @@ class AuditLog(models.Model):
         USER_UPDATE = "user_update", "Modification de compte"
         USER_DELETE = "user_delete", "Suppression de compte"
         USER_RESET_PWD = "user_reset_pwd", "Réinitialisation de mot de passe"
+        USER_RESET_LINK_GENERATE = (
+            "user_reset_link_generate",
+            "Génération d'un lien de réinitialisation",
+        )
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(

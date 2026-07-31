@@ -141,7 +141,9 @@ export function LoginPage() {
                     type="button"
                     size="sm"
                     c="dark"
-                    onClick={() => soon('La réinitialisation du mot de passe')}
+                    onClick={() =>
+                      notify.info('Contactez votre administrateur pour obtenir un lien de réinitialisation.')
+                    }
                   >
                     Mot de passe oublié ?
                   </Anchor>

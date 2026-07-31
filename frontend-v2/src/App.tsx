@@ -11,6 +11,7 @@ import { AuditPage } from './pages/AuditPage'
 import { AboutPage } from './pages/AboutPage'
 import { HelpPage } from './pages/HelpPage'
 import { PublicFormPage } from './pages/PublicFormPage'
+import { ResetPasswordPage } from './pages/ResetPasswordPage'
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
       {/* Routes publiques */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/form/:token" element={<PublicFormPage />} />
+      <Route path="/reinitialiser/:token" element={<ResetPasswordPage />} />
 
       {/* Routes protégées (tableau de bord organisateur) */}
       <Route element={<ProtectedRoute />}>

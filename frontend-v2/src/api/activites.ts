@@ -31,6 +31,14 @@ export async function changePassword(
   return data
 }
 
+/** Confirme une réinitialisation de mot de passe via un lien à usage unique. */
+export async function confirmPasswordReset(
+  token: string,
+  nouveau_mot_de_passe: string,
+): Promise<void> {
+  await api.post('/auth/reset-password-confirm', { token, nouveau_mot_de_passe })
+}
+
 // --- Activités -------------------------------------------------------------
 
 export async function fetchActivites(): Promise<Activite[]> {

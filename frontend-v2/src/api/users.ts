@@ -48,6 +48,12 @@ export async function deleteUser(id: string): Promise<void> {
   await api.delete(`/auth/users/${id}`)
 }
 
+/** Génère un lien de réinitialisation à usage unique, à transmettre manuellement. */
+export async function generateResetLink(id: string): Promise<{ reset_url: string }> {
+  const { data } = await api.post<{ reset_url: string }>(`/auth/users/${id}/reset-link`)
+  return data
+}
+
 /** Journal d'audit d'un utilisateur précis. */
 export async function fetchUserAudit(id: string): Promise<AuditEntry[]> {
   const { data } = await api.get<AuditEntry[]>(`/auth/users/${id}/audit`)

@@ -242,6 +242,9 @@ JWT_ALGORITHM = "HS256"
 JWT_ACCESS_LIFETIME_HOURS = int(os.getenv("JWT_ACCESS_LIFETIME_HOURS", "8"))
 # Durée de vie du token de rafraîchissement : 7 jours
 JWT_REFRESH_LIFETIME_DAYS = int(os.getenv("JWT_REFRESH_LIFETIME_DAYS", "7"))
+# Durée de vie du lien de réinitialisation de mot de passe (généré par un
+# admin, à usage unique) : 1 heure par défaut, le temps de le transmettre.
+JWT_RESET_LIFETIME_MINUTES = int(os.getenv("JWT_RESET_LIFETIME_MINUTES", "60"))
 
 # URL de base du formulaire public (encodée dans les QR Codes — cf. ACT-02)
 PUBLIC_FORM_BASE_URL = os.getenv("PUBLIC_FORM_BASE_URL", "http://localhost:5174")

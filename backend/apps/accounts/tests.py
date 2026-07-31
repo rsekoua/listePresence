@@ -2,6 +2,8 @@
 
 import json
 
+import jwt
+from django.conf import settings
 from django.core.cache import cache
 from django.test import Client, TestCase, override_settings
 
@@ -236,6 +238,100 @@ class UserManagementTests(TestCase):
         r = self.client.delete(f"/api/auth/users/{self.org.id}", **bearer(self.admin))
         self.assertEqual(r.status_code, 200)
         self.assertFalse(User.objects.filter(id=self.org.id).exists())
+
+
+class PasswordResetLinkTests(TestCase):
+    """Réinitialisation via lien à usage unique généré par un admin (sans email)."""
+
+    def setUp(self):
+        self.client = Client()
+        self.admin = User.objects.create_user(
+            username="admin", email="a@x.ci", password="password@123", role="admin"
+        )
+        self.org = User.objects.create_user(
+            username="org", email="o@x.ci", password="password@123", role="organisateur"
+        )
+
+    def _generate_link(self) -> str:
+        r = self.client.post(f"/api/auth/users/{self.org.id}/reset-link", **bearer(self.admin))
+        self.assertEqual(r.status_code, 200)
+        return r.json()["reset_url"].rsplit("/", 1)[-1]
+
+    def test_admin_genere_un_lien(self):
+        token = self._generate_link()
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
+        self.assertEqual(payload["type"], "pwd_reset")
+        self.assertEqual(payload["sub"], str(self.org.id))
+
+    def test_non_admin_ne_genere_pas_de_lien(self):
+        r = self.client.post(f"/api/auth/users/{self.org.id}/reset-link", **bearer(self.org))
+        self.assertEqual(r.status_code, 403)
+
+    def test_confirmation_valide_permet_la_connexion(self):
+        token = self._generate_link()
+        r = jpost(
+            self.client,
+            "/api/auth/reset-password-confirm",
+            {"token": token, "nouveau_mot_de_passe": "Korhogo!2026xyz"},
+        )
+        self.assertEqual(r.status_code, 200)
+        self.org.refresh_from_db()
+        self.assertTrue(self.org.check_password("Korhogo!2026xyz"))
+        login = jpost(
+            self.client, "/api/auth/login", {"username": "org", "password": "Korhogo!2026xyz"}
+        )
+        self.assertEqual(login.status_code, 200)
+
+    def test_confirmation_revoque_les_anciens_tokens(self):
+        ancien = bearer(self.org)
+        token = self._generate_link()
+        jpost(
+            self.client,
+            "/api/auth/reset-password-confirm",
+            {"token": token, "nouveau_mot_de_passe": "Korhogo!2026xyz"},
+        )
+        self.assertEqual(self.client.get("/api/auth/me", **ancien).status_code, 401)
+
+    def test_lien_deja_utilise_refuse(self):
+        token = self._generate_link()
+        jpost(
+            self.client,
+            "/api/auth/reset-password-confirm",
+            {"token": token, "nouveau_mot_de_passe": "Korhogo!2026xyz"},
+        )
+        r = jpost(
+            self.client,
+            "/api/auth/reset-password-confirm",
+            {"token": token, "nouveau_mot_de_passe": "AutreMotDePasse!123"},
+        )
+        self.assertEqual(r.status_code, 400)
+
+    @override_settings(JWT_RESET_LIFETIME_MINUTES=-1)
+    def test_lien_expire_refuse(self):
+        token = self._generate_link()
+        r = jpost(
+            self.client,
+            "/api/auth/reset-password-confirm",
+            {"token": token, "nouveau_mot_de_passe": "Korhogo!2026xyz"},
+        )
+        self.assertEqual(r.status_code, 400)
+
+    def test_mot_de_passe_faible_refuse(self):
+        token = self._generate_link()
+        r = jpost(
+            self.client,
+            "/api/auth/reset-password-confirm",
+            {"token": token, "nouveau_mot_de_passe": "1234"},
+        )
+        self.assertEqual(r.status_code, 422)
+
+    def test_token_invalide_refuse(self):
+        r = jpost(
+            self.client,
+            "/api/auth/reset-password-confirm",
+            {"token": "n-importe-quoi", "nouveau_mot_de_passe": "Korhogo!2026xyz"},
+        )
+        self.assertEqual(r.status_code, 400)
 
 
 class AuditTests(TestCase):

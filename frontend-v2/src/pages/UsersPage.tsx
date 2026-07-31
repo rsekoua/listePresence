@@ -10,6 +10,7 @@ import {
   Box,
   Button,
   Center,
+  CopyButton,
   Group,
   Menu,
   Modal,
@@ -22,6 +23,7 @@ import {
 import { DataTable } from 'mantine-datatable'
 import {
   IconDotsVertical,
+  IconLink,
   IconLockCog,
   IconPencil,
   IconToggleLeft,
@@ -34,6 +36,7 @@ import {
   createUser,
   deleteUser,
   fetchUsers,
+  generateResetLink,
   resetUserPassword,
   updateUser,
   type AppUser,
@@ -60,6 +63,7 @@ export function UsersPage() {
   const [createOpen, { open: openCreate, close: closeCreate }] = useDisclosure(false)
   const [editUser, setEditUser] = useState<AppUser | null>(null)
   const [resetFor, setResetFor] = useState<AppUser | null>(null)
+  const [linkFor, setLinkFor] = useState<AppUser | null>(null)
 
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(PAGE_SIZES[0])
@@ -237,6 +241,9 @@ export function UsersPage() {
                       <Menu.Item leftSection={<IconLockCog size={16} />} onClick={() => setResetFor(u)}>
                         Réinitialiser le mot de passe
                       </Menu.Item>
+                      <Menu.Item leftSection={<IconLink size={16} />} onClick={() => setLinkFor(u)}>
+                        Générer un lien de réinitialisation
+                      </Menu.Item>
                       <Menu.Divider />
                       <Menu.Item
                         color="red"
@@ -258,6 +265,7 @@ export function UsersPage() {
       <CreateUserDialog opened={createOpen} onClose={closeCreate} />
       <UserDetailDialog user={editUser} onClose={() => setEditUser(null)} />
       <ResetPasswordDialog user={resetFor} onClose={() => setResetFor(null)} />
+      <GenerateResetLinkDialog user={linkFor} onClose={() => setLinkFor(null)} />
     </Box>
   )
 }
@@ -370,6 +378,66 @@ function ResetPasswordDialog({ user, onClose }: { user: AppUser | null; onClose:
             Réinitialiser
           </Button>
         </Group>
+      </Stack>
+    </Modal>
+  )
+}
+
+function GenerateResetLinkDialog({ user, onClose }: { user: AppUser | null; onClose: () => void }) {
+  const [resetUrl, setResetUrl] = useState<string | null>(null)
+
+  const mutation = useMutation({
+    mutationFn: () => generateResetLink(user!.id),
+    onSuccess: (data) => setResetUrl(data.reset_url),
+    onError: (e) => notify.error(errorMessage(e, 'Génération impossible.')),
+  })
+
+  const handleClose = () => {
+    setResetUrl(null)
+    onClose()
+  }
+
+  return (
+    <Modal opened={Boolean(user)} onClose={handleClose} title="Lien de réinitialisation" centered>
+      <Stack gap="md">
+        {resetUrl ? (
+          <>
+            <Text size="sm" c="dimmed">
+              Transmettez ce lien à <strong>{user?.username}</strong> (WhatsApp, SMS…). Valable 1
+              heure, utilisable une seule fois — {user?.username} choisit son propre mot de passe.
+            </Text>
+            <Group gap="xs" wrap="nowrap">
+              <TextInput value={resetUrl} readOnly style={{ flexGrow: 1 }} />
+              <CopyButton value={resetUrl}>
+                {({ copied, copy }) => (
+                  <Button color={copied ? 'teal' : 'brand'} onClick={copy}>
+                    {copied ? 'Copié' : 'Copier'}
+                  </Button>
+                )}
+              </CopyButton>
+            </Group>
+            <Group justify="flex-end">
+              <Button variant="default" onClick={handleClose}>
+                Fermer
+              </Button>
+            </Group>
+          </>
+        ) : (
+          <>
+            <Text size="sm" c="dimmed">
+              Génère un lien à usage unique permettant à <strong>{user?.username}</strong> de
+              choisir lui-même un nouveau mot de passe.
+            </Text>
+            <Group justify="flex-end">
+              <Button variant="default" onClick={handleClose}>
+                Annuler
+              </Button>
+              <Button loading={mutation.isPending} onClick={() => mutation.mutate()}>
+                Générer le lien
+              </Button>
+            </Group>
+          </>
+        )}
       </Stack>
     </Modal>
   )

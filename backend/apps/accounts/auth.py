@@ -19,6 +19,7 @@ User = get_user_model()
 
 ACCESS = "access"
 REFRESH = "refresh"
+RESET = "pwd_reset"
 
 
 def _encode(user_id: str, token_type: str, lifetime: timedelta, version: int) -> str:
@@ -43,6 +44,18 @@ def create_access_token(user_id: str, version: int = 0) -> str:
 def create_refresh_token(user_id: str, version: int = 0) -> str:
     return _encode(
         user_id, REFRESH, timedelta(days=settings.JWT_REFRESH_LIFETIME_DAYS), version
+    )
+
+
+def create_reset_token(user_id: str, version: int) -> str:
+    """Token de réinitialisation de mot de passe, courte durée de vie.
+
+    Auto-invalidé après usage : la confirmation incrémente `token_version`,
+    donc `version` (capturée à la génération) ne correspond plus — inutile de
+    stocker un état "déjà utilisé" séparément.
+    """
+    return _encode(
+        user_id, RESET, timedelta(minutes=settings.JWT_RESET_LIFETIME_MINUTES), version
     )
 
 
