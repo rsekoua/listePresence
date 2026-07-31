@@ -28,7 +28,7 @@ sudo systemctl restart presence      # Gunicorn (Nginx est géré par CloudPanel
 
 echo "==> Vérification de santé"
 sleep 2
-if ! curl -sf http://127.0.0.1:8000/api/health > /dev/null; then
+if ! curl -sf -H "X-Forwarded-Proto: https" http://127.0.0.1:8000/api/health > /dev/null; then
     echo "❌ L'application ne répond pas après le redémarrage (voir : journalctl -u presence -n 50)"
     exit 1
 fi
