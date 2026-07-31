@@ -34,6 +34,7 @@ if [ -n "${DB_NAME:-}" ]; then
         -h "${DB_HOST:-127.0.0.1}" -P "${DB_PORT:-3306}" \
         -u "${DB_USER:-presence}" \
         --single-transaction --default-character-set=utf8mb4 \
+        --no-tablespaces \
         "$DB_NAME" \
         | gzip > "$BACKUP_DIR/db_${STAMP}.sql.gz"
 else
