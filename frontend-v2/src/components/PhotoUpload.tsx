@@ -1,6 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import imageCompression from 'browser-image-compression'
-import { Alert, Box, Button, Center, Group, Image, Loader, Stack, Text } from '@mantine/core'
+import {
+  Alert,
+  Box,
+  Button,
+  Center,
+  Group,
+  Image,
+  Loader,
+  SegmentedControl,
+  Stack,
+  Text,
+} from '@mantine/core'
 import {
   IconCamera,
   IconCheck,
@@ -9,6 +20,16 @@ import {
   IconTrash,
 } from '@tabler/icons-react'
 import { CniCropDialog } from './CniCropDialog'
+import { applyScanEffect, type ScanMode } from '../lib/scanEffect'
+
+/** Rendu appliqué après recadrage — `none` conserve la photo telle quelle. */
+type RenderMode = ScanMode | 'none'
+
+const RENDER_OPTIONS = [
+  { value: 'color', label: 'Scan couleur' },
+  { value: 'grayscale', label: 'Scan N&B' },
+  { value: 'none', label: 'Photo brute' },
+]
 
 interface Props {
   label: string
@@ -57,6 +78,14 @@ export function PhotoUpload({ label, value, onChange, error, persistKey }: Props
     }
   })
 
+  const [renderMode, setRenderMode] = useState<RenderMode>('color')
+  // Photo recadrée *sans* effet : conservée pour pouvoir changer de rendu sans
+  // redemander la photo, et pour ne jamais empiler deux traitements.
+  const [cropped, setCropped] = useState<File | null>(null)
+  // Image d'origine (avant recadrage) : un nouveau « Recadrer » repart de là,
+  // et non de la version déjà traitée.
+  const sourceRef = useRef<string | null>(cropSrc)
+
   // Persiste l'image en cours de recadrage (et nettoie une fois terminé).
   useEffect(() => {
     if (!pendingStorageKey) return
@@ -90,6 +119,7 @@ export function PhotoUpload({ label, value, onChange, error, persistKey }: Props
     try {
       const reduced = await imageCompression(file, PREVIEW_OPTIONS)
       const dataUrl = await imageCompression.getDataUrlFromFile(reduced)
+      sourceRef.current = dataUrl
       setCropSrc(dataUrl)
     } catch {
       setLocalError("Échec de la lecture de l'image.")
@@ -98,18 +128,31 @@ export function PhotoUpload({ label, value, onChange, error, persistKey }: Props
     }
   }
 
-  // 2) Après recadrage : compression de la carte rognée puis enregistrement.
-  const handleCropped = async (cropped: File) => {
-    setCropSrc(null)
+  // 2) Après recadrage : rendu « scanné » (selon le mode) puis compression
+  //    finale. Toujours calculé depuis la version recadrée brute, pour que
+  //    changer de rendu ne cumule pas les traitements.
+  const finalize = async (base: File, mode: RenderMode) => {
     setLoading(true)
     try {
-      const compressed = await imageCompression(cropped, COMPRESSION_OPTIONS)
+      const processed = mode === 'none' ? base : await applyScanEffect(base, { mode })
+      const compressed = await imageCompression(processed, COMPRESSION_OPTIONS)
       onChange(compressed)
     } catch {
       setLocalError("Échec du traitement de l'image.")
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleCropped = async (file: File) => {
+    setCropSrc(null)
+    setCropped(file)
+    await finalize(file, renderMode)
+  }
+
+  const handleRenderChange = (mode: string) => {
+    setRenderMode(mode as RenderMode)
+    if (cropped) finalize(cropped, mode as RenderMode)
   }
 
   return (
@@ -171,7 +214,7 @@ export function PhotoUpload({ label, value, onChange, error, persistKey }: Props
                 size="xs"
                 variant="subtle"
                 leftSection={<IconCrop size={16} />}
-                onClick={() => preview && setCropSrc(preview)}
+                onClick={() => setCropSrc(sourceRef.current ?? preview)}
               >
                 Recadrer
               </Button>
@@ -181,11 +224,28 @@ export function PhotoUpload({ label, value, onChange, error, persistKey }: Props
                 variant="subtle"
                 color="red"
                 leftSection={<IconTrash size={16} />}
-                onClick={() => onChange(null)}
+                onClick={() => {
+                  setCropped(null)
+                  sourceRef.current = null
+                  onChange(null)
+                }}
               >
                 Retirer
               </Button>
             </Group>
+
+            {/* Le rendu ne peut être rejoué que si l'on dispose encore de la
+                version recadrée brute (pas après un rechargement de page). */}
+            {cropped && (
+              <SegmentedControl
+                fullWidth
+                size="xs"
+                mt="xs"
+                value={renderMode}
+                onChange={handleRenderChange}
+                data={RENDER_OPTIONS}
+              />
+            )}
           </Box>
         ) : (
           <Stack gap="sm" py="md">
