@@ -60,9 +60,9 @@ class ExportTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r["Content-Type"], "application/pdf")
 
-    def test_export_autre_organisateur_404(self):
+    def test_export_autre_organisateur_autorise(self):
         r = self.client.get(f"/api/exports/activites/{self.act.id}/excel", **bearer(self.orgB))
-        self.assertEqual(r.status_code, 404)
+        self.assertEqual(r.status_code, 200)
 
     def test_export_sans_auth_401(self):
         r = self.client.get(f"/api/exports/activites/{self.act.id}/excel")
@@ -80,8 +80,8 @@ class ExportTests(TestCase):
         self.assertEqual(h1[0]["nb_entrees"], 1)
         self.assertEqual(h1[0]["utilisateur"], "org")
 
-    def test_historique_autre_organisateur_404(self):
+    def test_historique_autre_organisateur_autorise(self):
         r = self.client.get(
             f"/api/exports/activites/{self.act.id}/historique", **bearer(self.orgB)
         )
-        self.assertEqual(r.status_code, 404)
+        self.assertEqual(r.status_code, 200)

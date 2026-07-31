@@ -43,18 +43,19 @@ class ActiviteRBACTests(TestCase):
         self.a_closed = make_activite(self.orgA, "ferme", "A fermée")
         self.b_open = make_activite(self.orgB, "ouvert", "B ouverte")
 
-    def test_organisateur_ne_voit_que_les_siennes(self):
+    def test_organisateur_voit_toutes_les_activites(self):
         r = self.client.get("/api/activites/", **bearer(self.orgA))
         noms = {a["nom"] for a in r.json()}
-        self.assertEqual(noms, {"A ouverte", "A fermée"})
+        self.assertEqual(noms, {"A ouverte", "A fermée", "B ouverte"})
 
     def test_admin_voit_tout(self):
         r = self.client.get("/api/activites/", **bearer(self.admin))
         self.assertEqual(len(r.json()), 3)
 
-    def test_organisateur_ne_voit_pas_activite_autrui(self):
+    def test_organisateur_voit_activite_autrui_sans_pouvoir_editer(self):
         r = self.client.get(f"/api/activites/{self.b_open.id}", **bearer(self.orgA))
-        self.assertEqual(r.status_code, 404)
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(r.json()["can_edit"])
 
     def test_can_edit_false_sur_activite_fermee(self):
         r = self.client.get(f"/api/activites/{self.a_closed.id}", **bearer(self.orgA))
@@ -80,7 +81,9 @@ class ActiviteRBACTests(TestCase):
             content_type="application/json",
             **bearer(self.orgA),
         )
-        self.assertEqual(r.status_code, 404)
+        # Visible (200 en lecture) mais toujours verrouillée en écriture (403),
+        # contrairement à avant où l'activité d'autrui était invisible (404).
+        self.assertEqual(r.status_code, 403)
 
     def test_organisateur_ne_reouvre_pas_activite_archivee(self):
         archivee = make_activite(self.orgA, "archive", "A archivée")
@@ -175,7 +178,7 @@ class ActiviteRBACTests(TestCase):
         self.assertEqual(r.status_code, 201)
         self.assertEqual(r.json()["nom"], f"{self.a_open.nom} (copie)")
 
-    def test_annuaire_scope_par_organisateur(self):
+    def test_annuaire_visible_par_tous_les_organisateurs(self):
         Participant.objects.create(
             activite=self.a_open, nom="Kouassi", prenom="Awa", structure="ONG",
             fonction="C", telephone_wave="+2250700000000", email="a@x.ci", numero_cni="CI_A",
@@ -184,19 +187,19 @@ class ActiviteRBACTests(TestCase):
             activite=self.b_open, nom="Diallo", prenom="Moussa", structure="Mairie",
             fonction="A", telephone_wave="+2250101010101", email="m@x.ci", numero_cni="CI_B",
         )
-        # orgA ne voit que son participant
+        # orgA voit les participants de tout le monde, pas seulement les siens
         ra = self.client.get("/api/activites/personnes", **bearer(self.orgA)).json()
-        self.assertEqual({p["numero_cni"] for p in ra}, {"CI_A"})
-        # admin voit les deux
+        self.assertEqual({p["numero_cni"] for p in ra}, {"CI_A", "CI_B"})
+        # admin voit les deux aussi
         radmin = self.client.get("/api/activites/personnes", **bearer(self.admin)).json()
         self.assertEqual({p["numero_cni"] for p in radmin}, {"CI_A", "CI_B"})
-        # historique d'une CNI d'autrui → 404 pour orgA
+        # historique d'une CNI d'autrui → visible aussi (200) pour orgA
         h = self.client.get(
             "/api/activites/personnes/historique?numero_cni=CI_B", **bearer(self.orgA)
         )
-        self.assertEqual(h.status_code, 404)
+        self.assertEqual(h.status_code, 200)
 
-    def test_stats_globales_scope_par_role(self):
+    def test_stats_globales_identiques_pour_tous_les_comptes(self):
         Participant.objects.create(
             activite=self.a_open, nom="Kouassi", prenom="Awa", structure="ONG",
             fonction="C", telephone_wave="+2250700000000", email="a@x.ci", numero_cni="CNI_A",
@@ -205,11 +208,10 @@ class ActiviteRBACTests(TestCase):
             activite=self.b_open, nom="Diallo", prenom="Moussa", structure="Mairie",
             fonction="A", telephone_wave="+2250101010101", email="m@x.ci", numero_cni="CNI_B",
         )
-        # orgA : ses 2 activités, 1 participant unique (le sien uniquement)
+        # orgA voit les 3 activités et les 2 participants uniques, comme l'admin
         ra = self.client.get("/api/activites/stats-globales", **bearer(self.orgA)).json()
-        self.assertEqual(ra["nb_activites"], 2)
-        self.assertEqual(ra["nb_participants_uniques"], 1)
-        # admin : les 3 activités, 2 participants uniques
+        self.assertEqual(ra["nb_activites"], 3)
+        self.assertEqual(ra["nb_participants_uniques"], 2)
         radmin = self.client.get("/api/activites/stats-globales", **bearer(self.admin)).json()
         self.assertEqual(radmin["nb_activites"], 3)
         self.assertEqual(radmin["nb_participants_uniques"], 2)

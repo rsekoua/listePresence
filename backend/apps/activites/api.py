@@ -95,11 +95,6 @@ class CloneIn(Schema):
 # --- Helpers ---------------------------------------------------------------
 
 
-def _can_view(user, activite: Activite) -> bool:
-    """Un admin voit tout ; un organisateur, seulement ses propres activités."""
-    return user.is_admin or activite.created_by_id == user.id
-
-
 def _can_edit(user, activite: Activite) -> bool:
     """Droits de modification (RBAC) :
 
@@ -135,17 +130,10 @@ def _with_perm(user, activite: Activite) -> Activite:
 
 
 def _get_activite(user, activite_id: UUID) -> Activite:
-    """Récupère une activité visible par l'utilisateur, ou 404.
-
-    Renvoie 404 (et non 403) pour un organisateur qui tente d'accéder à une
-    activité d'autrui, afin de ne pas révéler son existence.
-    """
-    activite = get_object_or_404(
+    """Récupère une activité, visible par tout compte authentifié, ou 404."""
+    return get_object_or_404(
         Activite.objects.select_related("created_by"), id=activite_id
     )
-    if not _can_view(user, activite):
-        raise HttpError(404, "Activité introuvable.")
-    return activite
 
 
 def _require_edit(user, activite: Activite) -> None:
@@ -167,14 +155,12 @@ def _validate_dates(date_debut, date_fin):
 
 @router.get("/", response=list[ActiviteOut])
 def list_activites(request):
-    """Liste les activités : toutes pour un admin, seulement les siennes
-    pour un organisateur (AUTH-04)."""
+    """Liste toutes les activités, visibles par tout compte authentifié
+    (AUTH-04) — seule la modification reste restreinte au créateur/admin."""
     user = request.auth
     activites = Activite.objects.select_related("created_by").annotate(
         nb_participants=Count("participants")
     )
-    if not user.is_admin:
-        activites = activites.filter(created_by=user)
     return [_with_perm(user, a) for a in activites]
 
 
@@ -185,18 +171,12 @@ class GlobalStatsOut(Schema):
 
 @router.get("/stats-globales", response=GlobalStatsOut)
 def stats_globales(request):
-    """Statistiques transverses du tableau de bord (DASH-01).
-
-    Restreint au périmètre de l'utilisateur (comme la liste des activités) :
-    un admin voit tout, un organisateur uniquement ses propres activités et
-    leurs participants. `nb_participants_uniques` compte les personnes
-    distinctes par numéro de CNI, sans double comptage entre activités.
+    """Statistiques transverses du tableau de bord (DASH-01), tous comptes
+    confondus. `nb_participants_uniques` compte les personnes distinctes par
+    numéro de CNI, sans double comptage entre activités.
     """
     activites = Activite.objects.all()
     participants = Participant.objects.all()
-    if not request.auth.is_admin:
-        activites = activites.filter(created_by=request.auth)
-        participants = participants.filter(activite__created_by=request.auth)
     return GlobalStatsOut(
         nb_activites=activites.count(),
         nb_participants_uniques=participants.values("numero_cni").distinct().count(),
@@ -234,9 +214,6 @@ def list_personnes(
     from django.db.models import Q
 
     base = Participant.objects.all()
-    # Un organisateur ne voit que les participants de ses propres activités.
-    if not request.auth.is_admin:
-        base = base.filter(activite__created_by=request.auth)
     if search:
         base = base.filter(
             Q(nom__icontains=search)
@@ -309,13 +286,9 @@ class HistoriqueOut(Schema):
 
 @router.get("/personnes/historique", response=HistoriqueOut)
 def historique_personne(request, numero_cni: str = Query(...)):
-    """Historique de participation d'une personne (toutes ses inscriptions).
-
-    Un organisateur ne voit que les participations à ses propres activités.
-    """
+    """Historique de participation d'une personne (toutes ses inscriptions,
+    tous comptes confondus)."""
     qs = Participant.objects.select_related("activite").filter(numero_cni=numero_cni)
-    if not request.auth.is_admin:
-        qs = qs.filter(activite__created_by=request.auth)
     parts = list(qs.order_by("-horodatage"))
     if not parts:
         raise HttpError(404, "Aucune personne avec ce numéro de CNI.")
@@ -740,7 +713,7 @@ def participants_stats(request, activite_id: UUID):
 @router.get("/{activite_id}/participants/{participant_id}", response=ParticipantListOut)
 def get_participant(request, activite_id: UUID, participant_id: UUID):
     """Fiche détaillée d'un participant (DASH-04)."""
-    _get_activite(request.auth, activite_id)  # 404 si non visible
+    _get_activite(request.auth, activite_id)  # 404 si l'activité n'existe pas
     return get_object_or_404(
         Participant, id=participant_id, activite_id=activite_id
     )
@@ -749,7 +722,7 @@ def get_participant(request, activite_id: UUID, participant_id: UUID):
 @router.get("/{activite_id}/participants/{participant_id}/photo/{cote}")
 def participant_photo(request, activite_id: UUID, participant_id: UUID, cote: str):
     """Sert une photo CNI (accès protégé par JWT — IMG-03)."""
-    _get_activite(request.auth, activite_id)  # 404 si non visible
+    _get_activite(request.auth, activite_id)  # 404 si l'activité n'existe pas
     participant = get_object_or_404(
         Participant, id=participant_id, activite_id=activite_id
     )
