@@ -95,6 +95,7 @@ uv sync --no-dev                      # gunicorn est déjà une dépendance du p
 ```bash
 cd /home/liste/htdocs/liste.rsekoua.org/backend
 uv run python manage.py migrate
+uv run python manage.py createcachetable   # requis : cache DB (rate-limiting multi-workers, cf. settings.py)
 uv run python manage.py createsuperuser   # compte admin initial
 uv run python manage.py collectstatic --noinput
 
