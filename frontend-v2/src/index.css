@@ -1,6 +1,6 @@
 :root {
-  --app-canvas: #f5f6f8;
-  --app-ink: #0f172a;
+  --app-canvas: #faf9f5;
+  --app-ink: #262421;
 }
 
 html,
@@ -14,8 +14,7 @@ body {
   /* Fond flat neutre (style admin/données) — pas de halo coloré */
   background-color: var(--app-canvas);
   color: var(--app-ink);
-  /* Base compacte ≈ 13 px */
-  font-size: 13px;
+  font-size: 14px;
 }
 
 /* Entêtes de tableaux bien mis en valeur (DataTable + Table Mantine) :
@@ -36,11 +35,11 @@ body {
   height: 8px;
 }
 *::-webkit-scrollbar-thumb {
-  background-color: #cbd5e1;
+  background-color: #d8d3c4;
   border-radius: 8px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background-color: #94a3b8;
+  background-color: #b8b2a0;
 }

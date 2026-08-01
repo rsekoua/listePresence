@@ -1,36 +1,47 @@
 import { createTheme, type MantineColorsTuple } from '@mantine/core'
 
 /**
- * Identité « shadcn/ui — Neutral ».
- * Base neutre zinc (gris froid), primaire quasi-noir sur les actions, bordures
- * fines gris clair, coins arrondis ~8px et ombres très subtiles. Look épuré,
- * beaucoup de blanc, à la https://ui.shadcn.com/.
+ * Identité inspirée d'Anthropic/Claude : fond crème chaud (pas blanc froid),
+ * accent terracotta/argile signature, gris chauds (« stone ») plutôt que
+ * froids. Structure (polices, rayons ~8px, ombres douces) reprise du thème
+ * précédent — seule la palette change.
  */
 
-// Échelle neutre « zinc » (Tailwind) — sert à la fois de base (gris) et de
-// couleur primaire quasi-noire (shade 9 = #18181b, texte blanc).
-const zinc: MantineColorsTuple = [
-  '#fafafa', // 0
-  '#f4f4f5', // 1
-  '#e4e4e7', // 2  ← bordures
-  '#d4d4d8', // 3
-  '#a1a1aa', // 4
-  '#71717a', // 5  ← texte atténué
-  '#52525b', // 6
-  '#3f3f46', // 7
-  '#27272a', // 8
-  // '#0f0f8b', // 9  ← primaire (quasi-noir)
-  '#18181b', // 9  ← primaire (quasi-noir)
+// Argile/terracotta — couleur de marque Anthropic (base ≈ #D97757).
+const clay: MantineColorsTuple = [
+  '#fcf1ec', // 0
+  '#f8e1d6', // 1
+  '#f1c4af', // 2  ← bordures/fonds teintés
+  '#e8a484', // 3
+  '#e08b65', // 4
+  '#dd7f57', // 5
+  '#d97757', // 6  ← primaire (argile)
+  '#b5613f', // 7
+  '#8f4c33', // 8
+  '#6b3a29', // 9  ← le plus foncé
+]
+
+// Neutre chaud « stone » — remplace le zinc froid pour les fonds/bordures/texte.
+const stone: MantineColorsTuple = [
+  '#faf9f5', // 0  ← fond de page (crème)
+  '#f4f2ec', // 1
+  '#e8e4da', // 2  ← bordures
+  '#d8d3c4', // 3
+  '#b8b2a0', // 4
+  '#8f897a', // 5  ← texte atténué
+  '#6e6a5d', // 6
+  '#524e44', // 7
+  '#38352e', // 8
+  '#262421', // 9  ← quasi-noir chaud (texte principal)
 ]
 
 export const theme = createTheme({
   primaryColor: 'brand',
-  // Primaire quasi-noir en clair (boutons foncés, texte blanc), quasi-blanc en
-  // sombre — exactement le comportement shadcn.
-  primaryShade: { light: 9, dark: 0 },
-  colors: { brand: zinc, gray: zinc },
+  // Boutons en argile pleine teinte (shade 6) en clair, légèrement éclairci en sombre.
+  primaryShade: { light: 6, dark: 4 },
+  colors: { brand: clay, gray: stone },
   white: '#ffffff',
-  black: '#09090b', // zinc-950 (texte principal)
+  black: '#262421', // stone-9 (texte principal, chaud plutôt que noir froid)
   fontFamily:
     '"Inter Variable", Inter, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
   fontFamilyMonospace: 'ui-monospace, SFMono-Regular, Menlo, monospace',
@@ -49,11 +60,11 @@ export const theme = createTheme({
     sm: '0 1px 3px 0 rgba(0, 0, 0, 0.07), 0 1px 2px -1px rgba(0, 0, 0, 0.07)',
   },
   fontSizes: {
-    xs: '0.6875rem', // 11
-    sm: '0.75rem', // 12
-    md: '0.8125rem', // 13 (base)
-    lg: '0.9375rem', // 15
-    xl: '1.0625rem', // 17
+    xs: '0.75rem', // 12
+    sm: '0.8125rem', // 13
+    md: '0.875rem', // 14 (base)
+    lg: '1rem', // 16
+    xl: '1.125rem', // 18
   },
   lineHeights: {
     xs: '1.3',
@@ -65,12 +76,12 @@ export const theme = createTheme({
   headings: {
     fontWeight: '600',
     sizes: {
-      h1: { fontSize: '1.5rem', fontWeight: '700', lineHeight: '1.25' },
-      h2: { fontSize: '1.25rem', fontWeight: '600', lineHeight: '1.3' },
-      h3: { fontSize: '1.0625rem', fontWeight: '600', lineHeight: '1.3' },
-      h4: { fontSize: '0.9375rem', fontWeight: '600', lineHeight: '1.35' },
-      h5: { fontSize: '0.85rem', fontWeight: '600', lineHeight: '1.4' },
-      h6: { fontSize: '0.78rem', fontWeight: '600', lineHeight: '1.4' },
+      h1: { fontSize: '1.75rem', fontWeight: '700', lineHeight: '1.25' },
+      h2: { fontSize: '1.5rem', fontWeight: '600', lineHeight: '1.3' },
+      h3: { fontSize: '1.25rem', fontWeight: '600', lineHeight: '1.3' },
+      h4: { fontSize: '1.0625rem', fontWeight: '600', lineHeight: '1.35' },
+      h5: { fontSize: '0.9375rem', fontWeight: '600', lineHeight: '1.4' },
+      h6: { fontSize: '0.875rem', fontWeight: '600', lineHeight: '1.4' },
     },
   },
   cursorType: 'pointer',
