@@ -7,6 +7,7 @@ import { Alert, Button, Divider, Group, Modal, Stack, Text, TextInput } from '@m
 import { IconAlertCircle } from '@tabler/icons-react'
 import { updateParticipant, type Participant } from '../api/participants'
 import { notify } from '../lib/notify'
+import { upperInputProps } from '../lib/upperInput'
 import { PhotoUpload } from './PhotoUpload'
 import {
   formatPhone,
@@ -55,10 +56,10 @@ export function EditParticipantDialog({
   useEffect(() => {
     if (opened && participant) {
       form.setValues({
-        nom: participant.nom,
-        prenom: participant.prenom,
-        structure: participant.structure,
-        fonction: participant.fonction,
+        nom: participant.nom.toUpperCase(),
+        prenom: participant.prenom.toUpperCase(),
+        structure: participant.structure.toUpperCase(),
+        fonction: participant.fonction.toUpperCase(),
         telephone_wave: toLocalPhoneDigits(participant.telephone_wave),
         email: participant.email,
         numero_cni: participant.numero_cni,
@@ -108,24 +109,24 @@ export function EditParticipantDialog({
         </Text>
         <Stack gap="md">
           <Group grow align="flex-start">
-            <TextInput label="Nom" required {...form.getInputProps('nom')} key={form.key('nom')} />
+            <TextInput label="Nom" required {...upperInputProps(form, 'nom')} key={form.key('nom')} />
             <TextInput
               label="Prénom"
               required
-              {...form.getInputProps('prenom')}
+              {...upperInputProps(form, 'prenom')}
               key={form.key('prenom')}
             />
           </Group>
           <TextInput
             label="Structure / Organisation"
             required
-            {...form.getInputProps('structure')}
+            {...upperInputProps(form, 'structure')}
             key={form.key('structure')}
           />
           <TextInput
             label="Fonction / Poste"
             required
-            {...form.getInputProps('fonction')}
+            {...upperInputProps(form, 'fonction')}
             key={form.key('fonction')}
           />
           <TextInput

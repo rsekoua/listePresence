@@ -5,6 +5,7 @@ import { Button, Group, Modal, Stack, TextInput } from '@mantine/core'
 import { cloneActivite } from '../api/activites'
 import type { Activite } from '../api/types'
 import { notify, errorMessage } from '../lib/notify'
+import { upperInputProps } from '../lib/upperInput'
 
 interface Props {
   opened: boolean
@@ -19,7 +20,7 @@ export function CloneActiviteDialog({ opened, onClose, activite, onCloned }: Pro
   const queryClient = useQueryClient()
 
   const form = useForm({
-    initialValues: { nom: `${activite.nom} (copie)` },
+    initialValues: { nom: `${activite.nom} (COPIE)`.toUpperCase() },
     validate: {
       nom: (v) => (v.trim() ? null : 'Le nom est requis'),
     },
@@ -28,7 +29,7 @@ export function CloneActiviteDialog({ opened, onClose, activite, onCloned }: Pro
   // Réinitialise le nom proposé à chaque ouverture (l'activité source affichée
   // peut changer d'une ouverture à l'autre — liste vs détail).
   useEffect(() => {
-    if (opened) form.setValues({ nom: `${activite.nom} (copie)` })
+    if (opened) form.setValues({ nom: `${activite.nom} (COPIE)`.toUpperCase() })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened, activite.nom])
 
@@ -50,7 +51,7 @@ export function CloneActiviteDialog({ opened, onClose, activite, onCloned }: Pro
           <TextInput
             label="Nom de la copie"
             data-autofocus
-            {...form.getInputProps('nom')}
+            {...upperInputProps(form, 'nom')}
           />
           <Group justify="flex-end" mt="sm">
             <Button variant="default" onClick={onClose}>

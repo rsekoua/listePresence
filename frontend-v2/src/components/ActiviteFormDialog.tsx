@@ -8,6 +8,7 @@ import { IconAlertCircle } from '@tabler/icons-react'
 import { createActivite, updateActivite } from '../api/activites'
 import type { Activite } from '../api/types'
 import { notify } from '../lib/notify'
+import { upperInputProps } from '../lib/upperInput'
 
 interface FormValues {
   nom: string
@@ -63,10 +64,10 @@ export function ActiviteFormDialog({ opened, onClose, activite }: Props) {
     if (!opened) return
     if (activite) {
       form.setValues({
-        nom: activite.nom,
-        ville: activite.ville,
-        lieu: activite.lieu,
-        description: activite.description,
+        nom: activite.nom.toUpperCase(),
+        ville: activite.ville.toUpperCase(),
+        lieu: activite.lieu.toUpperCase(),
+        description: activite.description.toUpperCase(),
         date_debut: dayjs(activite.date_debut).format(DT),
         date_fin: dayjs(activite.date_fin).format(DT),
       })
@@ -127,14 +128,14 @@ export function ActiviteFormDialog({ opened, onClose, activite }: Props) {
           )}
           <TextInput
             label="Nom de l'activité"
-            {...form.getInputProps('nom')}
+            {...upperInputProps(form, 'nom')}
             key={form.key('nom')}
           />
           <Group grow align="flex-start">
-            <TextInput label="Ville" {...form.getInputProps('ville')} key={form.key('ville')} />
+            <TextInput label="Ville" {...upperInputProps(form, 'ville')} key={form.key('ville')} />
             <TextInput
               label="Lieu (hôtel, salle…)"
-              {...form.getInputProps('lieu')}
+              {...upperInputProps(form, 'lieu')}
               key={form.key('lieu')}
             />
           </Group>
@@ -156,7 +157,7 @@ export function ActiviteFormDialog({ opened, onClose, activite }: Props) {
             label="Description (optionnel)"
             autosize
             minRows={2}
-            {...form.getInputProps('description')}
+            {...upperInputProps(form, 'description')}
             key={form.key('description')}
           />
           <Group justify="flex-end" mt="sm">

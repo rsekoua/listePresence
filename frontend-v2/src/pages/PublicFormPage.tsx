@@ -38,6 +38,7 @@ import {
   type ParticipantConfirmation,
 } from '../api/public'
 import { PhotoUpload } from '../components/PhotoUpload'
+import { upperInputProps } from '../lib/upperInput'
 import {
   EMPTY_PARTICIPANT,
   formatPhone,
@@ -121,10 +122,10 @@ export function PublicFormPage() {
       }
       const current = form.getValues()
       form.setValues({
-        nom: current.nom || found.nom,
-        prenom: current.prenom || found.prenom,
-        structure: current.structure || found.structure,
-        fonction: current.fonction || found.fonction,
+        nom: (current.nom || found.nom).toUpperCase(),
+        prenom: (current.prenom || found.prenom).toUpperCase(),
+        structure: (current.structure || found.structure).toUpperCase(),
+        fonction: (current.fonction || found.fonction).toUpperCase(),
         telephone_wave: current.telephone_wave || toLocalPhoneDigits(found.telephone_wave),
         email: current.email || found.email,
       })
@@ -361,7 +362,7 @@ export function PublicFormPage() {
                 required
                 autoComplete="family-name"
                 autoCapitalize="words"
-                {...form.getInputProps('nom')}
+                {...upperInputProps(form, 'nom')}
                 key={form.key('nom')}
               />
               <TextInput
@@ -370,7 +371,7 @@ export function PublicFormPage() {
                 required
                 autoComplete="given-name"
                 autoCapitalize="words"
-                {...form.getInputProps('prenom')}
+                {...upperInputProps(form, 'prenom')}
                 key={form.key('prenom')}
               />
             </SectionCard>
@@ -382,7 +383,7 @@ export function PublicFormPage() {
                 label="Structure / Organisation"
                 required
                 autoCapitalize="words"
-                {...form.getInputProps('structure')}
+                {...upperInputProps(form, 'structure')}
                 key={form.key('structure')}
               />
               <TextInput
@@ -390,7 +391,7 @@ export function PublicFormPage() {
                 label="Fonction / Poste"
                 required
                 autoCapitalize="words"
-                {...form.getInputProps('fonction')}
+                {...upperInputProps(form, 'fonction')}
                 key={form.key('fonction')}
               />
               <TextInput

@@ -12,6 +12,7 @@ import {
   type PersonneHistorique,
 } from '../api/participants'
 import { notify } from '../lib/notify'
+import { upperInputProps } from '../lib/upperInput'
 import { PhotoUpload } from './PhotoUpload'
 import {
   EMPTY_PARTICIPANT,
@@ -87,10 +88,10 @@ export function AddParticipantDialog({ activiteId, opened, onClose }: Props) {
 
     const current = form.getValues()
     form.setValues({
-      nom: current.nom || found.nom,
-      prenom: current.prenom || found.prenom,
-      structure: current.structure || found.structure,
-      fonction: current.fonction || found.fonction,
+      nom: (current.nom || found.nom).toUpperCase(),
+      prenom: (current.prenom || found.prenom).toUpperCase(),
+      structure: (current.structure || found.structure).toUpperCase(),
+      fonction: (current.fonction || found.fonction).toUpperCase(),
       telephone_wave: current.telephone_wave || toLocalPhoneDigits(found.telephone_wave),
       email: current.email || found.email,
     })
@@ -183,26 +184,26 @@ export function AddParticipantDialog({ activiteId, opened, onClose }: Props) {
             <TextInput
               label="Nom"
               required
-              {...form.getInputProps('nom')}
+              {...upperInputProps(form, 'nom')}
               key={form.key('nom')}
             />
             <TextInput
               label="Prénom"
               required
-              {...form.getInputProps('prenom')}
+              {...upperInputProps(form, 'prenom')}
               key={form.key('prenom')}
             />
           </Group>
           <TextInput
             label="Structure / Organisation"
             required
-            {...form.getInputProps('structure')}
+            {...upperInputProps(form, 'structure')}
             key={form.key('structure')}
           />
           <TextInput
             label="Fonction / Poste"
             required
-            {...form.getInputProps('fonction')}
+            {...upperInputProps(form, 'fonction')}
             key={form.key('fonction')}
           />
           <TextInput
