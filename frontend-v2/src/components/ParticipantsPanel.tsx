@@ -202,7 +202,7 @@ export function ParticipantsPanel({
                       {p.prenom.charAt(0).toUpperCase()}{p.nom.charAt(0).toUpperCase()}
                     </Avatar>
                     <Text size="sm" fw={600} truncate>
-                      {p.prenom} {p.nom}
+                      {`${p.prenom} ${p.nom}`.toUpperCase()}
                     </Text>
                   </Group>
                 ),
@@ -316,7 +316,7 @@ function ParticipantCards({
               </Avatar>
               <Box style={{ minWidth: 0, flexGrow: 1 }}>
                 <Text fw={600} truncate>
-                  {p.prenom} {p.nom}
+                  {`${p.prenom} ${p.nom}`.toUpperCase()}
                 </Text>
                 <Text size="sm" c="dimmed" truncate>
                   {p.fonction} · {p.structure}

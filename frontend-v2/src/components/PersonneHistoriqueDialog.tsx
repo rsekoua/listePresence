@@ -41,7 +41,7 @@ export function PersonneHistoriqueDialog({ numeroCni, opened, onClose }: Props) 
         </Avatar>
         <Box style={{ flexGrow: 1, minWidth: 0 }}>
           <Text fw={700} truncate>
-            {data ? `${data.prenom} ${data.nom}` : 'Chargement…'}
+            {data ? `${data.prenom} ${data.nom}`.toUpperCase() : 'Chargement…'}
           </Text>
           <Text size="xs" c="dimmed" truncate>
             {data?.structure}

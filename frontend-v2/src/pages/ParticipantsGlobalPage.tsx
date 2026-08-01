@@ -109,7 +109,7 @@ export function ParticipantsGlobalPage() {
                     {p.prenom.charAt(0).toUpperCase()}
                   </Avatar>
                   <Text size="sm" fw={600} truncate>
-                    {p.prenom} {p.nom}
+                    {`${p.prenom} ${p.nom}`.toUpperCase()}
                   </Text>
                 </Group>
               ),
