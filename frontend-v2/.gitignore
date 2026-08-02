@@ -15,6 +15,9 @@ dist-ssr
 # Cache Vite
 .vite
 
+# Rapport de couverture des tests
+coverage
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

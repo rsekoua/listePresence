@@ -30,11 +30,12 @@ jobs:
           cache: npm
           cache-dependency-path: frontend-v2/package-lock.json
 
-      - name: Lint + build frontend
+      - name: Lint + tests + build frontend
         working-directory: frontend-v2
         run: |
           npm ci
           npm run lint
+          npm run test
           npm run build
 
   deploy:

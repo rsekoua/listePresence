@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -8,6 +9,11 @@ const API_TARGET = process.env.VITE_API_TARGET ?? 'http://127.0.0.1:8000'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/setupTests.ts'],
+    css: false,
+  },
   build: {
     // Déploiement mono-origine (cf. backend/config/settings.py — FRONTEND_DIST) :
     // le build atterrit directement là où Django/WhiteNoise le sert, sans copie manuelle.
