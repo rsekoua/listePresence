@@ -78,7 +78,7 @@ export function PhotoUpload({ label, value, onChange, error, persistKey }: Props
     }
   })
 
-  const [renderMode, setRenderMode] = useState<RenderMode>('color')
+  const [renderMode, setRenderMode] = useState<RenderMode>('none')
   // Photo recadrée *sans* effet : conservée pour pouvoir changer de rendu sans
   // redemander la photo, et pour ne jamais empiler deux traitements.
   const [cropped, setCropped] = useState<File | null>(null)
