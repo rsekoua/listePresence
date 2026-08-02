@@ -1,68 +1,90 @@
-import { createTheme, type MantineColorsTuple } from '@mantine/core'
+import { createTheme, type CSSVariablesResolver, type MantineColorsTuple } from '@mantine/core'
 
 /**
- * Identité inspirée d'Anthropic/Claude : fond crème chaud (pas blanc froid),
- * accent terracotta/argile signature, gris chauds (« stone ») plutôt que
- * froids. Structure (polices, rayons ~8px, ombres douces) reprise du thème
- * précédent — seule la palette change.
+ * Portage fidèle d'un thème shadcn/ui (base « stone », primaire indigo,
+ * --radius: 0.45rem) vers Mantine. Les valeurs oklch du thème source ont été
+ * converties en sRGB : elles retombent exactement sur les échelles Tailwind v4
+ * `stone` et `indigo`, ce qui confirme la conversion.
  */
 
-// Argile/terracotta — couleur de marque Anthropic (base ≈ #D97757).
-const clay: MantineColorsTuple = [
-  '#fcf1ec', // 0
-  '#f8e1d6', // 1
-  '#f1c4af', // 2  ← bordures/fonds teintés
-  '#e8a484', // 3
-  '#e08b65', // 4
-  '#dd7f57', // 5
-  '#d97757', // 6  ← primaire (argile)
-  '#b5613f', // 7
-  '#8f4c33', // 8
-  '#6b3a29', // 9  ← le plus foncé
+// Primaire indigo — échelle Tailwind v4 indigo-50…900 sur les nuances 0…9.
+// Les --chart-1..5 du thème source tombent sur 3, 5, 6, 7 et 8.
+const indigo: MantineColorsTuple = [
+  '#eef2ff', // 0  ← indigo-50 / --primary-foreground
+  '#e0e7ff', // 1  ← indigo-100
+  '#c6d2ff', // 2  ← indigo-200
+  '#a3b3ff', // 3  ← indigo-300 / chart-1
+  '#7c86ff', // 4  ← indigo-400
+  '#615fff', // 5  ← indigo-500 / chart-2
+  '#4f39f6', // 6  ← indigo-600 / chart-3
+  '#432dd7', // 7  ← indigo-700 / chart-4 / --primary (clair)
+  '#372aac', // 8  ← indigo-800 / chart-5 / --primary (sombre)
+  '#312c85', // 9  ← indigo-900
 ]
 
-// Neutre chaud « stone » — remplace le zinc froid pour les fonds/bordures/texte.
+// Neutre chaud « stone » — fonds, bordures, texte atténué.
 const stone: MantineColorsTuple = [
-  '#faf9f5', // 0  ← fond de page (crème)
-  '#f4f2ec', // 1
-  '#e8e4da', // 2  ← bordures
-  '#d8d3c4', // 3
-  '#b8b2a0', // 4
-  '#8f897a', // 5  ← texte atténué
-  '#6e6a5d', // 6
-  '#524e44', // 7
-  '#38352e', // 8
-  '#262421', // 9  ← quasi-noir chaud (texte principal)
+  '#fafaf9', // 0  ← --sidebar
+  '#f5f5f4', // 1  ← --muted / --accent
+  '#e7e5e4', // 2  ← --border / --input
+  '#d6d3d1', // 3
+  '#a6a09b', // 4  ← --ring
+  '#79716b', // 5  ← --muted-foreground
+  '#57534d', // 6
+  '#44403b', // 7
+  '#292524', // 8  ← --muted / --accent (sombre)
+  '#1c1917', // 9  ← --card / --popover (sombre)
+]
+
+// Échelle « dark » de Mantine (0 = texte le plus clair, 9 = fond le plus sombre),
+// alimentée par les tokens de la section .dark du thème source.
+const stoneDark: MantineColorsTuple = [
+  '#fafaf9', // 0  ← --foreground (sombre)
+  '#e7e5e4', // 1
+  '#d6d3d1', // 2
+  '#a6a09b', // 3  ← --muted-foreground (sombre)
+  '#79716b', // 4  ← --ring (sombre)
+  '#44403b', // 5
+  '#292524', // 6  ← --muted / --accent (sombre)
+  '#1c1917', // 7  ← --card / --popover (sombre)
+  '#131110', // 8
+  '#0c0a09', // 9  ← --background (sombre)
 ]
 
 export const theme = createTheme({
   primaryColor: 'brand',
-  // Boutons en argile pleine teinte (shade 6) en clair, légèrement éclairci en sombre.
-  primaryShade: { light: 6, dark: 4 },
-  colors: { brand: clay, gray: stone },
-  white: '#ffffff',
-  black: '#262421', // stone-9 (texte principal, chaud plutôt que noir froid)
+  // Le thème source assombrit le primaire en mode sombre (chart-5 = indigo-800)
+  // au lieu de l'éclaircir — d'où dark: 8 plutôt que la convention Mantine.
+  primaryShade: { light: 7, dark: 8 },
+  colors: { brand: indigo, gray: stone, dark: stoneDark },
+  white: '#ffffff', // --background
+  black: '#0c0a09', // --foreground
   fontFamily:
     '"Inter Variable", Inter, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
   fontFamilyMonospace: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-  // Coins arrondis ~0.5rem (radius shadcn par défaut).
-  defaultRadius: 'md',
+  // --radius: 0.45rem (7.2px). shadcn en dérive sm/md/lg/xl à -4/-2/+0/+4px ;
+  // les noms Mantine sont décalés d'un cran pour rester alignés sur les usages
+  // (bouton/input = sm, dialogue/surface = md, carte = lg).
+  defaultRadius: 'sm',
   radius: {
-    xs: '4px',
-    sm: '6px',
-    md: '8px',
-    lg: '12px',
-    xl: '16px',
+    xs: '3px', // shadcn --radius-sm
+    sm: '5px', // shadcn --radius-md — boutons, champs, badges
+    md: '7px', // shadcn --radius-lg — dialogues, Paper
+    lg: '11px', // shadcn --radius-xl — cartes
+    xl: '999px', // « rounded-full » — utilisé pour les avatars et pastilles
   },
-  // Ombres très douces (style shadcn shadow-sm).
+  // Échelle d'ombres Tailwind (shadow-xs → shadow-xl).
   shadows: {
     xs: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-    sm: '0 1px 3px 0 rgba(0, 0, 0, 0.07), 0 1px 2px -1px rgba(0, 0, 0, 0.07)',
+    sm: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1)',
+    md: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)',
+    lg: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)',
+    xl: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
   },
   fontSizes: {
     xs: '0.75rem', // 12
     sm: '0.8125rem', // 13
-    md: '0.875rem', // 14 (base)
+    md: '0.875rem', // 14 (base = text-sm)
     lg: '1rem', // 16
     xl: '1.125rem', // 18
   },
@@ -85,8 +107,10 @@ export const theme = createTheme({
     },
   },
   cursorType: 'pointer',
+  // Anneau de focus shadcn (3px, teinte --ring neutre) — styles dans index.css.
+  focusClassName: 'app-focus',
   components: {
-    // Surfaces : bordure fine zinc + ombre très douce (carte shadcn).
+    // Surfaces : bordure fine + ombre très douce (carte shadcn).
     Paper: {
       defaultProps: { radius: 'md', withBorder: true, shadow: 'xs' },
     },
@@ -94,13 +118,22 @@ export const theme = createTheme({
       defaultProps: { radius: 'lg', withBorder: true, shadow: 'xs' },
     },
     Button: {
-      defaultProps: { radius: 'md', size: 'sm' },
+      defaultProps: { radius: 'sm', size: 'sm' },
+      // shadcn utilise font-medium (500) sur les boutons, Mantine 600.
+      styles: { root: { fontWeight: 500 } },
     },
     ActionIcon: {
-      defaultProps: { radius: 'md' },
+      defaultProps: { radius: 'sm' },
     },
     Badge: {
       defaultProps: { radius: 'sm' },
+      // Écart visuel le plus marqué : Mantine passe les badges en MAJUSCULES
+      // graisse 700, shadcn les laisse en casse normale, graisse 500.
+      styles: { root: { textTransform: 'none', fontWeight: 500, letterSpacing: 0 } },
+    },
+    // Champs : légère ombre portée (shadow-xs) comme les inputs shadcn.
+    Input: {
+      styles: { input: { boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' } },
     },
     TextInput: { defaultProps: { size: 'sm' } },
     PasswordInput: { defaultProps: { size: 'sm' } },
@@ -108,7 +141,38 @@ export const theme = createTheme({
     Textarea: { defaultProps: { size: 'sm' } },
     NumberInput: { defaultProps: { size: 'sm' } },
     Modal: {
-      defaultProps: { radius: 'md' },
+      // Voile plat noir 50 % sans flou (bg-black/50 du Dialog shadcn).
+      defaultProps: {
+        radius: 'md',
+        shadow: 'lg',
+        overlayProps: { backgroundOpacity: 0.5, blur: 0 },
+      },
+      styles: { title: { fontWeight: 600, fontSize: '1rem' } },
     },
+  },
+})
+
+/**
+ * Mappe les tokens sémantiques shadcn (--background, --foreground, --border,
+ * --muted-foreground, --ring) sur les variables CSS de Mantine, pour les deux
+ * schémas de couleur.
+ */
+export const cssVariablesResolver: CSSVariablesResolver = (t) => ({
+  variables: {},
+  light: {
+    '--mantine-color-body': t.white, // --background
+    '--mantine-color-text': t.black, // --foreground
+    '--mantine-color-dimmed': t.colors.gray[5], // --muted-foreground
+    '--mantine-color-default-border': t.colors.gray[2], // --border
+    '--app-surface': t.white, // --card / --popover
+    '--app-ring': t.colors.gray[4], // --ring
+  },
+  dark: {
+    '--mantine-color-body': t.colors.dark[9], // --background
+    '--mantine-color-text': t.colors.dark[0], // --foreground
+    '--mantine-color-dimmed': t.colors.dark[3], // --muted-foreground
+    '--mantine-color-default-border': 'rgba(255, 255, 255, 0.1)', // --border
+    '--app-surface': t.colors.dark[7], // --card / --popover
+    '--app-ring': t.colors.dark[4], // --ring
   },
 })

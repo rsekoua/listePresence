@@ -16,7 +16,7 @@ import '@fontsource-variable/inter'
 import 'dayjs/locale/fr'
 
 import './index.css'
-import { theme } from './theme'
+import { theme, cssVariablesResolver } from './theme'
 import { AuthProvider } from './auth/AuthContext'
 import { NotificationProvider } from './context/NotificationContext'
 import App from './App.tsx'
@@ -30,7 +30,11 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <MantineProvider theme={theme} defaultColorScheme="light">
+      <MantineProvider
+        theme={theme}
+        cssVariablesResolver={cssVariablesResolver}
+        defaultColorScheme="light"
+      >
         <DatesProvider settings={{ locale: 'fr', firstDayOfWeek: 1 }}>
           <Notifications position="top-right" autoClose={3500} limit={3} />
           <ModalsProvider>

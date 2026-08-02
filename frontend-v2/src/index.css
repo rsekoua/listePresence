@@ -1,32 +1,53 @@
-:root {
-  --app-canvas: #faf9f5;
-  --app-ink: #262421;
-}
-
 html,
 body,
 #root {
   height: 100%;
 }
 
+/* Fond et texte pilotés par les tokens --background / --foreground portés dans
+   theme.ts (cssVariablesResolver) : suivent automatiquement le schéma clair/sombre. */
 body {
   margin: 0;
-  /* Fond flat neutre (style admin/données) — pas de halo coloré */
-  background-color: var(--app-canvas);
-  color: var(--app-ink);
+  background-color: var(--mantine-color-body);
+  color: var(--mantine-color-text);
   font-size: 14px;
 }
 
-/* Entêtes de tableaux bien mis en valeur (DataTable + Table Mantine) :
-   bandeau zinc clair, casse normale, gras, police légèrement agrandie et
-   bordure basse appuyée pour bien détacher l'entête du corps. */
+/* Surfaces (--card / --popover) : en clair identiques au fond, en sombre plus
+   claires que lui — c'est ce qui détache les cartes dans le thème source. */
+[data-mantine-color-scheme='dark'] .mantine-Paper-root,
+[data-mantine-color-scheme='dark'] .mantine-Modal-content,
+[data-mantine-color-scheme='dark'] .mantine-Popover-dropdown,
+[data-mantine-color-scheme='dark'] .mantine-Menu-dropdown {
+  background-color: var(--app-surface);
+}
+
+/* Entêtes de tableaux façon shadcn (DataTable + Table Mantine) : pas de
+   bandeau de fond, libellé gris atténué en graisse moyenne, filet 1px. */
 .mantine-datatable .mantine-datatable-header th,
 .mantine-Table-thead .mantine-Table-th {
-  background-color: var(--mantine-color-gray-1);
-  color: var(--mantine-color-gray-8);
-  font-weight: 700;
-  font-size: 12px;
-  border-bottom: 2px solid var(--mantine-color-gray-3);
+  background-color: transparent;
+  color: var(--mantine-color-dimmed);
+  font-weight: 500;
+  font-size: 13px;
+  border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+/* Titres resserrés (tracking-tight) — signature typographique shadcn. */
+.mantine-Title-root {
+  letter-spacing: -0.02em;
+}
+
+/* Anneau de focus shadcn : 3px sur la teinte --ring (neutre dans ce thème,
+   pas la couleur primaire), sans outline. Cf. theme.focusClassName. */
+.app-focus:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-ring) 45%, transparent);
+}
+
+/* Même anneau sur les champs de saisie, en remplacement de l'ombre au repos. */
+.mantine-Input-input:focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-ring) 45%, transparent);
 }
 
 /* Scrollbars fines et discrètes */
@@ -35,11 +56,17 @@ body {
   height: 8px;
 }
 *::-webkit-scrollbar-thumb {
-  background-color: #d8d3c4;
+  background-color: var(--mantine-color-gray-3);
   border-radius: 8px;
   border: 2px solid transparent;
   background-clip: content-box;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background-color: #b8b2a0;
+  background-color: var(--mantine-color-gray-4);
+}
+[data-mantine-color-scheme='dark'] *::-webkit-scrollbar-thumb {
+  background-color: var(--mantine-color-dark-5);
+}
+[data-mantine-color-scheme='dark'] *::-webkit-scrollbar-thumb:hover {
+  background-color: var(--mantine-color-dark-4);
 }

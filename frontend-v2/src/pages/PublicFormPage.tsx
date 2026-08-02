@@ -270,7 +270,7 @@ export function PublicFormPage() {
   const cniInputProps = form.getInputProps('numero_cni')
 
   return (
-    <Box mih="100vh" bg="#f0f4f8" py={{ base: 'sm', sm: 'xl' }}>
+    <Box mih="100vh" bg="gray.1" py={{ base: 'sm', sm: 'xl' }}>
       <Container size="sm" px="sm">
         <form onSubmit={form.onSubmit(onSubmit)} noValidate>
           <Stack gap="md">
@@ -472,7 +472,7 @@ function SectionCard({
 
 function Centered({ children }: { children: ReactNode }) {
   return (
-    <Center mih="100vh" bg="#f0f4f8" p="md">
+    <Center mih="100vh" bg="gray.1" p="md">
       {children}
     </Center>
   )
@@ -512,7 +512,7 @@ function Confirmation({
           <Text c="dimmed" mt="xs">
             Merci, votre présence à « {activiteNom} » a bien été enregistrée.
           </Text>
-          <Stack gap="xs" mt="lg" p="md" ta="left" bg="#f0f4f8" style={{ borderRadius: 'var(--mantine-radius-md)' }}>
+          <Stack gap="xs" mt="lg" p="md" ta="left" bg="gray.1" style={{ borderRadius: 'var(--mantine-radius-md)' }}>
             {rows.map(([label, value]) => (
               <Group key={label} justify="space-between" gap="md" wrap="nowrap">
                 <Text size="sm" c="dimmed">
