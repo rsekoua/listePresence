@@ -1,0 +1,27 @@
+[project]
+name = "liste-presence-import"
+version = "0.1.0"
+description = "Environnement du notebook d'import des participants (OCR des CNI)"
+requires-python = ">=3.12"
+# Aucune dépendance de base : le notebook est le seul consommateur de cet
+# environnement, et tout ce dont il a besoin est déclaré dans l'extra ci-dessous.
+dependencies = []
+
+# Dépendances du notebook import_participants.ipynb.
+# Volontairement séparées du backend Django (backend/pyproject.toml), qui tourne
+# sur son propre environnement : le notebook n'importe jamais Django, et le
+# backend n'a besoin ni de pandas ni de l'OCR.
+[project.optional-dependencies]
+import = [
+    "ipykernel>=7.0",   # noyau Jupyter sélectionnable dans VS Code
+    "openpyxl>=3.1.5",  # lecture du .xlsx de la liste des participants
+    "pandas>=2.2",      # DataFrames du CSV de contrôle
+    "pillow>=11.0",     # rotation / préparation des images avant OCR
+    "pytesseract>=0.3.13",  # binding du binaire Tesseract (installé séparément)
+    "requests>=2.32",   # appels à l'API
+]
+
+# Projet « virtuel » : on ne construit ni ne publie de paquet, on ne se sert de
+# ce fichier que pour décrire l'environnement.
+[tool.uv]
+package = false
