@@ -10,10 +10,10 @@ echo "==> Enregistrement du commit courant (rollback)"
 git rev-parse HEAD > deploy/.last_deploy_sha || true
 
 echo "==> Récupération du code"
-# npm peut réécrire package-lock.json en local (ex. npm install au lieu de
-# npm ci) ; on l'aligne sur le dépôt avant de puller pour ne pas bloquer le
-# fast-forward.
-git checkout -- frontend-v2/package-lock.json 2>/dev/null || true
+# npm peut réécrire des fichiers suivis en local (ex. npm install au lieu de
+# npm ci touchant package.json/package-lock.json) ; on aligne frontend-v2 sur
+# le dépôt avant de puller pour ne pas bloquer le fast-forward.
+git checkout -- frontend-v2/ 2>/dev/null || true
 git pull --ff-only
 
 echo "==> Backend : dépendances + migrations + statiques"
