@@ -39,6 +39,7 @@ import {
 } from '../api/public'
 import { PhotoUpload } from '../components/PhotoUpload'
 import { upperInputProps } from '../lib/upperInput'
+import { nomComplet } from '../lib/participantName'
 import {
   EMPTY_PARTICIPANT,
   formatPhone,
@@ -486,7 +487,7 @@ function Confirmation({
   activiteNom: string
 }) {
   const rows: [string, string][] = [
-    ['Nom', `${data.prenom} ${data.nom}`],
+    ['Nom', nomComplet(data)],
     ['Structure', data.structure],
     ['Fonction', data.fonction],
     ['Téléphone', data.telephone_wave],

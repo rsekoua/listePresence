@@ -16,6 +16,7 @@ import {
 } from '@mantine/core'
 import { IconCalendarEvent, IconChevronRight, IconMapPin } from '@tabler/icons-react'
 import { fetchPersonneHistorique } from '../api/participants'
+import { nomCompletMajuscules } from '../lib/participantName'
 import { CniPhotos } from './CniPhotos'
 
 interface Props {
@@ -37,11 +38,11 @@ export function PersonneHistoriqueDialog({ numeroCni, opened, onClose }: Props) 
     <Modal opened={opened} onClose={onClose} size="lg" centered title={null}>
       <Group gap="md" align="center" wrap="nowrap" mb="md">
         <Avatar color="brand" radius="md">
-          {data?.prenom?.charAt(0).toUpperCase() ?? '?'}
+          {data?.nom?.charAt(0).toUpperCase() ?? '?'}
         </Avatar>
         <Box style={{ flexGrow: 1, minWidth: 0 }}>
           <Text fw={700} truncate>
-            {data ? `${data.prenom} ${data.nom}`.toUpperCase() : 'Chargement…'}
+            {data ? nomCompletMajuscules(data) : 'Chargement…'}
           </Text>
           <Text size="xs" c="dimmed" truncate>
             {data?.structure}

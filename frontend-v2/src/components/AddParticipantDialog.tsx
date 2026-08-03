@@ -12,6 +12,7 @@ import {
   type PersonneHistorique,
 } from '../api/participants'
 import { notify } from '../lib/notify'
+import { nomComplet } from '../lib/participantName'
 import { upperInputProps } from '../lib/upperInput'
 import { PhotoUpload } from './PhotoUpload'
 import {
@@ -122,7 +123,7 @@ export function AddParticipantDialog({ activiteId, opened, onClose }: Props) {
       queryClient.invalidateQueries({ queryKey: ['participants', activiteId] })
       queryClient.invalidateQueries({ queryKey: ['stats', activiteId] })
       queryClient.invalidateQueries({ queryKey: ['activites'] })
-      notify.success(`Participant « ${p.prenom} ${p.nom} » ajouté.`)
+      notify.success(`Participant « ${nomComplet(p)} » ajouté.`)
       handleClose()
     },
     onError: (err) => {

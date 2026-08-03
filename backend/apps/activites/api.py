@@ -623,7 +623,7 @@ def add_participant(
     record(
         request,
         AuditLog.Action.PARTICIPANT_CREATE,
-        objet=f"{participant.prenom} {participant.nom} — {activite.nom}",
+        objet=f"{participant.nom} {participant.prenom} — {activite.nom}",
     )
     return 201, participant
 
@@ -684,7 +684,7 @@ def update_participant(
     record(
         request,
         AuditLog.Action.PARTICIPANT_UPDATE,
-        objet=f"{participant.prenom} {participant.nom} — {activite.nom}",
+        objet=f"{participant.nom} {participant.prenom} — {activite.nom}",
     )
     return 200, participant
 

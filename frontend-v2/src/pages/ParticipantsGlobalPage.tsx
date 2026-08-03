@@ -15,6 +15,7 @@ import {
   type ParticipantFilters,
   type Personne,
 } from '../api/participants'
+import { nomCompletMajuscules } from '../lib/participantName'
 import { PersonneHistoriqueDialog } from '../components/PersonneHistoriqueDialog'
 import { PageHeader } from '../components/PageHeader'
 
@@ -106,10 +107,10 @@ export function ParticipantsGlobalPage() {
               render: (p) => (
                 <Group gap="sm" wrap="nowrap">
                   <Avatar radius="xl" size={32} color="brand" variant="light">
-                    {p.prenom.charAt(0).toUpperCase()}
+                    {p.nom.charAt(0).toUpperCase()}
                   </Avatar>
                   <Text size="sm" fw={600} truncate>
-                    {`${p.prenom} ${p.nom}`.toUpperCase()}
+                    {nomCompletMajuscules(p)}
                   </Text>
                 </Group>
               ),

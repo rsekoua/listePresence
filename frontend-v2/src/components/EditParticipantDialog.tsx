@@ -7,6 +7,7 @@ import { Alert, Button, Divider, Group, Modal, Stack, Text, TextInput } from '@m
 import { IconAlertCircle } from '@tabler/icons-react'
 import { updateParticipant, type Participant } from '../api/participants'
 import { notify } from '../lib/notify'
+import { nomComplet } from '../lib/participantName'
 import { upperInputProps } from '../lib/upperInput'
 import { PhotoUpload } from './PhotoUpload'
 import {
@@ -81,7 +82,7 @@ export function EditParticipantDialog({
       queryClient.invalidateQueries({ queryKey: ['participants', activiteId] })
       queryClient.invalidateQueries({ queryKey: ['stats', activiteId] })
       queryClient.invalidateQueries({ queryKey: ['personnes'] })
-      notify.success(`Participant « ${p.prenom} ${p.nom} » mis à jour.`)
+      notify.success(`Participant « ${nomComplet(p)} » mis à jour.`)
       setRecto(null)
       setVerso(null)
       onUpdated?.()

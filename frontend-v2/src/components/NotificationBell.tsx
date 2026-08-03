@@ -21,6 +21,7 @@ import {
 } from '@mantine/core'
 import { IconBell, IconUserPlus } from '@tabler/icons-react'
 import { useNotifications, type AppNotification } from '../context/NotificationContext'
+import { nomComplet } from '../lib/participantName'
 
 dayjs.extend(relativeTime)
 dayjs.locale('fr')
@@ -251,9 +252,9 @@ function NotificationItem({
             {shown.map((p) => (
               <Group key={p.id} gap={6} wrap="nowrap">
                 <Avatar size={20} radius="xl" color="gray" variant="light" style={{ fontSize: 9 }}>
-                  {p.prenom.charAt(0).toUpperCase()}
+                  {p.nom.charAt(0).toUpperCase()}
                 </Avatar>
-                <Text size="xs" fw={600} truncate>{p.prenom} {p.nom}</Text>
+                <Text size="xs" fw={600} truncate>{nomComplet(p)}</Text>
                 <Badge size="xs" variant="outline" color="gray">{p.structure}</Badge>
               </Group>
             ))}

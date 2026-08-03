@@ -6,6 +6,7 @@ import { IconFileTypePdf, IconPencil } from '@tabler/icons-react'
 import { type Participant } from '../api/participants'
 import { exportParticipantPdf } from '../api/exports'
 import { notify } from '../lib/notify'
+import { nomCompletMajuscules } from '../lib/participantName'
 import { CniPhotos } from './CniPhotos'
 import { EditParticipantDialog } from './EditParticipantDialog'
 
@@ -57,11 +58,11 @@ export function ParticipantDetailDialog({
     <Modal opened={opened} onClose={onClose} size="lg" centered title={null}>
       <Group gap="md" align="center" wrap="nowrap" mb="md">
         <Avatar color="brand" radius="md">
-          {participant.prenom.charAt(0).toUpperCase()}{participant.nom.charAt(0).toUpperCase()}
+          {participant.nom.charAt(0).toUpperCase()}{participant.prenom.charAt(0).toUpperCase()}
         </Avatar>
         <Box style={{ flexGrow: 1, minWidth: 0 }}>
           <Text fw={700} size="lg" truncate>
-            {participant.prenom.toUpperCase()} {participant.nom.toUpperCase()}
+            {nomCompletMajuscules(participant)}
           </Text>
           <Text size="xs" c="dimmed" truncate>
             {participant.structure}
