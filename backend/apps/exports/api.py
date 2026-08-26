@@ -6,7 +6,9 @@ participants : recherche plein texte, structure, plage de dates et complétude
 des CNI (EXP-05).
 """
 
+import unicodedata
 from datetime import date, datetime
+from urllib.parse import quote
 from uuid import UUID
 
 from django.db.models import Q
@@ -53,8 +55,29 @@ def _filtrer(activite_id: UUID, search, structure, date_from, date_to, cni):
 
 
 def _attachment(content: bytes, filename: str, content_type: str) -> HttpResponse:
+    """Réponse de téléchargement d'un export.
+
+    Deux précautions :
+
+    - `no-store` : ces fichiers contiennent des données personnelles (listes
+      nominatives, pièces d'identité) et ne doivent pas être conservés par un
+      cache intermédiaire ni rejoués depuis l'historique du navigateur ;
+    - le nom de fichier est replié en ASCII pour l'en-tête historique (les
+      en-têtes HTTP sont encodés en latin-1 : un caractère hors de ce jeu y
+      lèverait une erreur), la forme UTF-8 étant fournie via `filename*`
+      (RFC 5987) que tous les navigateurs actuels préfèrent.
+    """
+    ascii_name = (
+        unicodedata.normalize("NFKD", filename).encode("ascii", "ignore").decode()
+        or "export"
+    )
     response = HttpResponse(content, content_type=content_type)
-    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response["Content-Disposition"] = (
+        f'attachment; filename="{ascii_name}"; '
+        f"filename*=UTF-8''{quote(filename)}"
+    )
+    response["Cache-Control"] = "private, no-store, max-age=0"
+    response["X-Robots-Tag"] = "noindex, nofollow"
     return response
 
 

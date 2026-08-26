@@ -123,6 +123,40 @@ class LoginRateLimitTests(TestCase):
         r = jpost(self.client, "/api/auth/login", {"username": "org", "password": "faux"})
         self.assertEqual(r.status_code, 401)
 
+    @override_settings(LOGIN_RATELIMIT=100, LOGIN_RATELIMIT_USER=3)
+    def test_blocage_par_compte_meme_en_changeant_d_ip(self):
+        """Un bruteforce distribué (une IP différente à chaque tentative) ne
+        contourne pas la protection : le compteur par compte visé le rattrape."""
+        for i in range(3):
+            r = jpost(
+                self.client,
+                "/api/auth/login",
+                {"username": "org", "password": "faux"},
+                REMOTE_ADDR=f"203.0.113.{i}",
+            )
+            self.assertEqual(r.status_code, 401)
+        r = jpost(
+            self.client,
+            "/api/auth/login",
+            {"username": "org", "password": "faux"},
+            REMOTE_ADDR="203.0.113.42",  # IP encore jamais vue
+        )
+        self.assertEqual(r.status_code, 429)
+
+    @override_settings(LOGIN_RATELIMIT=100, LOGIN_RATELIMIT_USER=3)
+    def test_blocage_par_compte_ne_deborde_pas_sur_les_autres_comptes(self):
+        """Saturer le compteur d'un compte n'empêche pas les autres de se
+        connecter (le verrouillage reste circonscrit à la cible)."""
+        User.objects.create_user(
+            username="org2", email="o2@x.ci", password="password@123", role="organisateur"
+        )
+        for _ in range(4):
+            jpost(self.client, "/api/auth/login", {"username": "org", "password": "faux"})
+        r = jpost(
+            self.client, "/api/auth/login", {"username": "org2", "password": "password@123"}
+        )
+        self.assertEqual(r.status_code, 200)
+
 
 class UserManagementTests(TestCase):
     def setUp(self):

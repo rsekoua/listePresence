@@ -1,0 +1,26 @@
+# systemd — socket Unix d'écoute de Gunicorn
+#
+# Pourquoi une socket Unix plutôt que 127.0.0.1:8000 :
+# l'application n'écoute alors sur AUCUN port TCP. Tout autre compte du serveur
+# (y compris un service compromis) pouvait sinon parler directement à Django en
+# contournant Nginx — donc contourner la limitation de débit, les en-têtes de
+# sécurité et le filtrage d'IP de l'admin. Les permissions de la socket
+# (utilisateur `presence`, groupe `www-data`) restreignent l'accès à Nginx seul.
+#
+#   sudo cp deploy/presence.socket /etc/systemd/system/presence.socket
+#   sudo systemctl daemon-reload && sudo systemctl enable --now presence.socket
+
+[Unit]
+Description=Socket Gunicorn — Gestion de Présence
+
+[Socket]
+# Chemin directement dans /run (pas de sous-dossier) : une `RuntimeDirectory`
+# côté service serait supprimée à chaque arrêt, emportant avec elle la socket
+# que cette unité vient de créer.
+ListenStream=/run/presence.sock
+SocketUser=presence
+SocketGroup=www-data
+SocketMode=0660
+
+[Install]
+WantedBy=sockets.target

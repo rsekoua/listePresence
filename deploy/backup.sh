@@ -10,7 +10,7 @@
 set -euo pipefail
 
 # --- Configuration (adapter ou exporter via l'environnement) ---------------
-APP_DIR="${APP_DIR:-/home/liste/htdocs/liste.rsekoua.org}"
+APP_DIR="${APP_DIR:-/var/www/liste.rsekoua.org}"
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/presence}"
 RETENTION_DAYS="${RETENTION_DAYS:-30}"
 
@@ -24,6 +24,10 @@ fi
 
 STAMP="$(date +%Y%m%d_%H%M%S)"
 mkdir -p "$BACKUP_DIR"
+# Les sauvegardes contiennent la base complète ET les photos de CNI : c'est la
+# copie la plus sensible du système. Accessible au seul propriétaire (root).
+chmod 700 "$BACKUP_DIR"
+umask 077
 
 # --- Dump MySQL --------------------------------------------------------
 if [ -n "${DB_NAME:-}" ]; then

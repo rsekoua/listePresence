@@ -176,14 +176,38 @@ class PublicFormTests(TestCase):
         )
         self.assertEqual(r.status_code, 403)
 
-    @override_settings(PUBLIC_RATELIMIT=2, PUBLIC_RATELIMIT_WINDOW=300)
+    @override_settings(PREFILL_RATELIMIT=2, PREFILL_RATELIMIT_WINDOW=300)
     def test_prefill_anti_spam_limite_les_requetes(self):
-        """Le pré-remplissage est limité en débit comme la soumission
-        (anti-énumération des numéros de CNI)."""
+        """Le pré-remplissage a sa propre limite de débit, plus basse que la
+        soumission (anti-énumération des numéros de CNI)."""
         self._submit(self.act.token_qr, cni="CI555002")
         url = f"/api/public/activite/{self.act.token_qr}/personne/CI555002"
         self.assertEqual(self.client.get(url).status_code, 200)
         self.assertEqual(self.client.get(url).status_code, 200)
+        self.assertEqual(self.client.get(url).status_code, 429)
+
+    @override_settings(PREFILL_RATELIMIT=2, PREFILL_RATELIMIT_WINDOW=300)
+    def test_prefill_quota_non_multipliable_en_changeant_activite(self):
+        """Le quota est posé par (IP, activité) : une fois épuisé sur une
+        activité, il ne se recharge pas en passant au token d'une autre."""
+        autre = Activite.objects.create(
+            nom="Autre activité",
+            date_debut=timezone.now(),
+            date_fin=timezone.now() + timedelta(hours=2),
+            ville="Abidjan",
+            lieu="Salle B",
+            created_by=self.act.created_by,
+            statut=Activite.Statut.OUVERT,
+        )
+        self._submit(self.act.token_qr, cni="CI555003")
+        url = f"/api/public/activite/{self.act.token_qr}/personne/CI555003"
+        self.assertEqual(self.client.get(url).status_code, 200)
+        self.assertEqual(self.client.get(url).status_code, 200)
+        self.assertEqual(self.client.get(url).status_code, 429)
+        # Un autre token repart sur son propre compteur, mais le premier reste
+        # bloqué : le moissonnage global est borné par activité visée.
+        autre_url = f"/api/public/activite/{autre.token_qr}/personne/CI555003"
+        self.assertEqual(self.client.get(autre_url).status_code, 200)
         self.assertEqual(self.client.get(url).status_code, 429)
 
     def test_image_avec_orientation_exif_acceptee(self):

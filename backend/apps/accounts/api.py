@@ -97,16 +97,32 @@ class ResetConfirmIn(Schema):
 def login(request, data: LoginIn):
     """Connexion organisateur : retourne un couple de tokens JWT.
 
-    Protégé contre le bruteforce : seuls les échecs sont comptés (par IP), et le
-    compteur est remis à zéro dès qu'une connexion réussit.
+    Protégé contre le bruteforce sur DEUX axes, car chacun seul est contournable :
+
+    - **par IP** : bloque le martelage depuis une machine ;
+    - **par compte visé** : bloque le martelage d'un même compte réparti sur des
+      centaines d'IP (botnet / proxies résidentiels), que le compteur par IP ne
+      voit jamais dépasser 1 ou 2 tentatives.
+
+    Seuls les échecs sont comptés, et les deux compteurs sont remis à zéro dès
+    qu'une connexion réussit. Le seuil par compte est volontairement large
+    (défaut 20) : trop bas, il permettrait à un tiers de verrouiller le compte
+    d'un utilisateur légitime en saturant délibérément son compteur.
     """
     ip = throttle.guard(request, "login", settings.LOGIN_RATELIMIT)
+    cible = data.username.strip().lower()[:150]
+    throttle.guard(request, "login_user", settings.LOGIN_RATELIMIT_USER, ident=cible)
+
     user = authenticate(request, username=data.username, password=data.password)
     if user is None or not user.is_active:
         throttle.register(request, "login", settings.LOGIN_RATELIMIT_WINDOW, ident=ip)
+        throttle.register(
+            request, "login_user", settings.LOGIN_RATELIMIT_WINDOW, ident=cible
+        )
         record(request, AuditLog.Action.LOGIN_FAILED, username=data.username)
         raise HttpError(401, "Identifiant ou mot de passe incorrect.")
     throttle.reset(request, "login", ident=ip)
+    throttle.reset(request, "login_user", ident=cible)
     record(request, AuditLog.Action.LOGIN, user=user)
     return TokenOut(
         access=create_access_token(user.id, user.token_version),
@@ -121,6 +137,14 @@ def reset_password_confirm(request, data: ResetConfirmIn):
     validité repose entièrement sur le token (signé, courte durée de vie,
     auto-invalidé après usage — cf. `create_reset_token`).
     """
+    # Endpoint public : sans limitation, il permettrait de marteler des jetons
+    # de réinitialisation forgés (et de sonder la validité des liens émis).
+    throttle.hit(
+        request,
+        "reset_confirm",
+        settings.LOGIN_RATELIMIT,
+        settings.LOGIN_RATELIMIT_WINDOW,
+    )
     try:
         payload = decode_token(data.token, expected_type=RESET)
     except jwt.PyJWTError:
@@ -142,6 +166,12 @@ def reset_password_confirm(request, data: ResetConfirmIn):
 @router.post("/refresh", response=AccessOut, auth=None)
 def refresh(request, data: RefreshIn):
     """Renouvelle le token d'accès à partir d'un token de rafraîchissement."""
+    throttle.hit(
+        request,
+        "refresh",
+        settings.LOGIN_RATELIMIT * 6,  # renouvellements légitimes fréquents
+        settings.LOGIN_RATELIMIT_WINDOW,
+    )
     user = get_user_from_token(data.refresh, REFRESH)
     if user is None:
         raise HttpError(401, "Token de rafraîchissement invalide ou expiré.")

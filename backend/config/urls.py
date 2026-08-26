@@ -4,6 +4,8 @@ URL configuration for config project.
 https://docs.djangoproject.com/en/6.0/topics/http/urls/
 """
 
+import re
+
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
@@ -13,9 +15,16 @@ from django.urls import path, re_path
 from config.api import api
 
 urlpatterns = [
-    path("admin/", admin.site.urls),
     path("api/", api.urls),
 ]
+
+# L'admin Django est monté sur un chemin configurable (settings.ADMIN_URL) et
+# peut être totalement retiré (DJANGO_ADMIN_URL="") sur un déploiement où il
+# n'est pas nécessaire : c'est la surface d'attaque la plus exposée du projet
+# (formulaire de connexion par session, sans la limitation de débit qui protège
+# /api/auth/login).
+if settings.ADMIN_URL:
+    urlpatterns.insert(0, path(settings.ADMIN_URL, admin.site.urls))
 
 # Service des fichiers media en développement uniquement.
 # En production, les photos CNI sont servies via un endpoint protégé (Sprint 4).
@@ -36,5 +45,6 @@ def spa(request):
     return HttpResponseNotFound("Build frontend absent.")
 
 
-# Attrape-tout en dernier : tout ce qui n'est pas /api ni /admin → SPA React.
-urlpatterns += [re_path(r"^(?!api/|admin/).*$", spa)]
+# Attrape-tout en dernier : tout ce qui n'est pas /api ni l'admin → SPA React.
+_reserved = "api/" + (f"|{re.escape(settings.ADMIN_URL)}" if settings.ADMIN_URL else "")
+urlpatterns += [re_path(rf"^(?!{_reserved}).*$", spa)]

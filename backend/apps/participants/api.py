@@ -23,7 +23,8 @@ from PIL import Image, ImageOps
 from pydantic import Field, field_validator
 
 from apps import throttle
-from apps.accounts.audit import client_ip
+from apps.accounts.audit import client_ip, record
+from apps.accounts.models import AuditLog
 from apps.activites.models import Activite
 
 from .models import Participant
@@ -37,6 +38,11 @@ MIN_SIZE = (400, 250)
 # décompression). Une photo de CNI reste bien en-deçà de ces limites.
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 Mo
 MAX_PIXELS = 40_000_000  # ~40 Mpx
+
+# Filet de sécurité au niveau de Pillow lui-même : couvre aussi les formats dont
+# les dimensions ne sont connues qu'en cours de décodage (le contrôle explicite
+# `img.width * img.height` ci-dessous, lui, lit l'en-tête).
+Image.MAX_IMAGE_PIXELS = MAX_PIXELS
 
 
 # --- Schémas ---------------------------------------------------------------
@@ -126,8 +132,10 @@ def _process_cni_image(uploaded: UploadedFile) -> bytes:
     est peu fiable (absent ou générique selon le navigateur/mobile, ou une photo
     restaurée depuis le localStorage) et provoquait de faux rejets 422.
     """
-    if uploaded.size and uploaded.size > MAX_UPLOAD_BYTES:
-        raise HttpError(422, "Image trop volumineuse (maximum 10 Mo).")
+    if uploaded.size is None or uploaded.size > MAX_UPLOAD_BYTES:
+        # `size is None` = taille inconnue (transfert chunké) : refusé plutôt
+        # que laissé passer sans borne, un flux illimité épuiserait le disque.
+        raise HttpError(422, "Image trop volumineuse ou de taille indéterminée (max 10 Mo).")
     try:
         Image.open(uploaded).verify()
     except Exception:
@@ -171,11 +179,16 @@ def get_personne_prefill(request, token: UUID, numero_cni: str):
     Limité en débit comme la soumission (anti-énumération d'un numéro à
     l'autre) ; nécessite un token d'activité ouverte valide.
     """
+    # Limite dédiée, bien plus basse que la soumission : cet endpoint divulgue
+    # des données personnelles à qui devine un numéro de CNI. Le compteur est
+    # posé par (IP, token d'activité) pour qu'un moissonneur ne puisse pas
+    # multiplier son quota en changeant d'activité.
     throttle.hit(
         request,
         "prefill",
-        settings.PUBLIC_RATELIMIT,
-        settings.PUBLIC_RATELIMIT_WINDOW,
+        settings.PREFILL_RATELIMIT,
+        settings.PREFILL_RATELIMIT_WINDOW,
+        ident=f"{client_ip(request) or 'anon'}|{token}",
     )
     activite = get_object_or_404(Activite, token_qr=token)
     if activite.statut != Activite.Statut.OUVERT:
@@ -190,6 +203,13 @@ def get_personne_prefill(request, token: UUID, numero_cni: str):
     )
     if not participant:
         return 404, MessageOut(detail="Aucune information existante pour ce numéro.")
+    # Trace la consultation : ce point d'accès public expose des données
+    # personnelles, un pic dans le journal d'audit doit être détectable.
+    record(
+        request,
+        AuditLog.Action.PREFILL_LOOKUP,
+        objet=f"{activite.nom} · CNI ***{numero[-4:]}",
+    )
     return 200, PersonnePrefillOut(
         nom=participant.nom,
         prenom=participant.prenom,

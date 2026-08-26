@@ -721,7 +721,14 @@ def get_participant(request, activite_id: UUID, participant_id: UUID):
 
 @router.get("/{activite_id}/participants/{participant_id}/photo/{cote}")
 def participant_photo(request, activite_id: UUID, participant_id: UUID, cote: str):
-    """Sert une photo CNI (accès protégé par JWT — IMG-03)."""
+    """Sert une photo CNI (accès protégé par JWT — IMG-03).
+
+    Réponse marquée `no-store` : une pièce d'identité ne doit être conservée ni
+    par le disque du navigateur ni par un cache intermédiaire, où elle resterait
+    lisible après la déconnexion de l'organisateur.
+    """
+    if cote not in ("recto", "verso"):
+        raise HttpError(404, "Photo introuvable.")
     _get_activite(request.auth, activite_id)  # 404 si l'activité n'existe pas
     participant = get_object_or_404(
         Participant, id=participant_id, activite_id=activite_id
@@ -733,4 +740,8 @@ def participant_photo(request, activite_id: UUID, participant_id: UUID, cote: st
     )
     if not field:
         raise HttpError(404, "Photo introuvable.")
-    return FileResponse(field.open("rb"), content_type="image/jpeg")
+    response = FileResponse(field.open("rb"), content_type="image/jpeg")
+    response["Cache-Control"] = "private, no-store, max-age=0"
+    response["Content-Disposition"] = f'inline; filename="cni_{cote}.jpg"'
+    response["X-Robots-Tag"] = "noindex, nofollow"
+    return response
