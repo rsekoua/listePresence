@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Sauvegarde — Gestion de Présence
-# - dump MySQL (compressé)
+# - dump PostgreSQL (compressé)
 # - archive des photos CNI (media/)
 # - rétention configurable (défaut 30 jours)
 #
@@ -10,7 +10,7 @@
 set -euo pipefail
 
 # --- Configuration (adapter ou exporter via l'environnement) ---------------
-APP_DIR="${APP_DIR:-/var/www/liste.rsekoua.org}"
+APP_DIR="${APP_DIR:-/var/www/liste}"
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/presence}"
 RETENTION_DAYS="${RETENTION_DAYS:-30}"
 
@@ -29,18 +29,21 @@ mkdir -p "$BACKUP_DIR"
 chmod 700 "$BACKUP_DIR"
 umask 077
 
-# --- Dump MySQL --------------------------------------------------------
+# --- Dump PostgreSQL ---------------------------------------------------
 if [ -n "${DB_NAME:-}" ]; then
-    echo "==> Dump MySQL ($DB_NAME)"
-    # MYSQL_PWD plutôt que -p<mdp> : évite d'exposer le mot de passe dans la
-    # liste des processus (ps aux) visible par les autres utilisateurs du serveur.
-    MYSQL_PWD="${DB_PASSWORD:-}" mysqldump \
-        -h "${DB_HOST:-127.0.0.1}" -P "${DB_PORT:-3306}" \
-        -u "${DB_USER:-presence}" \
-        --single-transaction --default-character-set=utf8mb4 \
-        --no-tablespaces \
+    echo "==> Dump PostgreSQL ($DB_NAME)"
+    # PGPASSWORD plutôt que -W interactif ou un mot de passe en ligne de
+    # commande : évite de l'exposer dans la liste des processus (ps aux)
+    # visible par les autres utilisateurs du serveur.
+    # --format=custom (plutôt qu'un simple .sql) : déjà compressé par pg_dump
+    # lui-même (zlib), et restaurable sélectivement avec pg_restore — y compris
+    # table par table. Un gzip supplémentaire par-dessus n'apporterait rien.
+    PGPASSWORD="${DB_PASSWORD:-}" pg_dump \
+        -h "${DB_HOST:-127.0.0.1}" -p "${DB_PORT:-5432}" \
+        -U "${DB_USER:-presence}" \
+        --format=custom --no-owner \
         "$DB_NAME" \
-        | gzip > "$BACKUP_DIR/db_${STAMP}.sql.gz"
+        > "$BACKUP_DIR/db_${STAMP}.dump"
 else
     echo "==> DB_NAME non défini : sauvegarde de db.sqlite3"
     cp "$APP_DIR/backend/db.sqlite3" "$BACKUP_DIR/db_${STAMP}.sqlite3"

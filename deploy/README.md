@@ -1,13 +1,13 @@
 # Déploiement — Gestion de Présence
 
-**Pile** : Django 6 (Gunicorn) + React (Vite) + MySQL, sur VPS Ubuntu avec
+**Pile** : Django 6 (Gunicorn) + React (Vite) + PostgreSQL, sur VPS Ubuntu avec
 **Nginx en frontal**, en **mono-origine** — un seul domaine sert l'API, l'admin
 et l'application React.
 
 | | |
 |---|---|
 | Domaine | `liste.rsekoua.org` |
-| Racine | `/var/www/liste.rsekoua.org` |
+| Racine | `/var/www/liste` |
 | Compte système | `presence` (dédié, sans privilège) |
 | Service | `presence.service` + `presence.socket` (systemd) |
 | Socket | `/run/presence.sock` (Unix — aucun port TCP exposé) |
@@ -24,7 +24,7 @@ connexion SSH au VPS et exécution de `deploy/deploy.sh`.
 | `presence.service` | Service Gunicorn, bac à sable systemd |
 | `deploy.sh` | Mise à jour : fetch → migrate → build → restart → santé → rollback |
 | `.env.prod.example` | Modèle des variables de production |
-| `backup.sh` | Sauvegarde quotidienne (dump MySQL + photos, rétention 30 j) |
+| `backup.sh` | Sauvegarde quotidienne (dump PostgreSQL + photos, rétention 30 j) |
 
 ---
 
@@ -42,7 +42,7 @@ le trafic entre Cloudflare et votre VPS repartirait en clair.
 
 ```bash
 sudo apt update
-sudo apt install -y nginx git curl mysql-server nodejs npm
+sudo apt install -y nginx git curl postgresql nodejs npm
 curl -LsSf https://astral.sh/uv/install.sh | sudo env UV_INSTALL_DIR=/usr/local/bin sh
 ```
 
@@ -51,19 +51,19 @@ général, ni accès aux autres sites du serveur :
 
 ```bash
 sudo adduser --system --group --shell /bin/bash \
-     --home /var/www/liste.rsekoua.org presence
+     --home /var/www/liste presence
 sudo usermod -aG presence www-data      # Nginx doit lire les statiques
-sudo mkdir -p /var/www/liste.rsekoua.org /var/www/certbot
-sudo chown presence:presence /var/www/liste.rsekoua.org
-sudo chmod 750 /var/www/liste.rsekoua.org
+sudo mkdir -p /var/www/liste /var/www/certbot
+sudo chown presence:presence /var/www/liste
+sudo chmod 750 /var/www/liste
 ```
 
 > `chmod 750` : les autres comptes du serveur n'entrent pas dans le dossier.
 > `www-data` y accède par le groupe `presence`.
 
-Pare-feu — seuls SSH et le web doivent être joignables. MySQL en particulier
-n'a rien à faire sur l'Internet (il écoute déjà sur `127.0.0.1` par défaut, ceci
-est la seconde barrière) :
+Pare-feu — seuls SSH et le web doivent être joignables. PostgreSQL en
+particulier n'a rien à faire sur l'Internet (il écoute déjà sur `127.0.0.1`
+par défaut, ceci est la seconde barrière) :
 
 ```bash
 sudo ufw allow OpenSSH
@@ -71,19 +71,24 @@ sudo ufw allow 'Nginx Full'
 sudo ufw enable
 ```
 
-## 2. Base de données MySQL
+## 2. Base de données PostgreSQL
 
 ```bash
-sudo mysql_secure_installation     # si ce n'est pas déjà fait
-sudo mysql -e "
-CREATE DATABASE presence CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'presence'@'localhost' IDENTIFIED BY 'MOT_DE_PASSE_FORT';
-GRANT ALL PRIVILEGES ON presence.* TO 'presence'@'localhost';
-FLUSH PRIVILEGES;"
+sudo -u postgres psql <<'SQL'
+CREATE DATABASE presence;
+CREATE USER presence WITH PASSWORD 'MOT_DE_PASSE_FORT';
+-- Propriétaire de la base (pas seulement des privilèges GRANT) : depuis
+-- PostgreSQL 15, un rôle non-propriétaire ne peut plus créer de table dans
+-- le schéma "public" par défaut. Sans ceci, la première migration Django
+-- échouerait avec "permission denied for schema public".
+ALTER DATABASE presence OWNER TO presence;
+SQL
 ```
 
-Le compte est limité à `localhost` et à cette seule base : il n'a aucun droit
-sur le reste de l'instance MySQL.
+Le rôle `presence` n'a de droits que sur cette base ; `pg_hba.conf` (fichier
+d'authentification de PostgreSQL) n'autorise par défaut que les connexions
+locales (`peer`/`scram-sha-256` sur `127.0.0.1`), donc rien à ouvrir côté
+réseau — cf. la note sur le pare-feu ci-dessus.
 
 ## 3. Clés SSH (deux paires, à ne pas confondre)
 
@@ -91,11 +96,11 @@ sur le reste de l'instance MySQL.
 
 ```bash
 sudo -u presence ssh-keygen -t ed25519 -C "vps-presence-readonly" \
-     -f /var/www/liste.rsekoua.org/.ssh/id_ed25519_presence -N ""
-sudo -u presence cat /var/www/liste.rsekoua.org/.ssh/id_ed25519_presence.pub
+     -f /var/www/liste/.ssh/id_ed25519_presence -N ""
+sudo -u presence cat /var/www/liste/.ssh/id_ed25519_presence.pub
 # → GitHub → repo → Settings → Deploy keys → Add (NE PAS cocher "Allow write access")
 
-sudo -u presence tee -a /var/www/liste.rsekoua.org/.ssh/config >/dev/null <<'EOF'
+sudo -u presence tee -a /var/www/liste/.ssh/config >/dev/null <<'EOF'
 Host github-presence
     HostName github.com
     User git
@@ -108,11 +113,11 @@ EOF
 
 ```bash
 ssh-keygen -t ed25519 -C "github-actions-deploy" -f ~/gh_actions_key -N ""
-sudo -u presence mkdir -p /var/www/liste.rsekoua.org/.ssh
+sudo -u presence mkdir -p /var/www/liste/.ssh
 cat ~/gh_actions_key.pub | sudo -u presence tee -a \
-    /var/www/liste.rsekoua.org/.ssh/authorized_keys
-sudo chmod 700 /var/www/liste.rsekoua.org/.ssh
-sudo chmod 600 /var/www/liste.rsekoua.org/.ssh/authorized_keys
+    /var/www/liste/.ssh/authorized_keys
+sudo chmod 700 /var/www/liste/.ssh
+sudo chmod 600 /var/www/liste/.ssh/authorized_keys
 cat ~/gh_actions_key      # clé PRIVÉE → secret GitHub SSH_PRIVATE_KEY (étape 9)
 rm ~/gh_actions_key       # ne pas la laisser traîner sur le VPS
 ```
@@ -132,13 +137,13 @@ sudo systemctl restart ssh
 
 ```bash
 sudo -u presence -H bash
-cd /var/www/liste.rsekoua.org
+cd /var/www/liste
 git clone git@github-presence:rsekoua/listePresence.git .
 
 cd backend
 cp ../deploy/.env.prod.example .env
 chmod 600 .env          # ⚠️ obligatoire : deploy.sh refuse de tourner sinon
-nano .env               # renseigner les 3 secrets + le mot de passe MySQL
+nano .env               # renseigner les 3 secrets + le mot de passe PostgreSQL
 ```
 
 Générer chaque secret séparément :
@@ -153,7 +158,7 @@ seul secret ne donne à la fois les sessions et le pouvoir de forger des jetons.
 ## 5. Premier déploiement (manuel)
 
 ```bash
-cd /var/www/liste.rsekoua.org/backend
+cd /var/www/liste/backend
 uv sync --no-dev
 .venv/bin/python manage.py migrate
 .venv/bin/python manage.py createcachetable   # requis : compteurs anti-bruteforce partagés
@@ -170,7 +175,7 @@ exit                                            # quitter le shell `presence`
 ## 6. Service Gunicorn
 
 ```bash
-cd /var/www/liste.rsekoua.org
+cd /var/www/liste
 sudo cp deploy/presence.socket deploy/presence.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now presence.socket presence.service
@@ -303,7 +308,7 @@ sensible du système. Si vous les répliquez hors du VPS, chiffrez-les
 
 Automatiques (push sur `main`). Manuellement :
 ```bash
-sudo -u presence bash /var/www/liste.rsekoua.org/deploy/deploy.sh
+sudo -u presence bash /var/www/liste/deploy/deploy.sh
 ```
 
 ## Rollback
@@ -313,7 +318,7 @@ répond pas après redémarrage. Manuellement :
 
 ```bash
 sudo -u presence -H bash
-cd /var/www/liste.rsekoua.org
+cd /var/www/liste
 git checkout "$(cat deploy/.last_deploy_sha)"
 bash deploy/deploy.sh
 ```
@@ -323,8 +328,8 @@ inverser de façon fiable). Si l'échec vient d'une migration destructrice,
 restaurer le dernier dump :
 
 ```bash
-gunzip < /var/backups/presence/db_AAAAMMJJ_HHMMSS.sql.gz | \
-  sudo mysql presence
+sudo -u postgres pg_restore --clean --if-exists --no-owner --dbname=presence \
+     /var/backups/presence/db_AAAAMMJJ_HHMMSS.dump
 ```
 
 ---
@@ -349,7 +354,7 @@ en-têtes de sécurité, ni l'allowlist d'IP de l'admin.
 **Limitation de débit à deux étages.** Nginx arrête le gros du flot (10 req/min
 sur la connexion) ; l'application compte plus finement (par IP *et* par compte
 visé pour la connexion, par IP *et* par activité pour le pré-remplissage). Les
-compteurs applicatifs vivent dans la table de cache MySQL, donc partagés entre
+compteurs applicatifs vivent dans la table de cache PostgreSQL, donc partagés entre
 les trois workers Gunicorn — d'où le `createcachetable` obligatoire.
 
 **Le pré-remplissage par n° de CNI est le point d'exposition principal.**

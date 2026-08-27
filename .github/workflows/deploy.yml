@@ -110,7 +110,7 @@ jobs:
           fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
           command_timeout: 15m
           script_stop: true
-          script: bash /var/www/liste.rsekoua.org/deploy/deploy.sh
+          script: bash /var/www/liste/deploy/deploy.sh
 
       - name: Vérification publique
         # Contrôle de bout en bout : DNS + TLS + Nginx + Gunicorn + Django.

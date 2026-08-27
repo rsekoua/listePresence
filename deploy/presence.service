@@ -5,27 +5,27 @@
 #   sudo systemctl daemon-reload
 #   sudo systemctl enable --now presence.socket presence.service
 #
-# Racine applicative : /var/www/liste.rsekoua.org, propriétaire `presence`
+# Racine applicative : /var/www/liste, propriétaire `presence`
 # (compte système sans shell ni mot de passe, dédié à cette application).
 
 [Unit]
 Description=Gunicorn — Gestion de Présence
 Requires=presence.socket
-After=network-online.target mysql.service
+After=network-online.target postgresql.service
 Wants=network-online.target
 
 [Service]
 Type=notify
 User=presence
 Group=presence
-WorkingDirectory=/var/www/liste.rsekoua.org/backend
-EnvironmentFile=/var/www/liste.rsekoua.org/backend/.env
+WorkingDirectory=/var/www/liste/backend
+EnvironmentFile=/var/www/liste/backend/.env
 # Sorties non tamponnées : les journaux arrivent dans journald en temps réel
 # plutôt qu'au remplissage du tampon — indispensable pour diagnostiquer un
 # incident en cours.
 Environment=PYTHONUNBUFFERED=1
 
-ExecStart=/var/www/liste.rsekoua.org/backend/.venv/bin/gunicorn \
+ExecStart=/var/www/liste/backend/.venv/bin/gunicorn \
     config.wsgi:application \
     --bind unix:/run/presence.sock \
     --workers 3 \
@@ -79,8 +79,8 @@ UMask=0027
 # écriture les deux seuls chemins où l'application écrit réellement.
 # (La socket, elle, est créée par presence.socket AVANT le démarrage et héritée
 #  par descripteur de fichier — Gunicorn n'a donc jamais à écrire dans /run.)
-ReadWritePaths=/var/www/liste.rsekoua.org/backend/media
-ReadWritePaths=/var/www/liste.rsekoua.org/backend/logs
+ReadWritePaths=/var/www/liste/backend/media
+ReadWritePaths=/var/www/liste/backend/logs
 
 # Bornes de ressources : un afflux d'uploads ne doit pas faire tomber le VPS.
 LimitNOFILE=4096

@@ -163,31 +163,24 @@ WSGI_APPLICATION = "config.wsgi.application"
 #
 # Par défaut : SQLite (dev). Si DB_NAME est défini (prod), bascule sur
 # PostgreSQL via les variables d'environnement — aucun changement de code.
-# (PostgreSQL requiert le paquet psycopg : `uv add "psycopg[binary]"`.)
+# Pilote : psycopg[binary] (paquet du projet), wheel pré-compilée — pas besoin
+# de libpq-dev ni de toolchain C sur le serveur de déploiement.
 
 if os.getenv("DB_NAME"):
-    DB_ENGINE = os.getenv("DB_ENGINE", "django.db.backends.postgresql")
-    _db = {
-        "ENGINE": DB_ENGINE,
-        "NAME": os.getenv("DB_NAME"),
-        "USER": os.getenv("DB_USER", ""),
-        "PASSWORD": os.getenv("DB_PASSWORD", ""),
-        "HOST": os.getenv("DB_HOST", "127.0.0.1"),
-        "PORT": os.getenv("DB_PORT", "5432"),
-        "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "60")),
-    }
-    # MySQL/MariaDB : utf8mb4 pour les accents et emojis. `STRICT_TRANS_TABLES`
-    # transforme en erreur les troncatures silencieuses (une chaîne trop longue
-    # serait sinon coupée sans avertissement — perte de données invisible).
-    if "mysql" in DB_ENGINE:
-        _db["OPTIONS"] = {
-            "charset": "utf8mb4",
-            "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
+    DATABASES = {
+        "default": {
+            "ENGINE": os.getenv("DB_ENGINE", "django.db.backends.postgresql"),
+            "NAME": os.getenv("DB_NAME"),
+            "USER": os.getenv("DB_USER", ""),
+            "PASSWORD": os.getenv("DB_PASSWORD", ""),
+            "HOST": os.getenv("DB_HOST", "127.0.0.1"),
+            "PORT": os.getenv("DB_PORT", "5432"),
+            "CONN_MAX_AGE": int(os.getenv("DB_CONN_MAX_AGE", "60")),
         }
-    DATABASES = {"default": _db}
+    }
 
-    # Cache partagé entre processus (rate-limiting fiable sous Passenger).
-    # Nécessite `python manage.py createcachetable` au déploiement.
+    # Cache partagé entre processus (rate-limiting fiable sous plusieurs
+    # workers Gunicorn). Nécessite `python manage.py createcachetable`.
     CACHES = {
         "default": {
             "BACKEND": "django.core.cache.backends.db.DatabaseCache",
