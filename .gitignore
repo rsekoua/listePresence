@@ -32,4 +32,3 @@ liste_*.csv
 
 # Déploiement — état local au serveur, jamais committé
 deploy/.last_deploy_sha
-deploy/.deploy.lock
