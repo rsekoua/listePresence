@@ -77,6 +77,28 @@ class PublicFormTests(TestCase):
         r = self._submit(self.act.token_qr)
         self.assertEqual(r.status_code, 409)
 
+    def test_anti_doublon_cni_fenetre_de_course(self):
+        """Régression : si le contrôle .exists() passe (deux soumissions
+        concurrentes dans la même fenêtre) mais qu'un participant avec ce CNI
+        existe déjà en base au moment du .save(), la contrainte unique doit
+        être rattrapée proprement (409, pas de 500) plutôt que de laisser
+        remonter l'IntegrityError."""
+        from unittest.mock import patch
+
+        Participant.objects.create(
+            activite=self.act, nom="X", prenom="Y", structure="S", fonction="F",
+            telephone_wave="+2250701020304", email="x@x.ci", numero_cni="CI999999",
+        )
+        with patch("apps.participants.api.Participant.objects.filter") as mock_filter:
+            mock_filter.return_value.exists.return_value = False
+            r = self._submit(self.act.token_qr, cni="CI999999")
+
+        self.assertEqual(r.status_code, 409)
+        self.assertEqual(
+            Participant.objects.filter(activite=self.act, numero_cni="CI999999").count(),
+            1,
+        )
+
     def test_collecte_fermee_refuse(self):
         r = self._submit(self.closed.token_qr)
         self.assertEqual(r.status_code, 403)

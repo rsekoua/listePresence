@@ -15,6 +15,7 @@ from uuid import UUID
 
 from django.conf import settings
 from django.core.files.base import ContentFile
+from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404
 from ninja import File, Form, Router, Schema
 from ninja.errors import HttpError
@@ -269,6 +270,23 @@ def participer(
     )
     participant.photo_cni_recto.save("recto.jpg", ContentFile(recto_bytes), save=False)
     participant.photo_cni_verso.save("verso.jpg", ContentFile(verso_bytes), save=False)
-    participant.save()
+    try:
+        # atomic() : sur IntegrityError, ne fait échouer qu'un savepoint local
+        # plutôt que de casser une éventuelle transaction englobante — sans
+        # quoi les .delete() de nettoyage ci-dessous échoueraient à leur tour.
+        with transaction.atomic():
+            participant.save()
+    except IntegrityError:
+        # Deux soumissions concurrentes pour le même (activite, numero_cni) ont
+        # toutes deux passé le contrôle d'existence ci-dessus (fenêtre TOCTOU) ;
+        # la contrainte unique en base tranche. On nettoie les photos déjà
+        # écrites sur le disque par les .save(save=False) ci-dessus, sinon
+        # elles restent orphelines (aucune ligne en base ne les référence).
+        participant.photo_cni_recto.delete(save=False)
+        participant.photo_cni_verso.delete(save=False)
+        return 409, MessageOut(
+            detail="Un participant avec ce numéro de CNI est déjà enregistré "
+            "pour cette activité."
+        )
 
     return 201, participant

@@ -1,4 +1,4 @@
-import axios from 'axios'
+import axios, { type InternalAxiosRequestConfig } from 'axios'
 
 /** Clés de stockage des tokens JWT (localStorage). */
 export const TOKEN_KEY = 'presence_token'
@@ -23,16 +23,61 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// Redirige vers la connexion si le token est expiré/invalide.
+function clearTokensAndRedirectToLogin() {
+  localStorage.removeItem(TOKEN_KEY)
+  localStorage.removeItem(REFRESH_KEY)
+  if (window.location.pathname !== '/login') {
+    window.location.assign('/login')
+  }
+}
+
+// Un seul rafraîchissement en vol à la fois : les requêtes qui échouent en 401
+// pendant qu'il tourne attendent son résultat au lieu de déclencher chacune
+// leur propre appel à /auth/refresh. `axios` (pas `api`) pour ne pas
+// re-déclencher cet intercepteur en cas de 401 sur le refresh lui-même.
+let refreshing: Promise<string> | null = null
+
+function refreshAccessToken(): Promise<string> {
+  if (!refreshing) {
+    refreshing = (async () => {
+      const refresh = localStorage.getItem(REFRESH_KEY)
+      if (!refresh) {
+        throw new Error('Aucun token de rafraîchissement disponible.')
+      }
+      const { data } = await axios.post<{ access: string }>('/api/auth/refresh', { refresh })
+      localStorage.setItem(TOKEN_KEY, data.access)
+      return data.access
+    })().finally(() => {
+      refreshing = null
+    })
+  }
+  return refreshing
+}
+
+type RetriableConfig = InternalAxiosRequestConfig & { _retry?: boolean }
+
+// Sur un 401, tente un rafraîchissement du token puis rejoue la requête une
+// seule fois ; si le refresh échoue (token de rafraîchissement absent/expiré),
+// bascule sur la déconnexion complète comme avant.
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      localStorage.removeItem(TOKEN_KEY)
-      localStorage.removeItem(REFRESH_KEY)
-      if (window.location.pathname !== '/login') {
-        window.location.assign('/login')
+  async (error) => {
+    const original = error.config as RetriableConfig | undefined
+    const isLoginRequest = original?.url?.includes('/auth/login')
+
+    if (error.response?.status === 401 && original && !original._retry && !isLoginRequest) {
+      original._retry = true
+      try {
+        await refreshAccessToken()
+        return api(original)
+      } catch {
+        clearTokensAndRedirectToLogin()
+        return Promise.reject(error)
       }
+    }
+
+    if (error.response?.status === 401) {
+      clearTokensAndRedirectToLogin()
     }
     return Promise.reject(error)
   },
